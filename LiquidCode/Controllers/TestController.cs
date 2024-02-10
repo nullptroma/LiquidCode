@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace LiquidCode.Controllers;
 
-[Route("[controller]")]
+[Route("api/[controller]")]
 [ApiController]
 public class TestController : ControllerBase
 {
