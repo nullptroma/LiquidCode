@@ -1,6 +1,8 @@
 using System.Text;
 using LiquidCode;
+using LiquidCode.Db;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -8,7 +10,9 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.AddEnvironmentVariables();
 builder.Services.AddControllers();
 
-Console.WriteLine($"Test env: {builder.Configuration["TEST_ENV"]}");
+// Data base connection
+var connectionString = new ConnectionStringParser(builder.Configuration[ConfigurationStrings.PgUri]!).EfCoreString;
+builder.Services.AddDbContext<LiquidDbContext>(options => options.UseNpgsql(connectionString));
 
 // JWT for asp net core
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -32,6 +36,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())

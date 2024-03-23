@@ -1,16 +1,19 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace LiquidCode.Controllers;
 
 [Route("api/[controller]")]
 [ApiController]
-public class TestController : ControllerBase
+public class TestController(DbContext? dbContext) : ControllerBase
 {
     [HttpGet]
     public IEnumerable<string> Get()
     {
-        return new string[] { "value1", "value2" };
+        return dbContext is not null
+            ? [$"Can connect: {dbContext.Database.CanConnect()} "]
+            : new List<string> { "No context " };
     }
 
     [HttpGet("{id}")]
