@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text;
 using LiquidCode;
 using LiquidCode.Db;
@@ -36,7 +37,13 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+StartupMethods startup = new StartupMethods(app);
 
+if(app.Configuration[ConfigurationStrings.MigrateOnly] == "1")
+{
+    bool res = await startup.Migrate(connectionString);
+    return res ? 0 : 1;
+}
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
@@ -51,3 +58,4 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+return 0;

@@ -10,6 +10,5 @@ public class LiquidDbContext : DbContext
     public LiquidDbContext(DbContextOptions<LiquidDbContext> options)
         : base(options)
     {
-        Database.EnsureCreated();
     }
 }
