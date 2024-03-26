@@ -9,6 +9,24 @@
     }
   },
   "profiles": {
+    "drop-db": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "applicationUrl": "http://localhost:8081",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "DROP_DATABASE": "1"
+      }
+    },
+    "migrate-db": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "applicationUrl": "http://localhost:8081",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "MIGRATE_ONLY": "1"
+      }
+    },
     "http": {
       "commandName": "Project",
       "dotnetRunMessages": true,

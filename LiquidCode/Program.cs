@@ -13,7 +13,8 @@ builder.Services.AddControllers();
 
 // Data base connection
 var connectionString = new ConnectionStringParser(builder.Configuration[ConfigurationStrings.PgUri]!).EfCoreString;
-builder.Services.AddDbContext<LiquidDbContext>(options => options.UseNpgsql(connectionString));
+builder.Services.AddDbContext<LiquidDbContext>(options =>
+    options.UseNpgsql(connectionString).UseSnakeCaseNamingConvention());
 
 // JWT for asp net core
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -27,7 +28,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateIssuerSigningKey = true,
             ValidIssuer = builder.Configuration[ConfigurationStrings.JwtIssuer],
             ValidAudience = builder.Configuration[ConfigurationStrings.JwtAudience],
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration[ConfigurationStrings.JwtSigningKey] ?? "0"))
+            IssuerSigningKey =
+                new SymmetricSecurityKey(
+                    Encoding.UTF8.GetBytes(builder.Configuration[ConfigurationStrings.JwtSigningKey] ?? "0"))
         };
     });
 
@@ -39,10 +42,31 @@ builder.Services.AddSwaggerGen();
 var app = builder.Build();
 StartupMethods startup = new StartupMethods(app);
 
-if(app.Configuration[ConfigurationStrings.MigrateOnly] == "1")
+if (app.Configuration[ConfigurationStrings.MigrateOnly] == "1")
 {
-    bool res = await startup.Migrate(connectionString);
-    return res ? 0 : 1;
+    try
+    {
+        bool res = await startup.Migrate(connectionString);
+        return res ? 0 : 1;
+    }
+    catch (Exception e)
+    {
+        Console.WriteLine(e);
+        throw;
+    }
+}
+if (app.Configuration[ConfigurationStrings.DropDatabase] == "1")
+{
+    try
+    {
+        bool res = await startup.DropDb(connectionString);
+        return res ? 0 : 1;
+    }
+    catch (Exception e)
+    {
+        Console.WriteLine(e);
+        throw;
+    }
 }
 
 // Configure the HTTP request pipeline.
