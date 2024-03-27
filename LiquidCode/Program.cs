@@ -46,7 +46,7 @@ if (app.Configuration[ConfigurationStrings.MigrateOnly] == "1")
 {
     try
     {
-        bool res = await startup.Migrate(connectionString);
+        bool res = startup.Migrate(connectionString);
         return res ? 0 : 1;
     }
     catch (Exception e)
@@ -59,7 +59,7 @@ if (app.Configuration[ConfigurationStrings.DropDatabase] == "1")
 {
     try
     {
-        bool res = await startup.DropDb(connectionString);
+        bool res = startup.DropDb(connectionString);
         return res ? 0 : 1;
     }
     catch (Exception e)
@@ -70,7 +70,7 @@ if (app.Configuration[ConfigurationStrings.DropDatabase] == "1")
 }
 
 // Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
+//if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
     app.UseSwaggerUI();

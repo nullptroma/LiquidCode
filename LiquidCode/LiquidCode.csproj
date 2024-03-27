@@ -35,6 +35,22 @@
     <ItemGroup>
       <Folder Include="Controllers\" />
       <Folder Include="Migrations\" />
+      <Folder Include="Models\Domain\" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <EmbeddedResource Update="StringResources.resx">
+        <Generator>ResXFileCodeGenerator</Generator>
+        <LastGenOutput>StringResources.Designer.cs</LastGenOutput>
+      </EmbeddedResource>
+    </ItemGroup>
+
+    <ItemGroup>
+      <Compile Update="StringResources.Designer.cs">
+        <DesignTime>True</DesignTime>
+        <AutoGen>True</AutoGen>
+        <DependentUpon>StringResources.resx</DependentUpon>
+      </Compile>
     </ItemGroup>
 
 </Project>

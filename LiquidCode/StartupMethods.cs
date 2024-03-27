@@ -6,7 +6,7 @@ namespace LiquidCode;
 
 public class StartupMethods(WebApplication app)
 {
-    public async Task<bool> Migrate(string connectionString)
+    public bool Migrate(string connectionString)
     {
         using var scope = app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<LiquidDbContext>();
@@ -16,7 +16,7 @@ public class StartupMethods(WebApplication app)
         return true;
     }
     
-    public async Task<bool> DropDb(string connectionString)
+    public bool DropDb(string connectionString)
     {
         using var scope = app.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<LiquidDbContext>();
