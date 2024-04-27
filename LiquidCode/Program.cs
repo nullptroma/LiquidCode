@@ -30,7 +30,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidAudience = builder.Configuration[ConfigurationStrings.JwtAudience],
             IssuerSigningKey =
                 new SymmetricSecurityKey(
-                    Encoding.UTF8.GetBytes(builder.Configuration[ConfigurationStrings.JwtSigningKey] ?? "0"))
+                    Encoding.UTF8.GetBytes(builder.Configuration[ConfigurationStrings.JwtSigningKey] ?? "0")),
         };
     });
 
@@ -38,6 +38,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+builder.Services.AddCors(o => o.AddPolicy("LowCorsPolicy", corsBuilder =>
+{
+    corsBuilder.AllowAnyOrigin()
+        .AllowAnyMethod()
+        .AllowAnyHeader();
+}));
 
 var app = builder.Build();
 StartupMethods startup = new StartupMethods(app);
@@ -68,6 +75,8 @@ if (app.Configuration[ConfigurationStrings.DropDatabase] == "1")
         throw;
     }
 }
+
+app.UseCors("LowCorsPolicy");
 
 // Configure the HTTP request pipeline.
 //if (app.Environment.IsDevelopment())

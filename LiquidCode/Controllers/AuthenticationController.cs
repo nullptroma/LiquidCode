@@ -97,7 +97,7 @@ public class AuthenticationController(IConfiguration configuration, LiquidDbCont
             Token = tokens.RefreshToken,
             DbUser = dbUser,
             Expires = DateTime.UtcNow.Add(TimeSpan.FromDays(7)),
-            OsName = userAgent.Substring(0, Math.Min(32, userAgent.Length)),
+            OsName = userAgent.Substring(0, Math.Min(512, userAgent.Length)),
             IpAddress = Request.HttpContext.Connection.RemoteIpAddress?.ToString() ?? ""
         });
         dbContext.SaveChanges();
