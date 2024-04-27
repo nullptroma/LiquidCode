@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using System.Text;
 using LiquidCode;
 using LiquidCode.Db;
@@ -30,7 +29,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidAudience = builder.Configuration[ConfigurationStrings.JwtAudience],
             IssuerSigningKey =
                 new SymmetricSecurityKey(
-                    Encoding.UTF8.GetBytes(builder.Configuration[ConfigurationStrings.JwtSigningKey] ?? "0")),
+                    Encoding.UTF8.GetBytes(builder.Configuration[ConfigurationStrings.JwtSigningKey] ?? "0"))
         };
     });
 
@@ -47,13 +46,12 @@ builder.Services.AddCors(o => o.AddPolicy("LowCorsPolicy", corsBuilder =>
 }));
 
 var app = builder.Build();
-StartupMethods startup = new StartupMethods(app);
+var startup = new StartupMethods(app);
 
 if (app.Configuration[ConfigurationStrings.MigrateOnly] == "1")
-{
     try
     {
-        bool res = startup.Migrate(connectionString);
+        var res = startup.Migrate(connectionString);
         return res ? 0 : 1;
     }
     catch (Exception e)
@@ -61,12 +59,11 @@ if (app.Configuration[ConfigurationStrings.MigrateOnly] == "1")
         Console.WriteLine(e);
         throw;
     }
-}
+
 if (app.Configuration[ConfigurationStrings.DropDatabase] == "1")
-{
     try
     {
-        bool res = startup.DropDb(connectionString);
+        var res = startup.DropDb(connectionString);
         return res ? 0 : 1;
     }
     catch (Exception e)
@@ -74,7 +71,6 @@ if (app.Configuration[ConfigurationStrings.DropDatabase] == "1")
         Console.WriteLine(e);
         throw;
     }
-}
 
 app.UseCors("LowCorsPolicy");
 

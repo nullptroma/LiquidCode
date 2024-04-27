@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using LiquidCode.Db;
 using Microsoft.EntityFrameworkCore;
 
@@ -15,7 +14,7 @@ public class StartupMethods(WebApplication app)
         Console.WriteLine("Migration is complete!");
         return true;
     }
-    
+
     public bool DropDb(string connectionString)
     {
         using var scope = app.Services.CreateScope();

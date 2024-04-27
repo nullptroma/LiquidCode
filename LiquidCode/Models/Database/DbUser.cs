@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
 
-namespace LiquidCode.Db.Models;
+namespace LiquidCode.Models.Database;
 
 [Index(nameof(Username))]
 public class DbUser

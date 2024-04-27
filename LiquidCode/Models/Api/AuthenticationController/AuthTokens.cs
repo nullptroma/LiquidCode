@@ -1,3 +1,3 @@
-namespace LiquidCode.Models.Auth;
+namespace LiquidCode.Models.Api.AuthenticationController;
 
-public record class AuthTokens(string Jwt, string RefreshToken);
+public record AuthTokens(string Jwt, string RefreshToken);

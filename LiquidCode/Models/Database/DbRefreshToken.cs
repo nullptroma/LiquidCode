@@ -1,11 +1,10 @@
 using System.ComponentModel.DataAnnotations;
-using Microsoft.EntityFrameworkCore;
 
-namespace LiquidCode.Db.Models;
+namespace LiquidCode.Models.Database;
 
 public class DbRefreshToken
 {
-    [Key] public string Token { get; set; } = "";
+    [Key] [StringLength(128)] public string Token { get; set; } = "";
     public DbUser DbUser { get; set; } = null!;
     public DateTime Expires { get; set; }
     [StringLength(512)] public string OsName { get; set; } = "";

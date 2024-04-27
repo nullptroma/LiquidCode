@@ -2,8 +2,8 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using LiquidCode.Db;
-using LiquidCode.Db.Models;
-using LiquidCode.Models.Auth;
+using LiquidCode.Models.Api.AuthenticationController;
+using LiquidCode.Models.Database;
 using LiquidCode.Tools;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -27,7 +27,8 @@ public class AuthenticationController(IConfiguration configuration, LiquidDbCont
         var passHash = (model.Password + salt).ComputeSha256();
         try
         {
-            dbContext.Users.Add(new DbUser { Username = model.Username, Email = model.Email, Salt = salt, PassHash = passHash });
+            dbContext.Users.Add(new DbUser
+                { Username = model.Username, Email = model.Email, Salt = salt, PassHash = passHash });
             dbContext.SaveChanges();
             return Login(new LoginModel(model.Username, model.Password));
         }
@@ -68,7 +69,7 @@ public class AuthenticationController(IConfiguration configuration, LiquidDbCont
 
         return AuthorizeUser(token.DbUser);
     }
-    
+
     [HttpGet]
     [Authorize]
     [Route("whoami")]
@@ -79,10 +80,10 @@ public class AuthenticationController(IConfiguration configuration, LiquidDbCont
             return Unauthorized();
         return Ok(username);
     }
-    
+
     private IActionResult AuthorizeUser(DbUser dbUser)
     {
-        var tokens = GenerateTokens(dbUser.Username);
+        var tokens = GenerateTokens(dbUser.Username, dbUser.Id);
         var refreshTokens = dbContext.RefreshTokens.Where(t => t.DbUser == dbUser);
         if (refreshTokens.Count() == 50) // if already 50 tokens, remove the oldest one
         {
@@ -91,7 +92,7 @@ public class AuthenticationController(IConfiguration configuration, LiquidDbCont
                 dbContext.RefreshTokens.Remove(oldest);
         }
 
-        var userAgent = Request.Headers?.UserAgent.ToString() ?? "Unknown";
+        var userAgent = Request.Headers.UserAgent.ToString();
         dbContext.RefreshTokens.Add(new DbRefreshToken
         {
             Token = tokens.RefreshToken,
@@ -104,15 +105,15 @@ public class AuthenticationController(IConfiguration configuration, LiquidDbCont
         return Ok(tokens);
     }
 
-    private AuthTokens GenerateTokens(string username)
+    private AuthTokens GenerateTokens(string username, int id)
     {
-        var claims = new List<Claim> { new Claim(ClaimTypes.Name, username) };
+        var claims = new List<Claim> { new(ClaimTypes.Name, username), new(ClaimTypes.NameIdentifier, id.ToString()) };
         var securityKey =
             new SymmetricSecurityKey(Encoding.UTF8.GetBytes(configuration[ConfigurationStrings.JwtSigningKey] ?? "0"));
         var jwt = new JwtSecurityToken(
-            issuer: configuration[ConfigurationStrings.JwtIssuer],
-            audience: configuration[ConfigurationStrings.JwtAudience],
-            claims: claims,
+            configuration[ConfigurationStrings.JwtIssuer],
+            configuration[ConfigurationStrings.JwtAudience],
+            claims,
             expires: DateTime.UtcNow.Add(TimeSpan.FromMinutes(2)),
             signingCredentials: new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256));
         var token = new JwtSecurityTokenHandler().WriteToken(jwt)!;
