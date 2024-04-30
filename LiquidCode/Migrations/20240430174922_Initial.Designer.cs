@@ -3,6 +3,7 @@ using System;
 using LiquidCode.Db;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace LiquidCode.Migrations
 {
     [DbContext(typeof(LiquidDbContext))]
-    partial class LiquidDbContextModelSnapshot : ModelSnapshot
+    [Migration("20240430174922_Initial")]
+    partial class Initial
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -103,8 +106,8 @@ namespace LiquidCode.Migrations
                     b.HasKey("Id")
                         .HasName("pk_missions_text_data");
 
-                    b.HasIndex("MissionId", "Language")
-                        .HasDatabaseName("ix_missions_text_data_mission_id_language");
+                    b.HasIndex("MissionId")
+                        .HasDatabaseName("ix_missions_text_data_mission_id");
 
                     b.ToTable("missions_text_data", (string)null);
                 });

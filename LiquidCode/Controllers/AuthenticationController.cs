@@ -105,7 +105,7 @@ public class AuthenticationController(IConfiguration configuration, LiquidDbCont
         return Ok(tokens);
     }
 
-    private AuthTokens GenerateTokens(string username, int id)
+    private AuthTokensModel GenerateTokens(string username, int id)
     {
         var claims = new List<Claim> { new(ClaimTypes.Name, username), new(ClaimTypes.NameIdentifier, id.ToString()) };
         var securityKey =
@@ -118,6 +118,6 @@ public class AuthenticationController(IConfiguration configuration, LiquidDbCont
             signingCredentials: new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256));
         var token = new JwtSecurityTokenHandler().WriteToken(jwt)!;
         var refresh = StringTools.RandomBase64(64);
-        return new AuthTokens(token, refresh);
+        return new AuthTokensModel(token, refresh);
     }
 }

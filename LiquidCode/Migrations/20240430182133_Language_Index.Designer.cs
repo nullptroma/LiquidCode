@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace LiquidCode.Migrations
 {
     [DbContext(typeof(LiquidDbContext))]
-    [Migration("20240427164132_Missions")]
-    partial class Missions
+    [Migration("20240430182133_Language_Index")]
+    partial class Language_Index
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -48,13 +48,21 @@ namespace LiquidCode.Migrations
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("text")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
                         .HasColumnName("name");
 
-                    b.Property<string>("S3FileName")
+                    b.Property<string>("S3PrivateKey")
                         .IsRequired()
-                        .HasColumnType("text")
-                        .HasColumnName("s3file_name");
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("s3private_key");
+
+                    b.Property<string>("S3PublicKey")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("s3public_key");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -67,6 +75,41 @@ namespace LiquidCode.Migrations
                         .HasDatabaseName("ix_missions_author_id");
 
                     b.ToTable("missions", (string)null);
+                });
+
+            modelBuilder.Entity("LiquidCode.Models.Database.DbMissionPublicTextData", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Data")
+                        .IsRequired()
+                        .HasMaxLength(30000)
+                        .HasColumnType("character varying(30000)")
+                        .HasColumnName("data");
+
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("language");
+
+                    b.Property<int?>("MissionId")
+                        .IsRequired()
+                        .HasColumnType("integer")
+                        .HasColumnName("mission_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_missions_text_data");
+
+                    b.HasIndex("MissionId", "Language")
+                        .HasDatabaseName("ix_missions_text_data_mission_id_language");
+
+                    b.ToTable("missions_text_data", (string)null);
                 });
 
             modelBuilder.Entity("LiquidCode.Models.Database.DbRefreshToken", b =>

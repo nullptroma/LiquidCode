@@ -1,6 +1,8 @@
+using System.Collections.Immutable;
 using System.Text;
 using LiquidCode;
 using LiquidCode.Db;
+using LiquidCode.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -9,6 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Configuration.AddEnvironmentVariables();
 builder.Services.AddControllers();
+builder.Services.AddS3Buckets(builder.Configuration);
 
 // Data base connection
 var connectionString = new ConnectionStringParser(builder.Configuration[ConfigurationStrings.PgUri]!).EfCoreString;
