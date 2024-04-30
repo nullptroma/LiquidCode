@@ -141,8 +141,8 @@ public class MissionsController(
             return BadRequest();
         var hasNext = dbContext.Missions.Count() > pageSize * (page + 1);
         var missions = dbContext.Missions.OrderBy(m=>m.Id).Skip(pageSize * page).Take(pageSize);
-        var apiList = missions.Select(m =>
-            new MissionModel(m));
+        var apiList = missions.Select(dbModel =>
+            new MissionModel(dbModel.Id, dbModel.Author.Id, dbModel.Name, dbModel.Difficulty, dbModel.CreatedAt, dbModel.UpdatedAt));
         return Ok(new MissionsPage(hasNext, apiList));
     }
 

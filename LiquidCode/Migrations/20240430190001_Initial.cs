@@ -95,9 +95,9 @@ namespace LiquidCode.Migrations
                 column: "author_id");
 
             migrationBuilder.CreateIndex(
-                name: "ix_missions_text_data_mission_id",
+                name: "ix_missions_text_data_mission_id_language",
                 table: "missions_text_data",
-                column: "mission_id");
+                columns: new[] { "mission_id", "language" });
 
             migrationBuilder.CreateIndex(
                 name: "ix_refresh_tokens_db_user_id",

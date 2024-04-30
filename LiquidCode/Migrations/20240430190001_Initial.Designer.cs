@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace LiquidCode.Migrations
 {
     [DbContext(typeof(LiquidDbContext))]
-    [Migration("20240430182133_Language_Index")]
-    partial class Language_Index
+    [Migration("20240430190001_Initial")]
+    partial class Initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

@@ -1,4 +1,3 @@
-using System.Collections.Immutable;
 using System.Text;
 using LiquidCode;
 using LiquidCode.Db;
@@ -10,13 +9,47 @@ using Microsoft.IdentityModel.Tokens;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Configuration.AddEnvironmentVariables();
+
+var dbConnectionString = new ConnectionStringParser(builder.Configuration[ConfigurationStrings.PgUri]!).EfCoreString;
+
+if (builder.Configuration[ConfigurationStrings.DropDatabase] == "1")
+{
+    try
+    {
+        var optionsBuilder = new DbContextOptionsBuilder<LiquidDbContext>();
+        optionsBuilder.UseNpgsql(dbConnectionString);
+        var context =  new LiquidDbContext(optionsBuilder.Options);
+        var res = StartupMethods.DropDb(context);
+        Console.WriteLine("Drop is complete!");
+        return res ? 0 : 1;
+    }
+    catch (Exception e)
+    {
+        Console.WriteLine(e);
+        throw;
+    }
+}
+if (builder.Configuration[ConfigurationStrings.MigrateOnly] == "1")
+{
+    try
+    {
+        var optionsBuilder = new DbContextOptionsBuilder<LiquidDbContext>();
+        optionsBuilder.UseNpgsql(dbConnectionString);
+        var context =  new LiquidDbContext(optionsBuilder.Options);
+        var res = StartupMethods.Migrate(context);
+        return res ? 0 : 1;
+    }
+    catch (Exception e)
+    {
+        Console.WriteLine(e);
+        throw;
+    }
+}
 builder.Services.AddControllers();
 builder.Services.AddS3Buckets(builder.Configuration);
 
-// Data base connection
-var connectionString = new ConnectionStringParser(builder.Configuration[ConfigurationStrings.PgUri]!).EfCoreString;
 builder.Services.AddDbContext<LiquidDbContext>(options =>
-    options.UseNpgsql(connectionString).UseSnakeCaseNamingConvention());
+    options.UseNpgsql(dbConnectionString).UseSnakeCaseNamingConvention());
 
 // JWT for asp net core
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -49,31 +82,6 @@ builder.Services.AddCors(o => o.AddPolicy("LowCorsPolicy", corsBuilder =>
 }));
 
 var app = builder.Build();
-var startup = new StartupMethods(app);
-
-if (app.Configuration[ConfigurationStrings.MigrateOnly] == "1")
-    try
-    {
-        var res = startup.Migrate(connectionString);
-        return res ? 0 : 1;
-    }
-    catch (Exception e)
-    {
-        Console.WriteLine(e);
-        throw;
-    }
-
-if (app.Configuration[ConfigurationStrings.DropDatabase] == "1")
-    try
-    {
-        var res = startup.DropDb(connectionString);
-        return res ? 0 : 1;
-    }
-    catch (Exception e)
-    {
-        Console.WriteLine(e);
-        throw;
-    }
 
 app.UseCors("LowCorsPolicy");
 
