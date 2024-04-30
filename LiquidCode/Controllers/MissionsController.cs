@@ -59,12 +59,13 @@ public class MissionsController(
             return BadRequest();
         }
 
+        DbMission dbMission;
         try
         {
             var privateKey = await s3Client.UploadFileWithRandomKey("problems", packageZipPath);
             var publicKey = await s3PublicClient.UploadFileWithRandomKey("problems-public", statementsZipPath);
 
-            var dbMission = new DbMission
+            dbMission = new DbMission
             {
                 Author = user,
                 Name = form.Name,
@@ -106,7 +107,7 @@ public class MissionsController(
                 System.IO.File.Delete(statementsZipPath);
         }
 
-        return Ok();
+        return Ok(new MissionModel(dbMission));
     }
 
     [HttpGet]
@@ -141,7 +142,7 @@ public class MissionsController(
         var hasNext = dbContext.Missions.Count() > pageSize * (page + 1);
         var missions = dbContext.Missions.OrderBy(m=>m.Id).Skip(pageSize * page).Take(pageSize);
         var apiList = missions.Select(m =>
-            new MissionModel(m.Id, m.Author.Id, m.Name, m.Difficulty, m.CreatedAt, m.UpdatedAt));
+            new MissionModel(m));
         return Ok(new MissionsPage(hasNext, apiList));
     }
 
