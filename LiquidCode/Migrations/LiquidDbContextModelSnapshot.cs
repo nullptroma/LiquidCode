@@ -145,6 +145,56 @@ namespace LiquidCode.Migrations
                     b.ToTable("refresh_tokens", (string)null);
                 });
 
+            modelBuilder.Entity("LiquidCode.Models.Database.DbSolution", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("language");
+
+                    b.Property<string>("LanguageVersion")
+                        .IsRequired()
+                        .HasMaxLength(16)
+                        .HasColumnType("character varying(16)")
+                        .HasColumnName("language_version");
+
+                    b.Property<int>("MissionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("mission_id");
+
+                    b.Property<string>("SourceCode")
+                        .IsRequired()
+                        .HasMaxLength(10000)
+                        .HasColumnType("character varying(10000)")
+                        .HasColumnName("source_code");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasMaxLength(32)
+                        .HasColumnType("character varying(32)")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("Time")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("time");
+
+                    b.HasKey("Id")
+                        .HasName("pk_solutions");
+
+                    b.HasIndex("MissionId")
+                        .HasDatabaseName("ix_solutions_mission_id");
+
+                    b.ToTable("solutions", (string)null);
+                });
+
             modelBuilder.Entity("LiquidCode.Models.Database.DbUser", b =>
                 {
                     b.Property<int>("Id")
@@ -187,6 +237,35 @@ namespace LiquidCode.Migrations
                     b.ToTable("users", (string)null);
                 });
 
+            modelBuilder.Entity("LiquidCode.Models.Database.DbUserSubmit", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("SolutionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("solution_id");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_user_submits");
+
+                    b.HasIndex("SolutionId")
+                        .HasDatabaseName("ix_user_submits_solution_id");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_user_submits_user_id");
+
+                    b.ToTable("user_submits", (string)null);
+                });
+
             modelBuilder.Entity("LiquidCode.Models.Database.DbMission", b =>
                 {
                     b.HasOne("LiquidCode.Models.Database.DbUser", "Author")
@@ -209,6 +288,39 @@ namespace LiquidCode.Migrations
                         .HasConstraintName("fk_refresh_tokens_users_db_user_id");
 
                     b.Navigation("DbUser");
+                });
+
+            modelBuilder.Entity("LiquidCode.Models.Database.DbSolution", b =>
+                {
+                    b.HasOne("LiquidCode.Models.Database.DbMission", "Mission")
+                        .WithMany()
+                        .HasForeignKey("MissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_solutions_missions_mission_id");
+
+                    b.Navigation("Mission");
+                });
+
+            modelBuilder.Entity("LiquidCode.Models.Database.DbUserSubmit", b =>
+                {
+                    b.HasOne("LiquidCode.Models.Database.DbSolution", "Solution")
+                        .WithMany()
+                        .HasForeignKey("SolutionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_user_submits_solutions_solution_id");
+
+                    b.HasOne("LiquidCode.Models.Database.DbUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_user_submits_users_user_id");
+
+                    b.Navigation("Solution");
+
+                    b.Navigation("User");
                 });
 #pragma warning restore 612, 618
         }

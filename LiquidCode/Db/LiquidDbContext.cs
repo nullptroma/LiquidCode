@@ -14,4 +14,6 @@ public class LiquidDbContext : DbContext
     public DbSet<DbRefreshToken> RefreshTokens { get; set; } = null!;
     public DbSet<DbMission> Missions { get; set; } = null!;
     public DbSet<DbMissionPublicTextData> MissionsTextData { get; set; } = null!;
+    public DbSet<DbSolution> Solutions { get; set; } = null!;
+    public DbSet<DbUserSubmit> UserSubmits { get; set; } = null!;
 }

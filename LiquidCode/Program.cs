@@ -2,6 +2,7 @@ using System.Text;
 using LiquidCode;
 using LiquidCode.Db;
 using LiquidCode.Services;
+using LiquidCode.Services.TestingModuleHttpClient;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -18,7 +19,7 @@ if (builder.Configuration[ConfigurationStrings.DropDatabase] == "1")
     {
         var optionsBuilder = new DbContextOptionsBuilder<LiquidDbContext>();
         optionsBuilder.UseNpgsql(dbConnectionString);
-        var context =  new LiquidDbContext(optionsBuilder.Options);
+        var context = new LiquidDbContext(optionsBuilder.Options);
         var res = StartupMethods.DropDb(context);
         Console.WriteLine("Drop is complete!");
         return res ? 0 : 1;
@@ -29,13 +30,14 @@ if (builder.Configuration[ConfigurationStrings.DropDatabase] == "1")
         throw;
     }
 }
+
 if (builder.Configuration[ConfigurationStrings.MigrateOnly] == "1")
 {
     try
     {
         var optionsBuilder = new DbContextOptionsBuilder<LiquidDbContext>();
         optionsBuilder.UseNpgsql(dbConnectionString);
-        var context =  new LiquidDbContext(optionsBuilder.Options);
+        var context = new LiquidDbContext(optionsBuilder.Options);
         var res = StartupMethods.Migrate(context);
         return res ? 0 : 1;
     }
@@ -45,8 +47,12 @@ if (builder.Configuration[ConfigurationStrings.MigrateOnly] == "1")
         throw;
     }
 }
+
 builder.Services.AddControllers();
 builder.Services.AddS3Buckets(builder.Configuration);
+builder.Services.AddSingleton(new TestingHttpClient(builder.Configuration[ConfigurationStrings.TestingModuleUrl] ??
+                                                    throw new ArgumentNullException(ConfigurationStrings
+                                                        .TestingModuleUrl)));
 
 builder.Services.AddDbContext<LiquidDbContext>(options =>
     options.UseNpgsql(dbConnectionString).UseSnakeCaseNamingConvention());
