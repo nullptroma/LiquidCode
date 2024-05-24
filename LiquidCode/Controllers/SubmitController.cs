@@ -45,8 +45,8 @@ public class SubmitController(LiquidDbContext dbContext, TestingHttpClient testi
         dbContext.UserSubmits.Add(dbUserSubmit);
         await dbContext.SaveChangesAsync();
 
-        await testingClient.PostData(dbSolution.Id, 123, dbSolution.SourceCode, "cpp");
-        Console.WriteLine($"Sent: {dbSolution.Id}");
+        await testingClient.PostData(dbSolution.Id, mission.Id, dbSolution.SourceCode, "cpp");
+        
         return Ok(new UserSubmitInfoModel(dbUserSubmit.Id, userId, new SolutionInfoModel(dbSolution.Mission.Id,
             dbSolution.Language,
             dbSolution.LanguageVersion,

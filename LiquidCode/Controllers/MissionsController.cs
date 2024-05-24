@@ -60,6 +60,11 @@ public class MissionsController(
         }
 
         DbMission dbMission;
+        var jsonSerializerOptions = new JsonSerializerOptions
+        {
+            Encoder = JavaScriptEncoder.Create(UnicodeRanges.All),
+            WriteIndented = true
+        };
         try
         {
             var privateKey = await s3Client.UploadFileWithRandomKey("problems", packageZipPath);
@@ -79,16 +84,24 @@ public class MissionsController(
             await dbContext.SaveChangesAsync();
 
             List<DbMissionPublicTextData> missionTexts = [];
+            var isRussianFound = false;
+            var name = form.Name;
             foreach (var dir in new DirectoryInfo(statementSectionsPath).GetDirectories())
             {
+                var data = GetDataFromStatementSections(dir);
+                if(isRussianFound == false)
+                    name = data.Name;
+                if (dir.Name == "russian")
+                    isRussianFound = true;
                 missionTexts.Add(new DbMissionPublicTextData
                 {
                     MissionId = dbMission.Id,
                     Language = dir.Name,
-                    Data = CreateJsonFromStatementSections(dir)
+                    Data = JsonSerializer.Serialize(data, jsonSerializerOptions)
                 });
             }
 
+            dbMission.Name = name;
             dbContext.MissionsTextData.AddRange(missionTexts);
             await dbContext.SaveChangesAsync();
         }
@@ -147,7 +160,7 @@ public class MissionsController(
     }
 
     // TODO remove
-    private string CreateJsonFromStatementSections(DirectoryInfo dir)
+    private JsonMissionData GetDataFromStatementSections(DirectoryInfo dir)
     {
         JsonMissionData data = new()
         {
@@ -173,13 +186,8 @@ public class MissionsController(
             else
                 data.Examples.Add(System.IO.File.ReadAllText(exampleFile.FullName));
         }
-
-        var options = new JsonSerializerOptions
-        {
-            Encoder = JavaScriptEncoder.Create(UnicodeRanges.All),
-            WriteIndented = true
-        };
-        return JsonSerializer.Serialize(data, options);
+        
+        return data;
     }
 
     class JsonMissionData
