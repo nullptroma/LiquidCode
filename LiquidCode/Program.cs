@@ -1,4 +1,5 @@
 using System.Text;
+using FluentValidation;
 using LiquidCode;
 using LiquidCode.Domain.Interfaces.Repositories;
 using LiquidCode.Domain.Services.Authentication;
@@ -57,6 +58,10 @@ if (builder.Configuration[ConfigurationKeys.MigrateOnlyFlag] == "1")
 }
 
 builder.Services.AddControllers();
+
+// Add FluentValidation
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
+
 builder.Services.AddS3Buckets(builder.Configuration);
 builder.Services.AddSingleton(new TestingHttpClient(builder.Configuration[ConfigurationKeys.TestingModuleUrl] ??
                                                     throw new ArgumentNullException(ConfigurationKeys.TestingModuleUrl)));
