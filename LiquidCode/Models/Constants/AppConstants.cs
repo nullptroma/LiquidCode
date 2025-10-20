@@ -49,6 +49,11 @@ public static class AppConstants
     /// Refresh token length (bytes)
     /// </summary>
     public const int RefreshTokenLength = 64;
+
+    /// <summary>
+    /// BCrypt work factor (higher = more secure but slower, recommended: 11-12)
+    /// </summary>
+    public const int BcryptWorkFactor = 12;
 }
 
 /// <summary>

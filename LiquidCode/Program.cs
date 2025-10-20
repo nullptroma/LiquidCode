@@ -1,6 +1,7 @@
 using System.Text;
 using LiquidCode;
 using LiquidCode.Db;
+using LiquidCode.Middleware;
 using LiquidCode.Models.Constants;
 using LiquidCode.Repositories;
 using LiquidCode.Services;
@@ -95,6 +96,9 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
+
+// Global exception handling middleware (must be first!)
+app.UseExceptionHandling();
 
 app.UseCors(builder => builder.AllowAnyOrigin());
 

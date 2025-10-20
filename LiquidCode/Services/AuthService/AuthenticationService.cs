@@ -1,6 +1,7 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
+using BCrypt.Net;
 using LiquidCode.Extensions;
 using LiquidCode.Models.Api.AuthenticationController;
 using LiquidCode.Models.Constants;
@@ -42,17 +43,16 @@ public class AuthenticationService : IAuthenticationService
                 return null;
             }
 
-            // Generate password hash with salt
-            var salt = StringTools.RandomBase64(AppConstants.PasswordSaltLength);
-            var passwordHash = (model.Password + salt).ComputeSha256();
+            // Generate secure password hash using BCrypt
+            var passwordHash = BCrypt.Net.BCrypt.HashPassword(model.Password, AppConstants.BcryptWorkFactor);
 
-            // Create new user
+            // Create new user (Salt is now handled internally by BCrypt)
             var newUser = new DbUser
             {
                 Username = model.Username,
                 Email = model.Email,
-                Salt = salt,
-                PassHash = passwordHash
+                PassHash = passwordHash,
+                Salt = "" // BCrypt manages salt internally
             };
 
             await _userRepository.AddAsync(newUser, cancellationToken);
@@ -81,9 +81,8 @@ public class AuthenticationService : IAuthenticationService
                 return null;
             }
 
-            // Verify password
-            var passwordHash = (model.Password + user.Salt).ComputeSha256();
-            if (passwordHash != user.PassHash)
+            // Verify password using BCrypt
+            if (!BCrypt.Net.BCrypt.Verify(model.Password, user.PassHash))
             {
                 _logger.LogWarning("Invalid password for user: {Username}", model.Username);
                 return null;

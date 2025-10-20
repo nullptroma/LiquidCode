@@ -4,3 +4,23 @@ obj/
 riderModule.iml
 /_ReSharper.Caches/
 .idea/
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# User secrets
+appsettings.*.json
+!appsettings.json
+!appsettings.Development.json
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# macOS
+.DS_Store
+
+# Docker volumes
+docker-compose.override.yml
