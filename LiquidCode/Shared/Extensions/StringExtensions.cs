@@ -1,9 +1,9 @@
 using System.Security.Cryptography;
 using System.Text;
 
-namespace LiquidCode.Shared.Tools;
+namespace LiquidCode.Shared.Extensions;
 
-public static class StringTools
+public static class StringExtensions
 {
     public static string ComputeSha256(this string rawData)
     {

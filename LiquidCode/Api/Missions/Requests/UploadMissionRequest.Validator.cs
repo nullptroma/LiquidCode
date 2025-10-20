@@ -8,8 +8,6 @@ namespace LiquidCode.Api.Missions.Requests;
 /// </summary>
 public class UploadMissionRequestValidator : AbstractValidator<UploadMissionRequest>
 {
-    private const long MaxFileSizeBytes = 100 * 1024 * 1024; // 100 MB
-    
     public UploadMissionRequestValidator()
     {
         RuleFor(x => x.MissionFile)

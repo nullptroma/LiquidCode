@@ -20,11 +20,6 @@ public class LiquidDbContext : DbContext
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
-
-        // Configure global query filters for soft delete
-        // modelBuilder.Entity<DbUser>().HasQueryFilter(u => !u.IsDeleted);
-        // modelBuilder.Entity<DbMission>().HasQueryFilter(m => !m.IsDeleted);
-        // modelBuilder.Entity<DbUserSubmit>().HasQueryFilter(s => !s.IsDeleted);
     }
 
     public override int SaveChanges()

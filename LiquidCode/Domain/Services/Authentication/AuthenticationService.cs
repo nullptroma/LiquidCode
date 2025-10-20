@@ -175,7 +175,7 @@ public class AuthenticationService : IAuthenticationService
             signingCredentials: new SigningCredentials(key, SecurityAlgorithms.HmacSha256));
 
         var token = new JwtSecurityTokenHandler().WriteToken(jwt);
-        var refreshToken = StringTools.RandomBase64(AppConstants.RefreshTokenLength);
+        var refreshToken = StringExtensions.RandomBase64(AppConstants.RefreshTokenLength);
 
         return new AuthTokensResponse(token, refreshToken);
     }
