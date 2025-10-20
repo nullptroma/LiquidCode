@@ -2,6 +2,7 @@ using System.Configuration;
 using Amazon.Runtime;
 using Amazon.S3;
 using Amazon.S3.Model;
+using LiquidCode.Models.Constants;
 
 namespace LiquidCode.Services.S3ClientService;
 
@@ -10,16 +11,16 @@ public class S3BucketClient : IS3BucketClient
     public Bucket BucketInfo { get; }
     protected AmazonS3Client Client { get; }
 
-    public S3BucketClient(IConfiguration? conf, Bucket bucket)
+    public S3BucketClient(IConfiguration conf, Bucket bucket)
     {
         AmazonS3Config config = new AmazonS3Config
         {
-            ServiceURL = conf[ConfigurationStrings.S3Endpoint],
+            ServiceURL = conf[ConfigurationKeys.S3Endpoint],
             UseHttp = true,
             ForcePathStyle = true,
         };
 
-        AWSCredentials creds = new BasicAWSCredentials(conf[ConfigurationStrings.S3Access], conf[ConfigurationStrings.S3Secret]);
+        AWSCredentials creds = new BasicAWSCredentials(conf[ConfigurationKeys.S3AccessKey], conf[ConfigurationKeys.S3SecretKey]);
         Client = new AmazonS3Client(creds, config);
         BucketInfo = bucket;
     }

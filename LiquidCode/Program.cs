@@ -1,7 +1,12 @@
 using System.Text;
 using LiquidCode;
 using LiquidCode.Db;
+using LiquidCode.Models.Constants;
+using LiquidCode.Repositories;
 using LiquidCode.Services;
+using LiquidCode.Services.AuthService;
+using LiquidCode.Services.MissionService;
+using LiquidCode.Services.SubmitService;
 using LiquidCode.Services.TestingModuleHttpClient;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -11,9 +16,9 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Configuration.AddEnvironmentVariables();
 
-var dbConnectionString = new ConnectionStringParser(builder.Configuration[ConfigurationStrings.PgUri]!).EfCoreString;
+var dbConnectionString = new ConnectionStringParser(builder.Configuration[ConfigurationKeys.PostgresUri]!).EfCoreString;
 
-if (builder.Configuration[ConfigurationStrings.DropDatabase] == "1")
+if (builder.Configuration[ConfigurationKeys.DropDatabaseFlag] == "1")
 {
     try
     {
@@ -31,7 +36,7 @@ if (builder.Configuration[ConfigurationStrings.DropDatabase] == "1")
     }
 }
 
-if (builder.Configuration[ConfigurationStrings.MigrateOnly] == "1")
+if (builder.Configuration[ConfigurationKeys.MigrateOnlyFlag] == "1")
 {
     try
     {
@@ -50,9 +55,18 @@ if (builder.Configuration[ConfigurationStrings.MigrateOnly] == "1")
 
 builder.Services.AddControllers();
 builder.Services.AddS3Buckets(builder.Configuration);
-builder.Services.AddSingleton(new TestingHttpClient(builder.Configuration[ConfigurationStrings.TestingModuleUrl] ??
-                                                    throw new ArgumentNullException(ConfigurationStrings
-                                                        .TestingModuleUrl)));
+builder.Services.AddSingleton(new TestingHttpClient(builder.Configuration[ConfigurationKeys.TestingModuleUrl] ??
+                                                    throw new ArgumentNullException(ConfigurationKeys.TestingModuleUrl)));
+
+// Add repositories
+builder.Services.AddScoped<IUserRepository, UserRepository>();
+builder.Services.AddScoped<IMissionRepository, MissionRepository>();
+builder.Services.AddScoped<ISubmitRepository, SubmitRepository>();
+
+// Add services
+builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
+builder.Services.AddScoped<IMissionService, MissionService>();
+builder.Services.AddScoped<ISubmitService, SubmitService>();
 
 builder.Services.AddDbContext<LiquidDbContext>(options =>
     options.UseNpgsql(dbConnectionString).UseSnakeCaseNamingConvention());
@@ -67,11 +81,11 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidateAudience = true,
             ValidateLifetime = true,
             ValidateIssuerSigningKey = true,
-            ValidIssuer = builder.Configuration[ConfigurationStrings.JwtIssuer],
-            ValidAudience = builder.Configuration[ConfigurationStrings.JwtAudience],
+            ValidIssuer = builder.Configuration[ConfigurationKeys.JwtIssuer],
+            ValidAudience = builder.Configuration[ConfigurationKeys.JwtAudience],
             IssuerSigningKey =
                 new SymmetricSecurityKey(
-                    Encoding.UTF8.GetBytes(builder.Configuration[ConfigurationStrings.JwtSigningKey] ?? "0"))
+                    Encoding.UTF8.GetBytes(builder.Configuration[ConfigurationKeys.JwtSigningKey] ?? "0"))
         };
     });
 
@@ -80,16 +94,9 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-builder.Services.AddCors(o => o.AddPolicy("LowCorsPolicy", corsBuilder =>
-{
-    corsBuilder.AllowAnyOrigin()
-        .AllowAnyMethod()
-        .AllowAnyHeader();
-}));
-
 var app = builder.Build();
 
-app.UseCors("LowCorsPolicy");
+app.UseCors(builder => builder.AllowAnyOrigin());
 
 // Configure the HTTP request pipeline.
 //if (app.Environment.IsDevelopment())

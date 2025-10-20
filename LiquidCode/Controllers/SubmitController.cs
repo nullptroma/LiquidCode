@@ -1,145 +1,179 @@
-using System.Security.Claims;
-using LiquidCode.Db;
+using LiquidCode.Extensions;
 using LiquidCode.Models.Api.SubmitController;
-using LiquidCode.Models.Database;
+using LiquidCode.Services.SubmitService;
 using LiquidCode.Services.TestingModuleHttpClient;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
 namespace LiquidCode.Controllers;
 
+/// <summary>
+/// Submit controller handling user solution submissions and results
+/// </summary>
 [Route("[controller]")]
-public class SubmitController(LiquidDbContext dbContext, TestingHttpClient testingClient) : ControllerBase
+[ApiController]
+public class SubmitController(ISubmitService submitService, TestingHttpClient testingClient) : ControllerBase
 {
+    /// <summary>
+    /// Submits a solution for a mission
+    /// </summary>
     [Authorize]
     [HttpPost("user-submit")]
-    public async Task<IActionResult> SubmitFromUser([FromBody] SolutionSubmitModel model)
+    public async Task<IActionResult> SubmitFromUser([FromBody] SolutionSubmitModel model, CancellationToken cancellationToken)
     {
-        var mission = await dbContext.Missions.FindAsync(model.MissionId);
-        if (mission == null)
-            return NotFound("Mission not found");
-        if (!int.TryParse(User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value, out var userId))
-            return Unauthorized("User not found");
-        var user = await dbContext.Users.FindAsync(userId);
-        if (user == null)
-            return NotFound("User not found");
+        if (!User.TryGetUserId(out var userId))
+            return Unauthorized("User ID not found in claims.");
 
-        var dbSolution = new DbSolution
-        {
-            Id = 0,
-            Mission = mission,
-            Language = model.Language,
-            LanguageVersion = model.LanguageVersion,
-            SourceCode = model.SourceCode,
-            Status = "",
-            Time = DateTime.UtcNow
-        };
-        var dbUserSubmit = new DbUserSubmit
-        {
-            Id = 0,
-            User = user,
-            Solution = dbSolution
-        };
-        dbContext.Solutions.Add(dbSolution);
-        dbContext.UserSubmits.Add(dbUserSubmit);
-        await dbContext.SaveChangesAsync();
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
-        await testingClient.PostData(dbSolution.Id, mission.Id, dbSolution.SourceCode, "cpp");
-        
-        return Ok(new UserSubmitInfoModel(dbUserSubmit.Id, userId, new SolutionInfoModel(dbSolution.Mission.Id,
-            dbSolution.Language,
-            dbSolution.LanguageVersion,
-            dbSolution.SourceCode,
-            dbSolution.Status,
-            dbSolution.Time)));
+        var solution = await submitService.SubmitSolutionAsync(
+            model.MissionId, userId, model.SourceCode, model.Language, model.LanguageVersion, cancellationToken);
+
+        if (solution == null)
+            return BadRequest("Solution submission failed. Mission may not exist or language is not supported.");
+
+        // Send to testing module asynchronously (fire and forget)
+        _ = testingClient.PostData(solution.Id, model.MissionId, model.SourceCode, model.Language);
+
+        return Ok(new UserSubmitInfoModel(
+            solution.Id,
+            userId,
+            new SolutionInfoModel(
+                model.MissionId,
+                solution.Language,
+                solution.LanguageVersion,
+                solution.SourceCode,
+                solution.Status,
+                solution.Time)));
     }
 
+    /// <summary>
+    /// Gets all submissions by the current user
+    /// </summary>
     [Authorize]
     [HttpGet("get-all-user-submits")]
-    public IActionResult GetAllUserSubmits()
+    public async Task<IActionResult> GetAllUserSubmits(CancellationToken cancellationToken)
     {
-        if (!int.TryParse(User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value, out var userId))
-            return Unauthorized("User not found");
-        var solutions = dbContext.UserSubmits
-            .Include(sub => sub.Solution.Mission)
-            .Where(sub => sub.User.Id == userId)
-            .Select(sub => new UserSubmitInfoModel(sub.Id, userId, new SolutionInfoModel(sub.Solution.Mission.Id,
+        if (!User.TryGetUserId(out var userId))
+            return Unauthorized("User ID not found in claims.");
+
+        var submissions = await submitService.GetUserSubmissionsAsync(userId, cancellationToken);
+
+        var result = submissions.Select(sub => new UserSubmitInfoModel(
+            sub.Id,
+            userId,
+            new SolutionInfoModel(
+                sub.Solution.Mission.Id,
                 sub.Solution.Language,
                 sub.Solution.LanguageVersion,
                 sub.Solution.SourceCode,
                 sub.Solution.Status,
                 sub.Solution.Time)));
-        return Ok(solutions);
+
+        return Ok(result);
     }
 
+    /// <summary>
+    /// Gets a specific user submission by ID
+    /// </summary>
     [Authorize]
     [HttpGet("get-user-submit-by-id")]
-    public async Task<IActionResult> GetUserSubmitById(int submitId)
+    public async Task<IActionResult> GetUserSubmitById([FromQuery] int submitId, CancellationToken cancellationToken)
     {
-        if (!int.TryParse(User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value, out var userId))
-            return Unauthorized("User not found");
-        var userSubmit = await dbContext.UserSubmits.Include(s => s.Solution).Include(s => s.Solution.Mission)
-            .SingleOrDefaultAsync(s => s.Id == submitId && s.User.Id == userId);
-        if (userSubmit == null)
-            return NotFound("Submit not found");
-        var dbSolution = userSubmit.Solution;
-        var solution = new SolutionInfoModel(dbSolution.Mission.Id,
-            dbSolution.Language,
-            dbSolution.LanguageVersion,
-            dbSolution.SourceCode,
-            dbSolution.Status,
-            dbSolution.Time);
-        return Ok(new UserSubmitInfoModel(userSubmit.Id, userId, solution));
+        if (!User.TryGetUserId(out var userId))
+            return Unauthorized("User ID not found in claims.");
+
+        var submission = await submitService.GetSubmissionAsync(submitId, cancellationToken);
+
+        if (submission == null || submission.User.Id != userId)
+            return NotFound("Submission not found or access denied.");
+
+        return Ok(new UserSubmitInfoModel(
+            submission.Id,
+            userId,
+            new SolutionInfoModel(
+                submission.Solution.Mission.Id,
+                submission.Solution.Language,
+                submission.Solution.LanguageVersion,
+                submission.Solution.SourceCode,
+                submission.Solution.Status,
+                submission.Solution.Time)));
     }
 
+    /// <summary>
+    /// Gets all submissions by the current user for a specific mission
+    /// </summary>
     [Authorize]
     [HttpGet("get-user-mission-submits-by-id")]
-    public IActionResult GetMissionSubmits(int missionId)
+    public async Task<IActionResult> GetMissionSubmits([FromQuery] int missionId, CancellationToken cancellationToken)
     {
-        if (!int.TryParse(User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier)?.Value, out var userId))
-            return Unauthorized("User not found");
-        var submits = dbContext.UserSubmits
-            .Where(sub => sub.User.Id == userId && sub.Solution.Mission.Id == missionId)
-            .Select(sub => new UserSubmitInfoModel(sub.Id, sub.User.Id, new SolutionInfoModel(sub.Solution.Mission.Id,
-                sub.Solution.Language,
-                sub.Solution.LanguageVersion,
-                sub.Solution.SourceCode,
-                sub.Solution.Status,
-                sub.Solution.Time)));
-        return Ok(submits);
+        if (!User.TryGetUserId(out var userId))
+            return Unauthorized("User ID not found in claims.");
+
+        var submissions = await submitService.GetUserSubmissionsAsync(userId, cancellationToken);
+
+        var filtered = submissions
+            .Where(sub => sub.Solution.Mission.Id == missionId)
+            .Select(sub => new UserSubmitInfoModel(
+                sub.Id,
+                userId,
+                new SolutionInfoModel(
+                    sub.Solution.Mission.Id,
+                    sub.Solution.Language,
+                    sub.Solution.LanguageVersion,
+                    sub.Solution.SourceCode,
+                    sub.Solution.Status,
+                    sub.Solution.Time)))
+            .ToList();
+
+        return Ok(filtered);
     }
 
-    // TODO remove trash
-    private static readonly string[] VerdictStatusCode =
-    [
-        "Accepted", "Wrong answer", "Time limit", "Memory limit", "Internal error", "Runtime error", "Compilation error"
-    ];
-
+    /// <summary>
+    /// Updates solution status (called by testing module)
+    /// </summary>
     [HttpPost("update-solution-status")]
-    public async Task<IActionResult> UpdateSolutionStatus([FromBody] UpdateSolutionStatusModel status)
+    public async Task<IActionResult> UpdateSolutionStatus([FromBody] UpdateSolutionStatusModel status, CancellationToken cancellationToken)
     {
-        var verdict = status.VerdictCode == -1 ? "Running" : VerdictStatusCode[status.VerdictCode];
-        Console.WriteLine($"Sol: {status} with verdict: {verdict}");
-        var newStatus = verdict;
-        switch (status.VerdictCode)
-        {
-            case -1:
-            case 1:
-            case 2:
-            case 3:
-            case 4:
-            case 5:
-                newStatus += " #"+status.TestCase;
-                break;
-        }
+        if (status == null || status.SubmissionId <= 0)
+            return BadRequest("Invalid submission ID.");
 
-        var solution = dbContext.Solutions.SingleOrDefault(sol => sol.Id == status.SubmissionId);
-        if (solution == null)
-            return NotFound();
-        solution.Status = newStatus;
-        dbContext.Solutions.Update(solution);
-        await dbContext.SaveChangesAsync();
-        return Ok();
+        var verdictMessage = FormatVerdictMessage(status.VerdictCode, status.TestCase);
+
+        var result = await submitService.UpdateSolutionStatusAsync(status.SubmissionId, verdictMessage, cancellationToken);
+        if (result == null)
+            return NotFound("Solution not found.");
+
+        return Accepted();
+    }
+
+    /// <summary>
+    /// Formats verdict message for solution status
+    /// </summary>
+    private string FormatVerdictMessage(int verdictCode, int? testCase)
+    {
+        var verdictMessages = new[]
+        {
+            "Accepted",
+            "Wrong answer",
+            "Time limit",
+            "Memory limit",
+            "Internal error",
+            "Runtime error",
+            "Compilation error"
+        };
+
+        if (verdictCode == -1)
+            return "Running";
+
+        var message = verdictCode >= 0 && verdictCode < verdictMessages.Length
+            ? verdictMessages[verdictCode]
+            : "Unknown verdict";
+
+        if (testCase.HasValue && verdictCode >= 1 && verdictCode <= 5)
+            message += $" #{testCase}";
+
+        return message;
     }
 }
