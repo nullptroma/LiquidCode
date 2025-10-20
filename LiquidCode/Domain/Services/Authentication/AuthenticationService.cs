@@ -8,7 +8,6 @@ using LiquidCode.Domain.Interfaces.Repositories;
 using LiquidCode.Infrastructure.Database.Entities;
 using LiquidCode.Shared.Constants;
 using LiquidCode.Shared.Extensions;
-using LiquidCode.Shared.Tools;
 using Microsoft.IdentityModel.Tokens;
 
 namespace LiquidCode.Domain.Services.Authentication;

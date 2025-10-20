@@ -19,14 +19,6 @@ public interface IMissionService
     Task<MissionResponse?> UploadMissionAsync(UploadMissionRequest form, int userId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets a public download link for a mission
-    /// </summary>
-    /// <param name="missionId">Mission ID</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Download URL or null if mission not found</returns>
-    Task<string?> GetMissionDownloadLinkAsync(int missionId, CancellationToken cancellationToken = default);
-
-    /// <summary>
     /// Gets mission text data in a specific language
     /// </summary>
     /// <param name="missionId">Mission ID</param>

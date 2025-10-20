@@ -18,7 +18,6 @@ public class MissionService : IMissionService
 {
     private readonly IMissionRepository _missionRepository;
     private readonly IS3BucketClient _s3Client;
-    private readonly IS3PublicBucketClient _s3PublicClient;
     private readonly ILogger<MissionService> _logger;
 
     private static readonly JsonSerializerOptions JsonSerializerOptions = new()
@@ -30,12 +29,10 @@ public class MissionService : IMissionService
     public MissionService(
         IMissionRepository missionRepository,
         IS3BucketClient s3Client,
-        IS3PublicBucketClient s3PublicClient,
         ILogger<MissionService> logger)
     {
         _missionRepository = missionRepository;
         _s3Client = s3Client;
-        _s3PublicClient = s3PublicClient;
         _logger = logger;
     }
 
@@ -74,7 +71,6 @@ public class MissionService : IMissionService
             // Upload to S3
             _logger.LogInformation("Uploading mission files to S3");
             var privateKey = await _s3Client.UploadFileWithRandomKey(S3BucketKeys.PrivateProblems, packageZipPath);
-            var publicKey = await _s3PublicClient.UploadFileWithRandomKey(S3BucketKeys.PublicProblems, statementsZipPath);
 
             // Create mission in database
             var dbMission = new DbMission
@@ -82,7 +78,6 @@ public class MissionService : IMissionService
                 Author = new DbUser { Id = userId },
                 Name = form.Name,
                 S3PrivateKey = privateKey,
-                S3PublicKey = publicKey,
                 Difficulty = form.Difficulty,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
@@ -124,26 +119,6 @@ public class MissionService : IMissionService
         {
             // Cleanup temporary files
             CleanupTemporaryFiles(unpackFolder, packageZipPath, statementsZipPath);
-        }
-    }
-
-    public async Task<string?> GetMissionDownloadLinkAsync(int missionId, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            var mission = await _missionRepository.FindByIdAsync(missionId, cancellationToken);
-            if (mission == null)
-            {
-                _logger.LogWarning("Mission not found: {MissionId}", missionId);
-                return null;
-            }
-
-            return _s3PublicClient.GetPublicDownloadUrl(mission.S3PublicKey);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting mission download link: {MissionId}", missionId);
-            return null;
         }
     }
 

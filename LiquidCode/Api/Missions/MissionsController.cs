@@ -34,19 +34,6 @@ public class MissionsController(IMissionService missionService) : ControllerBase
     }
 
     /// <summary>
-    /// Gets a public download link for a mission's statement files
-    /// </summary>
-    [HttpGet("{id}/download-link")]
-    public async Task<IActionResult> GetMissionDownloadLink([FromRoute] int id, CancellationToken cancellationToken)
-    {
-        var link = await missionService.GetMissionDownloadLinkAsync(id, cancellationToken);
-        if (link == null)
-            return NotFound("Mission not found.");
-
-        return Ok(new { downloadUrl = link });
-    }
-
-    /// <summary>
     /// Gets mission text data in a specific language
     /// </summary>
     [HttpGet("{id}/texts/{language}")]
