@@ -22,7 +22,7 @@ namespace LiquidCode.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("LiquidCode.Models.Database.DbMission", b =>
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbMission", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -91,7 +91,7 @@ namespace LiquidCode.Migrations
                     b.ToTable("missions", (string)null);
                 });
 
-            modelBuilder.Entity("LiquidCode.Models.Database.DbMissionPublicTextData", b =>
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbMissionPublicTextData", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -138,7 +138,7 @@ namespace LiquidCode.Migrations
                     b.ToTable("missions_text_data", (string)null);
                 });
 
-            modelBuilder.Entity("LiquidCode.Models.Database.DbRefreshToken", b =>
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbRefreshToken", b =>
                 {
                     b.Property<string>("Token")
                         .HasMaxLength(128)
@@ -185,7 +185,7 @@ namespace LiquidCode.Migrations
                     b.ToTable("refresh_tokens", (string)null);
                 });
 
-            modelBuilder.Entity("LiquidCode.Models.Database.DbSolution", b =>
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbSolution", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -249,7 +249,7 @@ namespace LiquidCode.Migrations
                     b.ToTable("solutions", (string)null);
                 });
 
-            modelBuilder.Entity("LiquidCode.Models.Database.DbUser", b =>
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbUser", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -314,7 +314,7 @@ namespace LiquidCode.Migrations
                     b.ToTable("users", (string)null);
                 });
 
-            modelBuilder.Entity("LiquidCode.Models.Database.DbUserSubmit", b =>
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbUserSubmit", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -365,9 +365,9 @@ namespace LiquidCode.Migrations
                     b.ToTable("user_submits", (string)null);
                 });
 
-            modelBuilder.Entity("LiquidCode.Models.Database.DbMission", b =>
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbMission", b =>
                 {
-                    b.HasOne("LiquidCode.Models.Database.DbUser", "Author")
+                    b.HasOne("LiquidCode.Infrastructure.Database.Entities.DbUser", "Author")
                         .WithMany()
                         .HasForeignKey("AuthorId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -377,9 +377,9 @@ namespace LiquidCode.Migrations
                     b.Navigation("Author");
                 });
 
-            modelBuilder.Entity("LiquidCode.Models.Database.DbRefreshToken", b =>
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbRefreshToken", b =>
                 {
-                    b.HasOne("LiquidCode.Models.Database.DbUser", "DbUser")
+                    b.HasOne("LiquidCode.Infrastructure.Database.Entities.DbUser", "DbUser")
                         .WithMany()
                         .HasForeignKey("DbUserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -389,9 +389,9 @@ namespace LiquidCode.Migrations
                     b.Navigation("DbUser");
                 });
 
-            modelBuilder.Entity("LiquidCode.Models.Database.DbSolution", b =>
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbSolution", b =>
                 {
-                    b.HasOne("LiquidCode.Models.Database.DbMission", "Mission")
+                    b.HasOne("LiquidCode.Infrastructure.Database.Entities.DbMission", "Mission")
                         .WithMany()
                         .HasForeignKey("MissionId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -401,16 +401,16 @@ namespace LiquidCode.Migrations
                     b.Navigation("Mission");
                 });
 
-            modelBuilder.Entity("LiquidCode.Models.Database.DbUserSubmit", b =>
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbUserSubmit", b =>
                 {
-                    b.HasOne("LiquidCode.Models.Database.DbSolution", "Solution")
+                    b.HasOne("LiquidCode.Infrastructure.Database.Entities.DbSolution", "Solution")
                         .WithMany()
                         .HasForeignKey("SolutionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_user_submits_solutions_solution_id");
 
-                    b.HasOne("LiquidCode.Models.Database.DbUser", "User")
+                    b.HasOne("LiquidCode.Infrastructure.Database.Entities.DbUser", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)

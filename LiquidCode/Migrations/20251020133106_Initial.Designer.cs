@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace LiquidCode.Migrations
 {
     [DbContext(typeof(LiquidDbContext))]
-    [Migration("20240510135835_Initial")]
+    [Migration("20251020133106_Initial")]
     partial class Initial
     {
         /// <inheritdoc />
@@ -25,7 +25,7 @@ namespace LiquidCode.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("LiquidCode.Models.Database.DbMission", b =>
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbMission", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -42,9 +42,17 @@ namespace LiquidCode.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
 
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
                     b.Property<int>("Difficulty")
                         .HasColumnType("integer")
                         .HasColumnName("difficulty");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -74,10 +82,19 @@ namespace LiquidCode.Migrations
                     b.HasIndex("AuthorId")
                         .HasDatabaseName("ix_missions_author_id");
 
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_missions_created_at");
+
+                    b.HasIndex("Difficulty")
+                        .HasDatabaseName("ix_missions_difficulty");
+
+                    b.HasIndex("IsDeleted")
+                        .HasDatabaseName("ix_missions_is_deleted");
+
                     b.ToTable("missions", (string)null);
                 });
 
-            modelBuilder.Entity("LiquidCode.Models.Database.DbMissionPublicTextData", b =>
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbMissionPublicTextData", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -85,6 +102,10 @@ namespace LiquidCode.Migrations
                         .HasColumnName("id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
 
                     b.Property<string>("Data")
                         .IsRequired()
@@ -103,21 +124,33 @@ namespace LiquidCode.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("mission_id");
 
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
                     b.HasKey("Id")
                         .HasName("pk_missions_text_data");
 
+                    b.HasIndex("Language")
+                        .HasDatabaseName("ix_missions_text_data_language");
+
                     b.HasIndex("MissionId", "Language")
+                        .IsUnique()
                         .HasDatabaseName("ix_missions_text_data_mission_id_language");
 
                     b.ToTable("missions_text_data", (string)null);
                 });
 
-            modelBuilder.Entity("LiquidCode.Models.Database.DbRefreshToken", b =>
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbRefreshToken", b =>
                 {
                     b.Property<string>("Token")
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)")
                         .HasColumnName("token");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
 
                     b.Property<int>("DbUserId")
                         .HasColumnType("integer")
@@ -139,16 +172,23 @@ namespace LiquidCode.Migrations
                         .HasColumnType("character varying(512)")
                         .HasColumnName("os_name");
 
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
                     b.HasKey("Token")
                         .HasName("pk_refresh_tokens");
 
                     b.HasIndex("DbUserId")
                         .HasDatabaseName("ix_refresh_tokens_db_user_id");
 
+                    b.HasIndex("Expires")
+                        .HasDatabaseName("ix_refresh_tokens_expires");
+
                     b.ToTable("refresh_tokens", (string)null);
                 });
 
-            modelBuilder.Entity("LiquidCode.Models.Database.DbSolution", b =>
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbSolution", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -156,6 +196,10 @@ namespace LiquidCode.Migrations
                         .HasColumnName("id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
 
                     b.Property<string>("Language")
                         .IsRequired()
@@ -189,16 +233,26 @@ namespace LiquidCode.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("time");
 
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
                     b.HasKey("Id")
                         .HasName("pk_solutions");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_solutions_created_at");
 
                     b.HasIndex("MissionId")
                         .HasDatabaseName("ix_solutions_mission_id");
 
+                    b.HasIndex("Status")
+                        .HasDatabaseName("ix_solutions_status");
+
                     b.ToTable("solutions", (string)null);
                 });
 
-            modelBuilder.Entity("LiquidCode.Models.Database.DbUser", b =>
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbUser", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -207,11 +261,23 @@ namespace LiquidCode.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
                     b.Property<string>("Email")
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)")
                         .HasColumnName("email");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
 
                     b.Property<string>("PassHash")
                         .IsRequired()
@@ -225,6 +291,10 @@ namespace LiquidCode.Migrations
                         .HasColumnType("character varying(512)")
                         .HasColumnName("salt");
 
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
                     b.Property<string>("Username")
                         .IsRequired()
                         .HasMaxLength(32)
@@ -234,13 +304,20 @@ namespace LiquidCode.Migrations
                     b.HasKey("Id")
                         .HasName("pk_users");
 
+                    b.HasIndex("Email")
+                        .HasDatabaseName("ix_users_email");
+
+                    b.HasIndex("IsDeleted")
+                        .HasDatabaseName("ix_users_is_deleted");
+
                     b.HasIndex("Username")
+                        .IsUnique()
                         .HasDatabaseName("ix_users_username");
 
                     b.ToTable("users", (string)null);
                 });
 
-            modelBuilder.Entity("LiquidCode.Models.Database.DbUserSubmit", b =>
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbUserSubmit", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -249,9 +326,25 @@ namespace LiquidCode.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
                     b.Property<int>("SolutionId")
                         .HasColumnType("integer")
                         .HasColumnName("solution_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
 
                     b.Property<int>("UserId")
                         .HasColumnType("integer")
@@ -259,6 +352,12 @@ namespace LiquidCode.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_user_submits");
+
+                    b.HasIndex("CreatedAt")
+                        .HasDatabaseName("ix_user_submits_created_at");
+
+                    b.HasIndex("IsDeleted")
+                        .HasDatabaseName("ix_user_submits_is_deleted");
 
                     b.HasIndex("SolutionId")
                         .HasDatabaseName("ix_user_submits_solution_id");
@@ -269,9 +368,9 @@ namespace LiquidCode.Migrations
                     b.ToTable("user_submits", (string)null);
                 });
 
-            modelBuilder.Entity("LiquidCode.Models.Database.DbMission", b =>
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbMission", b =>
                 {
-                    b.HasOne("LiquidCode.Models.Database.DbUser", "Author")
+                    b.HasOne("LiquidCode.Infrastructure.Database.Entities.DbUser", "Author")
                         .WithMany()
                         .HasForeignKey("AuthorId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -281,9 +380,9 @@ namespace LiquidCode.Migrations
                     b.Navigation("Author");
                 });
 
-            modelBuilder.Entity("LiquidCode.Models.Database.DbRefreshToken", b =>
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbRefreshToken", b =>
                 {
-                    b.HasOne("LiquidCode.Models.Database.DbUser", "DbUser")
+                    b.HasOne("LiquidCode.Infrastructure.Database.Entities.DbUser", "DbUser")
                         .WithMany()
                         .HasForeignKey("DbUserId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -293,9 +392,9 @@ namespace LiquidCode.Migrations
                     b.Navigation("DbUser");
                 });
 
-            modelBuilder.Entity("LiquidCode.Models.Database.DbSolution", b =>
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbSolution", b =>
                 {
-                    b.HasOne("LiquidCode.Models.Database.DbMission", "Mission")
+                    b.HasOne("LiquidCode.Infrastructure.Database.Entities.DbMission", "Mission")
                         .WithMany()
                         .HasForeignKey("MissionId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -305,16 +404,16 @@ namespace LiquidCode.Migrations
                     b.Navigation("Mission");
                 });
 
-            modelBuilder.Entity("LiquidCode.Models.Database.DbUserSubmit", b =>
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbUserSubmit", b =>
                 {
-                    b.HasOne("LiquidCode.Models.Database.DbSolution", "Solution")
+                    b.HasOne("LiquidCode.Infrastructure.Database.Entities.DbSolution", "Solution")
                         .WithMany()
                         .HasForeignKey("SolutionId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
                         .HasConstraintName("fk_user_submits_solutions_solution_id");
 
-                    b.HasOne("LiquidCode.Models.Database.DbUser", "User")
+                    b.HasOne("LiquidCode.Infrastructure.Database.Entities.DbUser", "User")
                         .WithMany()
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
