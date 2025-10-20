@@ -3,7 +3,7 @@ using LiquidCode.Shared.Constants;
 
 namespace LiquidCode.Shared.Extensions;
 
-public static class ServicesExtensions
+public static class ServiceCollectionExtensions
 {
     public static void AddS3Buckets(
         this IServiceCollection services, IConfiguration config)

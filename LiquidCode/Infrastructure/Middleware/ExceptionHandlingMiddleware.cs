@@ -1,7 +1,7 @@
 using System.Net;
 using System.Text.Json;
 
-namespace LiquidCode.Infrastructure.dleware;
+namespace LiquidCode.Infrastructure.Middleware;
 
 /// <summary>
 /// Middleware for global exception handling with structured error responses
