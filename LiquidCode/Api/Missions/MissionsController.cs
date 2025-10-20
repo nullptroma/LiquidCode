@@ -1,0 +1,77 @@
+using LiquidCode.Api.Missions.Requests;
+using LiquidCode.Domain.Services.Missions;
+using LiquidCode.Shared.Extensions;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace LiquidCode.Api.Missions;
+
+/// <summary>
+/// Missions controller handling mission upload, retrieval, and management
+/// </summary>
+[Route("missions")]
+[ApiController]
+public class MissionsController(IMissionService missionService) : ControllerBase
+{
+    /// <summary>
+    /// Uploads a new mission from a ZIP file
+    /// </summary>
+    [Authorize]
+    [HttpPost("upload")]
+    public async Task<IActionResult> UploadMission([FromForm] UploadMissionRequest request, CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out var userId))
+            return Unauthorized("User ID not found in claims.");
+
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var result = await missionService.UploadMissionAsync(request, userId, cancellationToken);
+        if (result == null)
+            return BadRequest("Mission upload failed. Ensure the ZIP file contains a valid 'statement-sections' folder.");
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Gets a public download link for a mission's statement files
+    /// </summary>
+    [HttpGet("{id}/download-link")]
+    public async Task<IActionResult> GetMissionDownloadLink([FromRoute] int id, CancellationToken cancellationToken)
+    {
+        var link = await missionService.GetMissionDownloadLinkAsync(id, cancellationToken);
+        if (link == null)
+            return NotFound("Mission not found.");
+
+        return Ok(new { downloadUrl = link });
+    }
+
+    /// <summary>
+    /// Gets mission text data in a specific language
+    /// </summary>
+    [HttpGet("{id}/texts/{language}")]
+    public async Task<IActionResult> GetMissionTexts([FromRoute] int id, [FromRoute] string language, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(language))
+            return BadRequest("Language parameter is required.");
+
+        var textData = await missionService.GetMissionTextAsync(id, language, cancellationToken);
+        if (textData == null)
+            return NotFound("Mission or language not found.");
+
+        return Ok(textData);
+    }
+
+    /// <summary>
+    /// Gets a paginated list of all missions
+    /// </summary>
+    [HttpGet]
+    public async Task<IActionResult> GetMissionsList([FromQuery] int pageSize = 10, [FromQuery] int page = 0, CancellationToken cancellationToken = default)
+    {
+        var result = await missionService.GetMissionsListAsync(pageSize, page, cancellationToken);
+        if (result == null)
+            return BadRequest("Invalid pagination parameters.");
+
+        return Ok(result);
+    }
+}

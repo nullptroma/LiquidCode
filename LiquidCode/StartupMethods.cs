@@ -1,4 +1,4 @@
-using LiquidCode.Db;
+using LiquidCode.Infrastructure.Database;
 using Microsoft.EntityFrameworkCore;
 
 namespace LiquidCode;
