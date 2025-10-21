@@ -7,6 +7,9 @@ namespace LiquidCode.Api.Authentication.Requests;
 /// </summary>
 public class LoginRequestValidator : AbstractValidator<LoginRequest>
 {
+    /// <summary>
+    /// 
+    /// </summary>
     public LoginRequestValidator()
     {
         RuleFor(x => x.Username)

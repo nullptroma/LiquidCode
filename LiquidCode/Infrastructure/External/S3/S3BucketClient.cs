@@ -43,7 +43,7 @@ public class S3BucketClient : IS3BucketClient
 
             request.ContinuationToken = response.NextContinuationToken;
         }
-        while (response.IsTruncated);
+        while (response.IsTruncated == true);
 
         return keys;
     }
