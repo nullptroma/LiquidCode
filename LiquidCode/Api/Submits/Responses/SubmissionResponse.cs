@@ -17,6 +17,6 @@ public record SubmissionResponse(
     public static SubmissionResponse FromEntity(DbUserSubmit entity) => new(
         entity.Id,
         entity.User.Id,
-        SolutionResponse.FromEntity(entity.Solution!)
+        SolutionResponse.FromEntity(entity.Solution)
     );
 }

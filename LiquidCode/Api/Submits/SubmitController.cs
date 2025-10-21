@@ -88,7 +88,7 @@ public class SubmitController(ISubmitService submitService, TestingHttpClient te
         var submissions = await submitService.GetUserSubmissionsAsync(userId, cancellationToken);
 
         var filtered = submissions
-            .Where(sub => sub.Solution!.Mission.Id == missionId)
+            .Where(sub => sub.Solution.Mission.Id == missionId)
             .Select(SubmissionResponse.FromEntity)
             .ToList();
 
