@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace LiquidCode.Migrations
 {
     [DbContext(typeof(LiquidDbContext))]
-    [Migration("20251022161611_Init")]
-    partial class Init
+    [Migration("20251022204407_Initial")]
+    partial class Initial
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

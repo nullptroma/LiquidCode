@@ -14,7 +14,6 @@ public static class StartupMethods
 
     public static bool DropDb(LiquidDbContext db)
     {
-        db.Database.EnsureDeleted();
-        return true;
+        return db.Database.EnsureDeleted();
     }
 }

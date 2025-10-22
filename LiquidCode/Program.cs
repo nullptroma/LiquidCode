@@ -29,7 +29,7 @@ if (builder.Configuration[ConfigurationKeys.DropDatabaseFlag] == "1")
     try
     {
         var optionsBuilder = new DbContextOptionsBuilder<LiquidDbContext>();
-        optionsBuilder.UseNpgsql(dbConnectionString);
+        optionsBuilder.UseNpgsql(dbConnectionString).UseSnakeCaseNamingConvention();
         var context = new LiquidDbContext(optionsBuilder.Options);
         var res = StartupMethods.DropDb(context);
         Console.WriteLine("Drop is complete!");
@@ -47,7 +47,7 @@ if (builder.Configuration[ConfigurationKeys.MigrateOnlyFlag] == "1")
     try
     {
         var optionsBuilder = new DbContextOptionsBuilder<LiquidDbContext>();
-        optionsBuilder.UseNpgsql(dbConnectionString);
+        optionsBuilder.UseNpgsql(dbConnectionString).UseSnakeCaseNamingConvention();
         var context = new LiquidDbContext(optionsBuilder.Options);
         var res = StartupMethods.Migrate(context);
         return res ? 0 : 1;
