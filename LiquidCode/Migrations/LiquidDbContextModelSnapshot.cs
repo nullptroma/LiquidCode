@@ -17,7 +17,7 @@ namespace LiquidCode.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.3")
+                .HasAnnotation("ProductVersion", "9.0.10")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
@@ -62,12 +62,6 @@ namespace LiquidCode.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)")
                         .HasColumnName("s3private_key");
-
-                    b.Property<string>("S3PublicKey")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
-                        .HasColumnName("s3public_key");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -116,8 +110,7 @@ namespace LiquidCode.Migrations
                         .HasColumnType("character varying(64)")
                         .HasColumnName("language");
 
-                    b.Property<int?>("MissionId")
-                        .IsRequired()
+                    b.Property<int>("MissionId")
                         .HasColumnType("integer")
                         .HasColumnName("mission_id");
 
