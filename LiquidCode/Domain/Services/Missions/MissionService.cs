@@ -17,6 +17,7 @@ namespace LiquidCode.Domain.Services.Missions;
 public class MissionService : IMissionService
 {
     private readonly IMissionRepository _missionRepository;
+    private readonly IUserRepository _userRepository;
     private readonly IS3BucketClient _s3Client;
     private readonly ILogger<MissionService> _logger;
 
@@ -28,10 +29,12 @@ public class MissionService : IMissionService
 
     public MissionService(
         IMissionRepository missionRepository,
+        IUserRepository userRepository,
         IS3BucketClient s3Client,
         ILogger<MissionService> logger)
     {
         _missionRepository = missionRepository;
+        _userRepository = userRepository;
         _s3Client = s3Client;
         _logger = logger;
     }
@@ -73,9 +76,16 @@ public class MissionService : IMissionService
             var privateKey = await _s3Client.UploadFileWithRandomKey(S3BucketKeys.PrivateProblems, packageZipPath);
 
             // Создать миссию в базе данных
+            var existingUser = await _userRepository.FindByIdAsync(userId, cancellationToken);
+            if (existingUser == null)
+            {
+                _logger.LogError("User not found: {UserId}", userId);
+                return null;
+            }
+
             var dbMission = new DbMission
             {
-                Author = new DbUser { Id = userId },
+                Author = existingUser,
                 Name = form.Name,
                 S3PrivateKey = privateKey,
                 Difficulty = form.Difficulty,
