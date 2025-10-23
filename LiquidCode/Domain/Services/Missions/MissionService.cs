@@ -45,18 +45,18 @@ public class MissionService : IMissionService
 
         try
         {
-            // Save uploaded file
+            // Сохранить загруженный файл
             _logger.LogInformation("Saving mission file: {FileName}", form.MissionFile.Name);
             using (var fileStream = System.IO.File.Open(packageZipPath, FileMode.OpenOrCreate))
             {
                 await form.MissionFile.CopyToAsync(fileStream, cancellationToken);
             }
 
-            // Extract ZIP file
+            // Распаковать ZIP файл
             _logger.LogInformation("Extracting mission ZIP to: {UnpackFolder}", unpackFolder);
             ZipFile.ExtractToDirectory(packageZipPath, unpackFolder);
 
-            // Verify statement-sections folder exists
+            // Проверить, существует ли папка statement-sections
             var statementSectionsPath = Path.Combine(unpackFolder, MissionStatementPaths.StatementSectionsFolder);
             if (!Directory.Exists(statementSectionsPath))
             {
@@ -64,15 +64,15 @@ public class MissionService : IMissionService
                 return null;
             }
 
-            // Pack statement sections
+            // Упаковать разделы утверждений
             _logger.LogInformation("Creating statements ZIP: {StatementsZipPath}", statementsZipPath);
             ZipFile.CreateFromDirectory(statementSectionsPath, statementsZipPath, CompressionLevel.SmallestSize, false);
 
-            // Upload to S3
+            // Загрузить на S3
             _logger.LogInformation("Uploading mission files to S3");
             var privateKey = await _s3Client.UploadFileWithRandomKey(S3BucketKeys.PrivateProblems, packageZipPath);
 
-            // Create mission in database
+            // Создать миссию в базе данных
             var dbMission = new DbMission
             {
                 Author = new DbUser { Id = userId },
@@ -85,10 +85,10 @@ public class MissionService : IMissionService
 
             await _missionRepository.AddAsync(dbMission, cancellationToken);
 
-            // Parse and store mission text data
+            // Распарсить и сохранить текстовые данные миссии
             var missionTexts = ExtractMissionTexts(statementSectionsPath, dbMission.Id);
             
-            // Update mission name from Russian if available, otherwise from first available language
+            // Обновить имя миссии из русского языка, если доступно, иначе из первого доступного языка
             var russianText = missionTexts.FirstOrDefault(t => t.Language == "russian");
             if (russianText != null)
             {
@@ -103,7 +103,7 @@ public class MissionService : IMissionService
                     dbMission.Name = firstData.Name;
             }
 
-            // Add mission texts to database
+            // Добавить текстовые данные миссии в базу данных
             await _missionRepository.AddMissionTextsAsync(missionTexts, cancellationToken);
             await _missionRepository.SaveChangesAsync(cancellationToken);
 
@@ -117,7 +117,7 @@ public class MissionService : IMissionService
         }
         finally
         {
-            // Cleanup temporary files
+            // Очистить временные файлы
             CleanupTemporaryFiles(unpackFolder, packageZipPath, statementsZipPath);
         }
     }

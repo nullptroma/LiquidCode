@@ -18,7 +18,7 @@ public class UploadMissionRequestValidator : AbstractValidator<UploadMissionRequ
                 if (file == null)
                     return;
 
-                // Check file size
+                // Проверить размер файла
                 if (file.Length == 0)
                 {
                     context.AddFailure(nameof(UploadMissionRequest.MissionFile), "File cannot be empty");
@@ -33,7 +33,7 @@ public class UploadMissionRequestValidator : AbstractValidator<UploadMissionRequ
                     return;
                 }
 
-                // Check MIME type
+                // Проверить MIME тип
                 if (!file.ContentType.Contains("zip", StringComparison.OrdinalIgnoreCase) &&
                     !file.ContentType.Contains("application/x-zip-compressed", StringComparison.OrdinalIgnoreCase) &&
                     !file.ContentType.Contains("application/x-zip", StringComparison.OrdinalIgnoreCase))
@@ -44,7 +44,7 @@ public class UploadMissionRequestValidator : AbstractValidator<UploadMissionRequ
                     return;
                 }
 
-                // Check file extension
+                // Проверить расширение файла
                 var fileName = file.FileName.ToLowerInvariant();
                 if (!fileName.EndsWith(".zip"))
                 {

@@ -4,10 +4,10 @@ namespace LiquidCode.Infrastructure.Database;
 
 public class ConnectionStringParser
 {
-    // PG_URI example: postgresql://app:jPykLQU85XQyoMZjQ0gYgcD87nQjBAbCNg9mquDkpEr9WKhJgOrvoon3PpFyT29u@liquid-db-rw:5432/app
+    // Пример PG_URI: postgresql://app:jPykLQU85XQyoMZjQ0gYgcD87nQjBAbCNg9mquDkpEr9WKhJgOrvoon3PpFyT29u@liquid-db-rw:5432/app
     public ConnectionStringParser(string uri)
     {
-        // generate regex for parse this: "postgresql://postgres:d@localhost:5432/dev-db"
+        // Сгенерировать regex для парсинга этого: "postgresql://postgres:d@localhost:5432/dev-db"
         var pattern =
             @"(?<protocol>(?:[^:]+)s?)?:\/\/(?:(?<user>[^:\n\r]+):(?<pass>[^@\n\r]+)@)?(?<host>(?:www\.)?(?:[^:\/\n\r]+))(?::(?<port>\d+))?\/?(?<request>[^?#\n\r]+)?\??(?<query>[^#\n\r]*)?\#?(?<anchor>[^\n\r]*)?";
         var match = Regex.Match(uri, pattern);

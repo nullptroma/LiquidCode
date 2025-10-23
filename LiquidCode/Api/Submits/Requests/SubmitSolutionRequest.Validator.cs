@@ -31,7 +31,7 @@ public class SubmitSolutionRequestValidator : AbstractValidator<SubmitSolutionRe
             .WithMessage("Source code must be between 1 and 10000 characters")
             .Custom((code, context) =>
             {
-                // Check for null bytes and other binary data
+                // Проверить на нулевые байты и другие двоичные данные
                 if (code.Contains('\0'))
                 {
                     context.AddFailure("Source code contains invalid binary data");

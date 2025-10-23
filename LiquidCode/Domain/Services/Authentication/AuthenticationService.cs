@@ -35,7 +35,7 @@ public class AuthenticationService : IAuthenticationService
     {
         try
         {
-            // Check if user already exists
+            // Проверить, существует ли пользователь
             var userExists = await _userRepository.UserExistsAsync(request.Username, cancellationToken);
             if (userExists)
             {
@@ -43,22 +43,22 @@ public class AuthenticationService : IAuthenticationService
                 return null;
             }
 
-            // Generate secure password hash using BCrypt
+            // Генерировать защищённый хэш пароля с использованием BCrypt
             var passwordHash = BCrypt.Net.BCrypt.HashPassword(request.Password, AppConstants.BcryptWorkFactor);
 
-            // Create new user (Salt is now handled internally by BCrypt)
+            // Создать нового пользователя (соль теперь обрабатывается BCrypt внутренне)
             var newUser = new DbUser
             {
                 Username = request.Username,
                 Email = request.Email,
                 PassHash = passwordHash,
-                Salt = "" // BCrypt manages salt internally
+                Salt = "" // BCrypt управляет солью внутренне
             };
 
             await _userRepository.AddAsync(newUser, cancellationToken);
             _logger.LogInformation("User registered successfully: {Username}", request.Username);
 
-            // Automatically log in the user
+            // Автоматически войти пользователю
             return GenerateTokens(newUser.Username, newUser.Id);
         }
         catch (Exception ex)
@@ -73,7 +73,7 @@ public class AuthenticationService : IAuthenticationService
     {
         try
         {
-            // Find user by username
+            // Найти пользователя по имени пользователя
             var user = await _userRepository.FindByUsernameAsync(request.Username, cancellationToken);
             if (user == null)
             {
@@ -81,14 +81,14 @@ public class AuthenticationService : IAuthenticationService
                 return null;
             }
 
-            // Verify password using BCrypt
+            // Проверить пароль с использованием BCrypt
             if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PassHash))
             {
                 _logger.LogWarning("Invalid password for user: {Username}", request.Username);
                 return null;
             }
 
-            // Generate tokens and save refresh token
+            // Создать токены и сохранить токен обновления
             var tokens = GenerateTokens(user.Username, user.Id);
             await SaveRefreshTokenAsync(user, tokens.RefreshToken, userAgent, ipAddress, cancellationToken);
 
@@ -107,7 +107,7 @@ public class AuthenticationService : IAuthenticationService
     {
         try
         {
-            // Find refresh token
+            // Найти токен обновления
             var refreshToken = await _userRepository.FindRefreshTokenAsync(request.RefreshToken, cancellationToken);
             if (refreshToken == null)
             {
@@ -115,7 +115,7 @@ public class AuthenticationService : IAuthenticationService
                 return null;
             }
 
-            // Check if token has expired
+            // Проверить, истёк ли токен
             if (DateTime.UtcNow > refreshToken.Expires)
             {
                 _logger.LogWarning("Refresh token has expired for user: {UserId}", refreshToken.DbUser.Id);
@@ -124,10 +124,10 @@ public class AuthenticationService : IAuthenticationService
                 return null;
             }
 
-            // Remove old refresh token
+            // Удалить старый токен обновления
             await _userRepository.RemoveRefreshTokenAsync(request.RefreshToken, cancellationToken);
 
-            // Generate new tokens
+            // Создать новые токены
             var newTokens = GenerateTokens(refreshToken.DbUser.Username, refreshToken.DbUser.Id);
             await SaveRefreshTokenAsync(refreshToken.DbUser, newTokens.RefreshToken, userAgent, ipAddress, cancellationToken);
 
@@ -182,7 +182,7 @@ public class AuthenticationService : IAuthenticationService
     private async Task SaveRefreshTokenAsync(
         DbUser user, string refreshToken, string userAgent, string ipAddress, CancellationToken cancellationToken)
     {
-        // Check and cleanup old tokens if needed
+        // Проверить и очистить старые токены при необходимости
         var tokenCount = await _userRepository.GetRefreshTokenCountAsync(user.Id, cancellationToken);
         if (tokenCount >= AppConstants.MaxRefreshTokensPerUser)
         {
@@ -193,7 +193,7 @@ public class AuthenticationService : IAuthenticationService
             }
         }
 
-        // Create and save new refresh token
+        // Создать и сохранить новый токен обновления
         var newRefreshToken = new DbRefreshToken
         {
             Token = refreshToken,
