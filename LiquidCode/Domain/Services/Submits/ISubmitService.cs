@@ -53,10 +53,4 @@ public interface ISubmitService
     /// <returns>Updated solution or null if not found</returns>
     Task<DbSolution?> UpdateSolutionStatusAsync(int solutionId, string status, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Validates if a programming language is supported
-    /// </summary>
-    /// <param name="language">Language to validate</param>
-    /// <returns>True if language is supported, false otherwise</returns>
-    bool IsLanguageSupported(string language);
 }

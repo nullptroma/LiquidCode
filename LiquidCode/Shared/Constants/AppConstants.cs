@@ -13,7 +13,7 @@ public static class AppConstants
     /// <summary>
     /// JWT token expiration time in minutes
     /// </summary>
-    public const int JwtExpirationMinutes = 2;
+    public const int JwtExpirationMinutes = 10;
 
     /// <summary>
     /// Refresh token expiration time in days
@@ -29,21 +29,6 @@ public static class AppConstants
     /// Maximum file size in bytes
     /// </summary>
     public static readonly long MaxUploadFileSizeBytes = (long)MaxUploadFileSizeMb * 1024 * 1024;
-
-    /// <summary>
-    /// Valid programming languages for testing
-    /// </summary>
-    public static readonly string[] SupportedLanguages = { "cpp", "python", "java", "csharp" };
-
-    /// <summary>
-    /// Default programming language
-    /// </summary>
-    public const string DefaultLanguage = "cpp";
-
-    /// <summary>
-    /// Salt length for password hashing (bytes)
-    /// </summary>
-    public const int PasswordSaltLength = 32;
 
     /// <summary>
     /// Refresh token length (bytes)

@@ -31,13 +31,6 @@ public class SubmitService : ISubmitService
     {
         try
         {
-            // Validate language
-            if (!IsLanguageSupported(language))
-            {
-                _logger.LogWarning("Unsupported programming language: {Language}", language);
-                return null;
-            }
-
             // Validate mission exists
             var mission = await _missionRepository.FindByIdAsync(missionId, cancellationToken);
             if (mission == null)
@@ -153,13 +146,5 @@ public class SubmitService : ISubmitService
             _logger.LogError(ex, "Error updating solution status: {SolutionId}", solutionId);
             return null;
         }
-    }
-
-    public bool IsLanguageSupported(string language)
-    {
-        if (string.IsNullOrWhiteSpace(language))
-            return false;
-
-        return AppConstants.SupportedLanguages.Contains(language.ToLowerInvariant());
     }
 }
