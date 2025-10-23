@@ -35,12 +35,12 @@ public interface IMissionRepository : IRepository<DbMission>
     /// <summary>
     /// Добавляет текстовые данные миссии
     /// </summary>
-    Task AddMissionTextAsync(DbMissionPublicTextData textData, CancellationToken cancellationToken = default);
+    Task CreateMissionTextAsync(DbMissionPublicTextData textData, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Добавляет несколько записей текстовых данных миссии
     /// </summary>
-    Task AddMissionTextsAsync(IEnumerable<DbMissionPublicTextData> textData, CancellationToken cancellationToken = default);
+    Task CreateMissionTextsAsync(IEnumerable<DbMissionPublicTextData> textData, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Подсчитывает общее количество миссий

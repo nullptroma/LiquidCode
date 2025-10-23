@@ -83,7 +83,7 @@ public class MissionService : IMissionService
                 UpdatedAt = DateTime.UtcNow
             };
 
-            await _missionRepository.AddAsync(dbMission, cancellationToken);
+            await _missionRepository.CreateAsync(dbMission, cancellationToken);
 
             // Распарсить и сохранить текстовые данные миссии
             var missionTexts = ExtractMissionTexts(statementSectionsPath, dbMission.Id);
@@ -104,7 +104,7 @@ public class MissionService : IMissionService
             }
 
             // Добавить текстовые данные миссии в базу данных
-            await _missionRepository.AddMissionTextsAsync(missionTexts, cancellationToken);
+            await _missionRepository.CreateMissionTextsAsync(missionTexts, cancellationToken);
             await _missionRepository.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Mission uploaded successfully: {MissionId}", dbMission.Id);

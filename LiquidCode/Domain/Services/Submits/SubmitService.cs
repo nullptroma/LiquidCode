@@ -72,7 +72,7 @@ public class SubmitService : ISubmitService
                 Solution = solution
             };
 
-            await _submitRepository.AddAsync(submission, cancellationToken);
+            await _submitRepository.CreateAsync(submission, cancellationToken);
             _logger.LogInformation("Solution submitted: UserId={UserId}, MissionId={MissionId}, SolutionId={SolutionId}", userId, missionId, solution.Id);
 
             return solution;
