@@ -1,10 +1,12 @@
+using LiquidCode.Infrastructure.Database.Entities;
+
 namespace LiquidCode.Domain.Interfaces.Repositories;
 
 /// <summary>
 /// Базовый интерфейс репозитория для общих операций CRUD
 /// </summary>
 /// <typeparam name="TEntity">Тип сущности, управляемой этим репозиторием</typeparam>
-public interface IRepository<TEntity> where TEntity : class
+public interface IRepository<TEntity> where TEntity : class, ISoftDeletable
 {
     /// <summary>
     /// Находит сущность по ее ID
@@ -12,14 +14,19 @@ public interface IRepository<TEntity> where TEntity : class
     Task<TEntity?> FindByIdAsync(int id, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Получает все сущности
+    /// Получает все сущности с пагинацией
     /// </summary>
-    Task<IEnumerable<TEntity>> GetAllAsync(CancellationToken cancellationToken = default);
+    /// <param name="pageSize">Количество элементов на странице</param>
+    /// <param name="pageNumber">Номер страницы (начиная с 0)</param>
+    /// <param name="cancellationToken">Токен отмены</param>
+    /// <returns>Кортеж (сущности, естьСледующаяСтраница)</returns>
+    Task<(IEnumerable<TEntity> Items, bool HasNextPage)> GetPageAsync(
+        int pageSize, int pageNumber, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Добавляет новую сущность
     /// </summary>
-    Task AddAsync(TEntity entity, CancellationToken cancellationToken = default);
+    Task CreateAsync(TEntity entity, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Обновляет существующую сущность
@@ -29,7 +36,12 @@ public interface IRepository<TEntity> where TEntity : class
     /// <summary>
     /// Удаляет сущность
     /// </summary>
-    Task RemoveAsync(TEntity entity, CancellationToken cancellationToken = default);
+    Task DeleteAsync(TEntity entity, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Мягко удаляет сущность
+    /// </summary>
+    Task SoftDeleteAsync(TEntity entity, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Сохраняет все изменения, сделанные в базе данных

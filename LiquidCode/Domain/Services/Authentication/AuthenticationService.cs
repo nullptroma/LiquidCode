@@ -55,7 +55,7 @@ public class AuthenticationService : IAuthenticationService
                 Salt = "" // BCrypt управляет солью внутренне
             };
 
-            await _userRepository.AddAsync(newUser, cancellationToken);
+            await _userRepository.CreateAsync(newUser, cancellationToken);
             _logger.LogInformation("User registered successfully: {Username}", request.Username);
 
             // Автоматически войти пользователю

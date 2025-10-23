@@ -8,52 +8,63 @@ namespace LiquidCode.Infrastructure.Database.Repositories;
 /// <summary>
 /// Реализация репозитория для операций с базой данных, связанных с миссиями
 /// </summary>
-public class MissionRepository : Repository<DbMission>, IMissionRepository
+public class MissionRepository : IMissionRepository
 {
-    public MissionRepository(LiquidDbContext dbContext) : base(dbContext)
+    private readonly LiquidDbContext _dbContext;
+    private readonly DbCrud<DbMission> _missionRepository;
+
+    public MissionRepository(LiquidDbContext dbContext)
     {
+        _dbContext = dbContext;
+        _missionRepository = new DbCrud<DbMission>(dbContext);
     }
 
-    public async Task<(IEnumerable<DbMission> Missions, bool HasNextPage)> GetMissionsPageAsync(
-        int pageSize, int pageNumber, CancellationToken cancellationToken = default)
-    {
-        if (pageSize <= 0 || pageNumber < 0)
-            throw new ArgumentException("Page size must be positive, page number must be non-negative");
+    // IRepository<DbMission> implementation (delegated to _missionRepository)
+    public Task<DbMission?> FindByIdAsync(int id, CancellationToken cancellationToken = default) =>
+        _missionRepository.FindByIdAsync(id, cancellationToken);
 
-        var totalCount = await DbSet.CountAsync(cancellationToken);
-        var hasNextPage = totalCount > pageSize * (pageNumber + 1);
+    public Task<(IEnumerable<DbMission> Items, bool HasNextPage)> GetPageAsync(
+        int pageSize, int pageNumber, CancellationToken cancellationToken = default) =>
+        _missionRepository.GetPageAsync(pageSize, pageNumber, cancellationToken);
 
-        var missions = await DbSet
-            .OrderBy(m => m.Id)
-            .Skip(pageSize * pageNumber)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
+    public Task CreateAsync(DbMission entity, CancellationToken cancellationToken = default) =>
+        _missionRepository.CreateAsync(entity, cancellationToken);
 
-        return (missions, hasNextPage);
-    }
+    public Task UpdateAsync(DbMission entity, CancellationToken cancellationToken = default) =>
+        _missionRepository.UpdateAsync(entity, cancellationToken);
 
+    public Task DeleteAsync(DbMission entity, CancellationToken cancellationToken = default) =>
+        _missionRepository.DeleteAsync(entity, cancellationToken);
+
+    public Task SoftDeleteAsync(DbMission entity, CancellationToken cancellationToken = default) =>
+        _missionRepository.SoftDeleteAsync(entity, cancellationToken);
+
+    public Task SaveChangesAsync(CancellationToken cancellationToken = default) =>
+        _missionRepository.SaveChangesAsync(cancellationToken);
+
+    // IMissionRepository specific methods
     public async Task<IEnumerable<DbMission>> GetMissionsByAuthorAsync(int authorId, CancellationToken cancellationToken = default) =>
-        await DbSet
+        await _dbContext.Set<DbMission>()
             .Where(m => m.Author.Id == authorId)
             .OrderByDescending(m => m.CreatedAt)
             .ToListAsync(cancellationToken);
 
     public async Task<DbMissionPublicTextData?> GetMissionTextAsync(int missionId, string language, CancellationToken cancellationToken = default) =>
-        await DbContext.MissionsTextData
+        await _dbContext.MissionsTextData
             .FirstOrDefaultAsync(m => m.MissionId == missionId && m.Language == language, cancellationToken);
 
     public async Task<IEnumerable<string>> GetMissionLanguagesAsync(int missionId, CancellationToken cancellationToken = default) =>
-        await DbContext.MissionsTextData
+        await _dbContext.MissionsTextData
             .Where(m => m.MissionId == missionId)
             .Select(m => m.Language)
             .ToListAsync(cancellationToken);
 
-    public async Task AddMissionTextAsync(DbMissionPublicTextData textData, CancellationToken cancellationToken = default) =>
-        await DbContext.MissionsTextData.AddAsync(textData, cancellationToken);
+    public async Task CreateMissionTextAsync(DbMissionPublicTextData textData, CancellationToken cancellationToken = default) =>
+        await _dbContext.MissionsTextData.AddAsync(textData, cancellationToken);
 
-    public async Task AddMissionTextsAsync(IEnumerable<DbMissionPublicTextData> textData, CancellationToken cancellationToken = default) =>
-        await DbContext.MissionsTextData.AddRangeAsync(textData, cancellationToken);
+    public async Task CreateMissionTextsAsync(IEnumerable<DbMissionPublicTextData> textData, CancellationToken cancellationToken = default) =>
+        await _dbContext.MissionsTextData.AddRangeAsync(textData, cancellationToken);
 
     public async Task<int> CountMissionsAsync(CancellationToken cancellationToken = default) =>
-        await DbSet.CountAsync(cancellationToken);
+        await _dbContext.Set<DbMission>().CountAsync(cancellationToken);
 }

@@ -23,12 +23,12 @@ public interface ISubmitRepository : IRepository<DbUserSubmit>
     Task<DbUserSubmit?> GetSubmissionWithDetailsAsync(int submissionId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Получает решение для отправки
+    /// Получает решение
     /// </summary>
     Task<DbSolution?> GetSolutionAsync(int submissionId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Добавляет решение для отправки
+    /// Добавляет решение
     /// </summary>
     Task AddSolutionAsync(DbSolution solution, CancellationToken cancellationToken = default);
 }
