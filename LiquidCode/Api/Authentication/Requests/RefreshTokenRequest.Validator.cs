@@ -3,7 +3,7 @@ using FluentValidation;
 namespace LiquidCode.Api.Authentication.Requests;
 
 /// <summary>
-/// Validator for refresh token requests
+/// Валидатор для запросов токенов обновления
 /// </summary>
 public class RefreshTokenRequestValidator : AbstractValidator<RefreshTokenRequest>
 {

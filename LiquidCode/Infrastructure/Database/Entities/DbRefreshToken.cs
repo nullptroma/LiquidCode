@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 namespace LiquidCode.Infrastructure.Database.Entities;
 
 /// <summary>
-/// Refresh token entity with indexing for performance
+/// Сущность токена обновления с индексацией для производительности
 /// </summary>
 [Index(nameof(Expires))]
 public class DbRefreshToken : ITimestamped

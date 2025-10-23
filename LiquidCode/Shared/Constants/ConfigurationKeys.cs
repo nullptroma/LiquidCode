@@ -3,7 +3,7 @@ namespace LiquidCode.Shared.Constants;
 
 
 /// <summary>
-/// Environment variable configuration keys
+/// Ключи конфигурации переменных окружения
 /// </summary>
 public static class ConfigurationKeys
 {

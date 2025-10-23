@@ -1,38 +1,38 @@
 namespace LiquidCode.Domain.Interfaces.Repositories;
 
 /// <summary>
-/// Base repository interface for common CRUD operations
+/// Базовый интерфейс репозитория для общих операций CRUD
 /// </summary>
-/// <typeparam name="TEntity">The entity type managed by this repository</typeparam>
+/// <typeparam name="TEntity">Тип сущности, управляемой этим репозиторием</typeparam>
 public interface IRepository<TEntity> where TEntity : class
 {
     /// <summary>
-    /// Finds an entity by its ID
+    /// Находит сущность по ее ID
     /// </summary>
     Task<TEntity?> FindByIdAsync(int id, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets all entities
+    /// Получает все сущности
     /// </summary>
     Task<IEnumerable<TEntity>> GetAllAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Adds a new entity
+    /// Добавляет новую сущность
     /// </summary>
     Task AddAsync(TEntity entity, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Updates an existing entity
+    /// Обновляет существующую сущность
     /// </summary>
     Task UpdateAsync(TEntity entity, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Removes an entity
+    /// Удаляет сущность
     /// </summary>
     Task RemoveAsync(TEntity entity, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Saves all changes made to the database
+    /// Сохраняет все изменения, сделанные в базе данных
     /// </summary>
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }

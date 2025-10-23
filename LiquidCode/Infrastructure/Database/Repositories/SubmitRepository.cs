@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace LiquidCode.Infrastructure.Database.Repositories;
 
 /// <summary>
-/// Repository implementation for user submission-related database operations
+/// Реализация репозитория для операций с базой данных, связанных с отправками пользователей
 /// </summary>
 public class SubmitRepository : Repository<DbUserSubmit>, ISubmitRepository
 {

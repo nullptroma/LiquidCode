@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace LiquidCode.Infrastructure.Database.Repositories;
 
 /// <summary>
-/// Repository implementation for mission-related database operations
+/// Реализация репозитория для операций с базой данных, связанных с миссиями
 /// </summary>
 public class MissionRepository : Repository<DbMission>, IMissionRepository
 {

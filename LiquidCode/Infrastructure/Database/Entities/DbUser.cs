@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 namespace LiquidCode.Infrastructure.Database.Entities;
 
 /// <summary>
-/// User entity with improved indexing and audit fields
+/// Сущность пользователя с улучшенной индексацией и полями аудита
 /// </summary>
 [Index(nameof(Username), IsUnique = true)]
 [Index(nameof(Email))]
@@ -25,11 +25,11 @@ public class DbUser : ISoftDeletable, ITimestamped
     [StringLength(512)] 
     public string Salt { get; init; } = "";
     
-    // Soft delete support
+    // Поддержка мягкого удаления
     public bool IsDeleted { get; set; }
     public DateTime? DeletedAt { get; set; }
     
-    // Timestamps
+    // Временные метки
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

@@ -1,6 +1,6 @@
 namespace LiquidCode.Api.Authentication.Requests;
 
 /// <summary>
-/// Request model for user login
+/// Модель запроса для входа пользователя
 /// </summary>
 public record LoginRequest(string Username, string Password);

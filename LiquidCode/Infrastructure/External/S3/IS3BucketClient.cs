@@ -7,8 +7,8 @@ public interface IS3BucketClient
     Task<List<string>> GetAllFiles();
 
     /// <summary>
-    /// 
+    /// Загружает файл с случайным ключом
     /// </summary>
-    /// <returns>Returns key on s3</returns>
+    /// <returns>Возвращает ключ на S3</returns>
     Task<string> UploadFileWithRandomKey(string baseFolder, string localFilePath);
 }

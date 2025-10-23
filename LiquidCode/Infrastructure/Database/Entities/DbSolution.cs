@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 namespace LiquidCode.Infrastructure.Database.Entities;
 
 /// <summary>
-/// Solution entity with indexing and timestamps
+/// Сущность решения с индексацией и временными метками
 /// </summary>
 [Index(nameof(Status))]
 [Index(nameof(CreatedAt))]

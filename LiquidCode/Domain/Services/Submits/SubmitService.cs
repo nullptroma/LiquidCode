@@ -5,7 +5,7 @@ using LiquidCode.Domain.Interfaces.Repositories;
 namespace LiquidCode.Domain.Services.Submits;
 
 /// <summary>
-/// Service implementation for user submission-related operations
+/// Реализация сервиса для операций, связанных с отправками пользователей
 /// </summary>
 public class SubmitService : ISubmitService
 {
@@ -31,14 +31,7 @@ public class SubmitService : ISubmitService
     {
         try
         {
-            // Validate language
-            if (!IsLanguageSupported(language))
-            {
-                _logger.LogWarning("Unsupported programming language: {Language}", language);
-                return null;
-            }
-
-            // Validate mission exists
+            // Проверить, существует ли миссия
             var mission = await _missionRepository.FindByIdAsync(missionId, cancellationToken);
             if (mission == null)
             {
@@ -46,7 +39,7 @@ public class SubmitService : ISubmitService
                 return null;
             }
 
-            // Validate user exists
+            // Проверить, существует ли пользователь
             var user = await _userRepository.FindByIdAsync(userId, cancellationToken);
             if (user == null)
             {
@@ -54,14 +47,14 @@ public class SubmitService : ISubmitService
                 return null;
             }
 
-            // Validate source code is not empty
+            // Проверить, что исходный код не пуст
             if (string.IsNullOrWhiteSpace(sourceCode))
             {
                 _logger.LogWarning("Source code is empty for user {UserId}", userId);
                 return null;
             }
 
-            // Create solution
+            // Создать решение
             var solution = new DbSolution
             {
                 Mission = mission,
@@ -72,7 +65,7 @@ public class SubmitService : ISubmitService
                 Time = DateTime.UtcNow
             };
 
-            // Create submission
+            // Создать отправку
             var submission = new DbUserSubmit
             {
                 User = user,
@@ -142,7 +135,7 @@ public class SubmitService : ISubmitService
             }
 
             solution.Status = status;
-            // TODO: Implement update method in repository
+            // TODO: Реализовать метод обновления в репозитории
             await _submitRepository.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Solution status updated: SolutionId={SolutionId}, Status={Status}", solutionId, status);
@@ -153,13 +146,5 @@ public class SubmitService : ISubmitService
             _logger.LogError(ex, "Error updating solution status: {SolutionId}", solutionId);
             return null;
         }
-    }
-
-    public bool IsLanguageSupported(string language)
-    {
-        if (string.IsNullOrWhiteSpace(language))
-            return false;
-
-        return AppConstants.SupportedLanguages.Contains(language.ToLowerInvariant());
     }
 }

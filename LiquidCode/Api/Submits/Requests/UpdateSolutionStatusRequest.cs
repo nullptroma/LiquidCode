@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 namespace LiquidCode.Api.Submits.Requests;
 
 /// <summary>
-/// Request model for updating solution status (called by testing module)
+/// Модель запроса для обновления статуса решения (вызывается модулем тестирования)
 /// </summary>
 public record UpdateSolutionStatusRequest(
     [Required] int SubmissionId,

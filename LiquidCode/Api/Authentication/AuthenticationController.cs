@@ -7,14 +7,14 @@ using Microsoft.AspNetCore.Mvc;
 namespace LiquidCode.Api.Authentication;
 
 /// <summary>
-/// Authentication controller handling user registration, login, token refresh, and user info
+/// Контроллер аутентификации, обрабатывающий регистрацию пользователей, вход, обновление токенов и информацию о пользователе
 /// </summary>
 [Route("authentication")]
 [ApiController]
 public class AuthenticationController(IAuthenticationService authService) : ControllerBase
 {
     /// <summary>
-    /// Registers a new user
+    /// Регистрирует нового пользователя
     /// </summary>
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request, CancellationToken cancellationToken)
@@ -30,7 +30,7 @@ public class AuthenticationController(IAuthenticationService authService) : Cont
     }
 
     /// <summary>
-    /// Authenticates a user with username and password
+    /// Аутентифицирует пользователя с помощью имени пользователя и пароля
     /// </summary>
     [HttpPost("login")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
@@ -49,7 +49,7 @@ public class AuthenticationController(IAuthenticationService authService) : Cont
     }
 
     /// <summary>
-    /// Refreshes an expired JWT token using a refresh token
+    /// Обновляет истекший JWT токен с помощью токена обновления
     /// </summary>
     [HttpPost("refresh")]
     public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken)
@@ -68,7 +68,7 @@ public class AuthenticationController(IAuthenticationService authService) : Cont
     }
 
     /// <summary>
-    /// Gets the current authenticated user's username
+    /// Получает имя пользователя текущего аутентифицированного пользователя
     /// </summary>
     [HttpGet("whoami")]
     [Authorize]

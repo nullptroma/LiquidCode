@@ -3,60 +3,54 @@ using LiquidCode.Infrastructure.Database.Entities;
 namespace LiquidCode.Domain.Services.Submits;
 
 /// <summary>
-/// Service interface for user submission-related operations
+/// Интерфейс сервиса для операций, связанных с отправками пользователей
 /// </summary>
 public interface ISubmitService
 {
     /// <summary>
-    /// Submits a solution for a mission
+    /// Отправляет решение для миссии
     /// </summary>
-    /// <param name="missionId">Mission ID</param>
-    /// <param name="userId">User ID submitting the solution</param>
-    /// <param name="sourceCode">Source code content</param>
-    /// <param name="language">Programming language</param>
-    /// <param name="languageVersion">Programming language version</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Created solution or null if submission failed</returns>
+    /// <param name="missionId">ID миссии</param>
+    /// <param name="userId">ID пользователя, отправляющего решение</param>
+    /// <param name="sourceCode">Содержимое исходного кода</param>
+    /// <param name="language">Язык программирования</param>
+    /// <param name="languageVersion">Версия языка программирования</param>
+    /// <param name="cancellationToken">Токен отмены</param>
+    /// <returns>Созданное решение или null, если отправка не удалась</returns>
     Task<DbSolution?> SubmitSolutionAsync(
         int missionId, int userId, string sourceCode, string language, string languageVersion, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets a specific submission
+    /// Получает конкретную отправку
     /// </summary>
-    /// <param name="submissionId">Submission ID</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Submission with related data or null if not found</returns>
+    /// <param name="submissionId">ID отправки</param>
+    /// <param name="cancellationToken">Токен отмены</param>
+    /// <returns>Отправка с связанными данными или null, если не найдена</returns>
     Task<DbUserSubmit?> GetSubmissionAsync(int submissionId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets all submissions by a user
+    /// Получает все отправки пользователя
     /// </summary>
-    /// <param name="userId">User ID</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>List of submissions</returns>
+    /// <param name="userId">ID пользователя</param>
+    /// <param name="cancellationToken">Токен отмены</param>
+    /// <returns>Список отправок</returns>
     Task<IEnumerable<DbUserSubmit>> GetUserSubmissionsAsync(int userId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets all submissions for a mission
+    /// Получает все отправки для миссии
     /// </summary>
-    /// <param name="missionId">Mission ID</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>List of submissions</returns>
+    /// <param name="missionId">ID миссии</param>
+    /// <param name="cancellationToken">Токен отмены</param>
+    /// <returns>Список отправок</returns>
     Task<IEnumerable<DbUserSubmit>> GetMissionSubmissionsAsync(int missionId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Updates solution status
+    /// Обновляет статус решения
     /// </summary>
-    /// <param name="solutionId">Solution ID</param>
-    /// <param name="status">New status</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Updated solution or null if not found</returns>
+    /// <param name="solutionId">ID решения</param>
+    /// <param name="status">Новый статус</param>
+    /// <param name="cancellationToken">Токен отмены</param>
+    /// <returns>Обновленное решение или null, если не найдено</returns>
     Task<DbSolution?> UpdateSolutionStatusAsync(int solutionId, string status, CancellationToken cancellationToken = default);
 
-    /// <summary>
-    /// Validates if a programming language is supported
-    /// </summary>
-    /// <param name="language">Language to validate</param>
-    /// <returns>True if language is supported, false otherwise</returns>
-    bool IsLanguageSupported(string language);
 }

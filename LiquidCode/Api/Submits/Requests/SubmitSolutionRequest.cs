@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 namespace LiquidCode.Api.Submits.Requests;
 
 /// <summary>
-/// Request model for submitting a solution
+/// Модель запроса для отправки решения
 /// </summary>
 public record SubmitSolutionRequest(
     [Required] int MissionId,

@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 namespace LiquidCode.Infrastructure.Database.Entities;
 
 /// <summary>
-/// Mission entity with improved indexing and audit fields
+/// Сущность миссии с улучшенной индексацией и полями аудита
 /// </summary>
 [Index(nameof(Difficulty))]
 [Index(nameof(CreatedAt))]
@@ -23,11 +23,11 @@ public class DbMission : ISoftDeletable, ITimestamped
     
     public int Difficulty { get; init; }
     
-    // Soft delete support
+    // Поддержка мягкого удаления
     public bool IsDeleted { get; set; }
     public DateTime? DeletedAt { get; set; }
     
-    // Timestamps
+    // Временные метки
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

@@ -5,34 +5,34 @@ using LiquidCode.Infrastructure.Database.Entities;
 namespace LiquidCode.Domain.Services.Missions;
 
 /// <summary>
-/// Service interface for mission-related operations
+/// Интерфейс сервиса для операций, связанных с миссиями
 /// </summary>
 public interface IMissionService
 {
     /// <summary>
-    /// Uploads a new mission from a ZIP file
+    /// Загружает новую миссию из ZIP файла
     /// </summary>
-    /// <param name="form">Upload form with mission file and metadata</param>
-    /// <param name="userId">ID of the user uploading the mission</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Created mission model or null if upload failed</returns>
+    /// <param name="form">Форма загрузки с файлом миссии и метаданными</param>
+    /// <param name="userId">ID пользователя, загружающего миссию</param>
+    /// <param name="cancellationToken">Токен отмены</param>
+    /// <returns>Созданная модель миссии или null, если загрузка не удалась</returns>
     Task<MissionResponse?> UploadMissionAsync(UploadMissionRequest form, int userId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets mission text data in a specific language
+    /// Получает текстовые данные миссии на определенном языке
     /// </summary>
-    /// <param name="missionId">Mission ID</param>
-    /// <param name="language">Language code</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Mission text data as JSON string or null if not found</returns>
+    /// <param name="missionId">ID миссии</param>
+    /// <param name="language">Код языка</param>
+    /// <param name="cancellationToken">Токен отмены</param>
+    /// <returns>Текстовые данные миссии в виде строки JSON или null, если не найдено</returns>
     Task<string?> GetMissionTextAsync(int missionId, string language, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets a paginated list of missions
+    /// Получает постраничный список миссий
     /// </summary>
-    /// <param name="pageSize">Number of missions per page</param>
-    /// <param name="pageNumber">Zero-based page number</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Mission list with pagination info or null if invalid parameters</returns>
+    /// <param name="pageSize">Количество миссий на странице</param>
+    /// <param name="pageNumber">Номер страницы, начиная с нуля</param>
+    /// <param name="cancellationToken">Токен отмены</param>
+    /// <returns>Список миссий с информацией о пагинации или null при недопустимых параметрах</returns>
     Task<MissionsPageResponse?> GetMissionsListAsync(int pageSize, int pageNumber, CancellationToken cancellationToken = default);
 }

@@ -1,7 +1,7 @@
 namespace LiquidCode.Api.Missions.Responses;
 
 /// <summary>
-/// Paginated response for missions list
+/// Пагинированный ответ для списка миссий
 /// </summary>
 public record MissionsPageResponse(
     bool HasNextPage, 

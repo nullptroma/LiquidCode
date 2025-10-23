@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace LiquidCode.Infrastructure.Database.Repositories;
 
 /// <summary>
-/// Repository implementation for user-related database operations
+/// Реализация репозитория для операций с базой данных, связанных с пользователями
 /// </summary>
 public class UserRepository : Repository<DbUser>, IUserRepository
 {
