@@ -66,6 +66,19 @@ builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 builder.Services.AddControllers();
 
+// Configure a permissive CORS policy so browsers can send requests with
+// custom headers (like Content-Type) and the preflight OPTIONS request
+// will succeed. In production you should restrict origins/headers/methods.
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
 builder.Services.AddS3Buckets(builder.Configuration);
 builder.Services.AddSingleton(new TestingHttpClient(builder.Configuration[ConfigurationKeys.TestingModuleUrl] ??
                                                     throw new ArgumentNullException(ConfigurationKeys.TestingModuleUrl)));
@@ -124,7 +137,9 @@ var app = builder.Build();
 // Global exception handling middleware (must be first!)
 //app.UseExceptionHandling();
 
-app.UseCors(builder => builder.AllowAnyOrigin());
+// Use the named permissive policy so preflight requests include
+// Access-Control-Allow-Headers and other required headers.
+app.UseCors("AllowAll");
 
 // Configure the HTTP request pipeline.
 //if (app.Environment.IsDevelopment())
