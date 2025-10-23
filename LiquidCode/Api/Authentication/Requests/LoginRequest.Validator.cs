@@ -3,7 +3,7 @@ using FluentValidation;
 namespace LiquidCode.Api.Authentication.Requests;
 
 /// <summary>
-/// Validator for login requests
+/// Валидатор для запросов входа
 /// </summary>
 public class LoginRequestValidator : AbstractValidator<LoginRequest>
 {

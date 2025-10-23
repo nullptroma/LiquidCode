@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 namespace LiquidCode.Infrastructure.Database.Entities;
 
 /// <summary>
-/// User entity with improved indexing and audit fields
+/// Сущность пользователя с улучшенной индексацией и полями аудита
 /// </summary>
 [Index(nameof(Username), IsUnique = true)]
 [Index(nameof(Email))]

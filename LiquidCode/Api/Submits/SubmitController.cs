@@ -9,14 +9,14 @@ using Microsoft.AspNetCore.Mvc;
 namespace LiquidCode.Api.Submits;
 
 /// <summary>
-/// Submit controller handling user solution submissions and results
+/// Контроллер отправки, обрабатывающий отправку решений пользователей и результаты
 /// </summary>
 [Route("submits")]
 [ApiController]
 public class SubmitController(ISubmitService submitService, TestingHttpClient testingClient) : ControllerBase
 {
     /// <summary>
-    /// Submits a solution for a mission
+    /// Отправляет решение для миссии
     /// </summary>
     [Authorize]
     [HttpPost]
@@ -34,14 +34,14 @@ public class SubmitController(ISubmitService submitService, TestingHttpClient te
         if (solution == null)
             return BadRequest("Solution submission failed. Mission may not exist or language is not supported.");
 
-        // Send to testing module asynchronously (fire and forget)
+        // Отправить в модуль тестирования асинхронно (запустить и забыть)
         _ = testingClient.PostData(solution.Id, request.MissionId, request.SourceCode, request.Language);
 
         return Ok(SolutionResponse.FromEntity(solution));
     }
 
     /// <summary>
-    /// Gets all submissions by the current user
+    /// Получает все отправки текущего пользователя
     /// </summary>
     [Authorize]
     [HttpGet("my")]
@@ -58,7 +58,7 @@ public class SubmitController(ISubmitService submitService, TestingHttpClient te
     }
 
     /// <summary>
-    /// Gets a specific user submission by ID
+    /// Получает конкретную отправку пользователя по ID
     /// </summary>
     [Authorize]
     [HttpGet("{id}")]
@@ -76,7 +76,7 @@ public class SubmitController(ISubmitService submitService, TestingHttpClient te
     }
 
     /// <summary>
-    /// Gets all submissions by the current user for a specific mission
+    /// Получает все отправки текущего пользователя для конкретной миссии
     /// </summary>
     [Authorize]
     [HttpGet("my/mission/{missionId}")]
@@ -96,7 +96,7 @@ public class SubmitController(ISubmitService submitService, TestingHttpClient te
     }
 
     /// <summary>
-    /// Updates solution status (called by testing module)
+    /// Обновляет статус решения (вызывается модулем тестирования)
     /// </summary>
     [HttpPost("update-status")]
     public async Task<IActionResult> UpdateSolutionStatus([FromBody] UpdateSolutionStatusRequest request, CancellationToken cancellationToken)
@@ -114,7 +114,7 @@ public class SubmitController(ISubmitService submitService, TestingHttpClient te
     }
 
     /// <summary>
-    /// Formats verdict message for solution status
+    /// Форматирует сообщение вердикта для статуса решения
     /// </summary>
     private static string FormatVerdictMessage(int verdictCode, int? testCase)
     {

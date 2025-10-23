@@ -1,17 +1,17 @@
 namespace LiquidCode.Infrastructure.Database.Entities;
 
 /// <summary>
-/// Interface for entities that support soft deletion
+/// Интерфейс для сущностей, которые поддерживают мягкое удаление
 /// </summary>
 public interface ISoftDeletable
 {
     /// <summary>
-    /// Indicates whether the entity has been soft deleted
+    /// Указывает, была ли сущность мягко удалена
     /// </summary>
     bool IsDeleted { get; set; }
     
     /// <summary>
-    /// Timestamp when the entity was soft deleted (null if not deleted)
+    /// Временная метка, когда сущность была мягко удалена (null, если не удалена)
     /// </summary>
     DateTime? DeletedAt { get; set; }
 }

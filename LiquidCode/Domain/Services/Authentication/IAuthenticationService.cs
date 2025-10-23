@@ -4,27 +4,27 @@ using LiquidCode.Api.Authentication.Responses;
 namespace LiquidCode.Domain.Services.Authentication;
 
 /// <summary>
-/// Service interface for authentication operations
+/// Интерфейс сервиса для операций аутентификации
 /// </summary>
 public interface IAuthenticationService
 {
     /// <summary>
-    /// Registers a new user
+    /// Регистрирует нового пользователя
     /// </summary>
     Task<AuthTokensResponse?> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Authenticates a user with username and password
+    /// Аутентифицирует пользователя с помощью имени пользователя и пароля
     /// </summary>
     Task<AuthTokensResponse?> LoginAsync(LoginRequest request, string userAgent, string ipAddress, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Refreshes an expired JWT token using a refresh token
+    /// Обновляет истекший JWT токен с помощью токена обновления
     /// </summary>
     Task<AuthTokensResponse?> RefreshAsync(RefreshTokenRequest request, string userAgent, string ipAddress, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets the username of the currently authenticated user
+    /// Получает имя пользователя текущего аутентифицированного пользователя
     /// </summary>
     Task<string?> GetUsernameAsync(int userId, CancellationToken cancellationToken = default);
 }

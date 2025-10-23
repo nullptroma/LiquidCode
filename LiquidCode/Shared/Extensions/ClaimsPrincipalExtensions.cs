@@ -3,16 +3,16 @@ using System.Security.Claims;
 namespace LiquidCode.Shared.Extensions;
 
 /// <summary>
-/// Extension methods for working with ClaimsPrincipal (User claims)
+/// Методы расширения для работы с ClaimsPrincipal (пользовательские claims)
 /// </summary>
 public static class ClaimsPrincipalExtensions
 {
     /// <summary>
-    /// Attempts to extract the user ID from claims
+    /// Пытается извлечь ID пользователя из claims
     /// </summary>
-    /// <param name="user">The claims principal to extract from</param>
-    /// <param name="userId">Output parameter for the extracted user ID</param>
-    /// <returns>True if user ID was found and parsed successfully, false otherwise</returns>
+    /// <param name="user">ClaimsPrincipal для извлечения</param>
+    /// <param name="userId">Выходной параметр для извлеченного ID пользователя</param>
+    /// <returns>True, если ID пользователя найден и успешно распарсен, иначе false</returns>
     public static bool TryGetUserId(this ClaimsPrincipal user, out int userId)
     {
         userId = 0;
@@ -21,7 +21,7 @@ public static class ClaimsPrincipalExtensions
     }
 
     /// <summary>
-    /// Gets the user ID from claims, or returns null if not found
+    /// Получает ID пользователя из claims, или возвращает null, если не найден
     /// </summary>
     public static int? GetUserIdOrNull(this ClaimsPrincipal user)
     {
@@ -29,13 +29,13 @@ public static class ClaimsPrincipalExtensions
     }
 
     /// <summary>
-    /// Gets the username from claims
+    /// Получает имя пользователя из claims
     /// </summary>
     public static string? GetUsername(this ClaimsPrincipal user) =>
         user.FindFirst(ClaimTypes.Name)?.Value;
 
     /// <summary>
-    /// Gets the email from claims
+    /// Получает email из claims
     /// </summary>
     public static string? GetEmail(this ClaimsPrincipal user) =>
         user.FindFirst(ClaimTypes.Email)?.Value;

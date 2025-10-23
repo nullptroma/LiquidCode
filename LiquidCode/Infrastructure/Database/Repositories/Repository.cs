@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore;
 namespace LiquidCode.Infrastructure.Database.Repositories;
 
 /// <summary>
-/// Base repository implementation providing common CRUD operations
+/// Базовая реализация репозитория, предоставляющая общие операции CRUD
 /// </summary>
 public class Repository<TEntity> : IRepository<TEntity> where TEntity : class
 {

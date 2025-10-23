@@ -60,15 +60,15 @@ if (builder.Configuration[ConfigurationKeys.MigrateOnlyFlag] == "1")
 }
 
 
-// Add FluentValidation
+// Добавить FluentValidation
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 builder.Services.AddControllers();
 
-// Configure a permissive CORS policy so browsers can send requests with
-// custom headers (like Content-Type) and the preflight OPTIONS request
-// will succeed. In production you should restrict origins/headers/methods.
+// Настроить разрешающую политику CORS, чтобы браузеры могли отправлять запросы с
+// пользовательскими заголовками (например, Content-Type) и предварительный OPTIONS запрос
+// будет успешным. В продакшене следует ограничить origins/headers/methods.
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("AllowAll", policy =>
@@ -83,12 +83,12 @@ builder.Services.AddS3Buckets(builder.Configuration);
 builder.Services.AddSingleton(new TestingHttpClient(builder.Configuration[ConfigurationKeys.TestingModuleUrl] ??
                                                     throw new ArgumentNullException(ConfigurationKeys.TestingModuleUrl)));
 
-// Add repositories
+// Добавить репозитории
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IMissionRepository, MissionRepository>();
 builder.Services.AddScoped<ISubmitRepository, SubmitRepository>();
 
-// Add services
+// Добавить сервисы
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 builder.Services.AddScoped<IMissionService, MissionService>();
 builder.Services.AddScoped<ISubmitService, SubmitService>();
@@ -96,7 +96,7 @@ builder.Services.AddScoped<ISubmitService, SubmitService>();
 builder.Services.AddDbContext<LiquidDbContext>(options =>
     options.UseNpgsql(dbConnectionString).UseSnakeCaseNamingConvention());
 
-// JWT for asp net core
+// JWT для ASP.NET Core
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
@@ -114,7 +114,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-// Add services to the container.
+// Добавить сервисы в контейнер.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
@@ -134,14 +134,14 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-// Global exception handling middleware (must be first!)
+// Глобальный middleware обработки исключений (должен быть первым!)
 //app.UseExceptionHandling();
 
-// Use the named permissive policy so preflight requests include
-// Access-Control-Allow-Headers and other required headers.
+// Использовать именованную разрешающую политику, чтобы предварительные запросы включали
+// Access-Control-Allow-Headers и другие необходимые заголовки.
 app.UseCors("AllowAll");
 
-// Configure the HTTP request pipeline.
+// Настроить конвейер HTTP запросов.
 //if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();

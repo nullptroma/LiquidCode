@@ -4,7 +4,7 @@ using System.Text.Json;
 namespace LiquidCode.Infrastructure.Middleware;
 
 /// <summary>
-/// Middleware for global exception handling with structured error responses
+/// Middleware для глобальной обработки исключений со структурированными ответами об ошибках
 /// </summary>
 public class ExceptionHandlingMiddleware
 {
@@ -93,7 +93,7 @@ public class ExceptionHandlingMiddleware
 }
 
 /// <summary>
-/// Structured error response model
+/// Модель структурированного ответа об ошибке
 /// </summary>
 public class ErrorResponse
 {
@@ -104,7 +104,7 @@ public class ErrorResponse
 }
 
 /// <summary>
-/// Extension method to register the exception handling middleware
+/// Метод расширения для регистрации middleware обработки исключений
 /// </summary>
 public static class ExceptionHandlingMiddlewareExtensions
 {

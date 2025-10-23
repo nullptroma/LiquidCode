@@ -13,7 +13,7 @@ using Microsoft.IdentityModel.Tokens;
 namespace LiquidCode.Domain.Services.Authentication;
 
 /// <summary>
-/// Service implementation for authentication operations
+/// Реализация сервиса для операций аутентификации
 /// </summary>
 public class AuthenticationService : IAuthenticationService
 {

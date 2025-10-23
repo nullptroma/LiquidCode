@@ -1,6 +1,6 @@
 namespace LiquidCode.Api.Authentication.Requests;
 
 /// <summary>
-/// Request model for refreshing JWT token
+/// Модель запроса для обновления JWT токена
 /// </summary>
 public record RefreshTokenRequest(string RefreshToken);

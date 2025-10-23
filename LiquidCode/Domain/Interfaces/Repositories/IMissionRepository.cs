@@ -3,47 +3,47 @@ using LiquidCode.Infrastructure.Database.Entities;
 namespace LiquidCode.Domain.Interfaces.Repositories;
 
 /// <summary>
-/// Repository interface for mission-related database operations
+/// Интерфейс репозитория для операций базы данных, связанных с миссиями
 /// </summary>
 public interface IMissionRepository : IRepository<DbMission>
 {
     /// <summary>
-    /// Gets missions with pagination
+    /// Получает миссии с пагинацией
     /// </summary>
-    /// <param name="pageSize">Number of items per page</param>
-    /// <param name="pageNumber">Zero-based page number</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Tuple of (missions, hasNextPage)</returns>
+    /// <param name="pageSize">Количество элементов на странице</param>
+    /// <param name="pageNumber">Номер страницы (начиная с нуля)</param>
+    /// <param name="cancellationToken">Токен отмены</param>
+    /// <returns>Кортеж (миссии, естьСледующаяСтраница)</returns>
     Task<(IEnumerable<DbMission> Missions, bool HasNextPage)> GetMissionsPageAsync(
         int pageSize, int pageNumber, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets missions by author
+    /// Получает миссии по автору
     /// </summary>
     Task<IEnumerable<DbMission>> GetMissionsByAuthorAsync(int authorId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets mission text data in a specific language
+    /// Получает текстовые данные миссии на определенном языке
     /// </summary>
     Task<DbMissionPublicTextData?> GetMissionTextAsync(int missionId, string language, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Gets all available languages for a mission
+    /// Получает все доступные языки для миссии
     /// </summary>
     Task<IEnumerable<string>> GetMissionLanguagesAsync(int missionId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Adds mission text data
+    /// Добавляет текстовые данные миссии
     /// </summary>
     Task AddMissionTextAsync(DbMissionPublicTextData textData, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Adds multiple mission text data entries
+    /// Добавляет несколько записей текстовых данных миссии
     /// </summary>
     Task AddMissionTextsAsync(IEnumerable<DbMissionPublicTextData> textData, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Counts total missions
+    /// Подсчитывает общее количество миссий
     /// </summary>
     Task<int> CountMissionsAsync(CancellationToken cancellationToken = default);
 }

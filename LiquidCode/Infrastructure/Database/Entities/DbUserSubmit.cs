@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 namespace LiquidCode.Infrastructure.Database.Entities;
 
 /// <summary>
-/// User submit entity with indexing and timestamps
+/// Сущность отправки пользователя с индексацией и временными метками
 /// </summary>
 [Index(nameof(CreatedAt))]
 [Index(nameof(IsDeleted))]

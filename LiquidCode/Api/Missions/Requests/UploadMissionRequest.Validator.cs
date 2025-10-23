@@ -4,7 +4,7 @@ using LiquidCode.Shared.Constants;
 namespace LiquidCode.Api.Missions.Requests;
 
 /// <summary>
-/// Validator for mission upload requests
+/// Валидатор для запросов загрузки миссий
 /// </summary>
 public class UploadMissionRequestValidator : AbstractValidator<UploadMissionRequest>
 {

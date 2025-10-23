@@ -12,7 +12,7 @@ using LiquidCode.Infrastructure.External.S3;
 namespace LiquidCode.Domain.Services.Missions;
 
 /// <summary>
-/// Service implementation for mission-related operations
+/// Реализация сервиса для операций, связанных с миссиями
 /// </summary>
 public class MissionService : IMissionService
 {
@@ -253,7 +253,7 @@ public class MissionService : IMissionService
 }
 
 /// <summary>
-/// Internal model for mission statement data structure
+/// Внутренняя модель для структуры данных описания миссии
 /// </summary>
 internal class JsonMissionData
 {

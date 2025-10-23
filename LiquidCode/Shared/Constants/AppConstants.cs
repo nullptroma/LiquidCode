@@ -1,49 +1,49 @@
 namespace LiquidCode.Shared.Constants;
 
 /// <summary>
-/// Application-wide constants for configuration, validation, and business logic
+/// Глобальные константы для конфигурации, валидации и бизнес-логики
 /// </summary>
 public static class AppConstants
 {
     /// <summary>
-    /// Maximum number of refresh tokens allowed per user
+    /// Максимальное количество токенов обновления, разрешенное на пользователя
     /// </summary>
     public const int MaxRefreshTokensPerUser = 50;
 
     /// <summary>
-    /// JWT token expiration time in minutes
+    /// Время истечения JWT токена в минутах
     /// </summary>
     public const int JwtExpirationMinutes = 10;
 
     /// <summary>
-    /// Refresh token expiration time in days
+    /// Время истечения токена обновления в днях
     /// </summary>
     public const int RefreshTokenExpirationDays = 7;
 
     /// <summary>
-    /// Maximum upload file size in MB
+    /// Максимальный размер загружаемого файла в МБ
     /// </summary>
     public const int MaxUploadFileSizeMb = 100;
 
     /// <summary>
-    /// Maximum file size in bytes
+    /// Максимальный размер файла в байтах
     /// </summary>
     public static readonly long MaxUploadFileSizeBytes = (long)MaxUploadFileSizeMb * 1024 * 1024;
 
     /// <summary>
-    /// Refresh token length (bytes)
+    /// Длина токена обновления (байты)
     /// </summary>
     public const int RefreshTokenLength = 64;
 
     /// <summary>
-    /// BCrypt work factor (higher = more secure but slower, recommended: 11-12)
+    /// Фактор работы BCrypt (выше = безопаснее, но медленнее, рекомендуется: 11-12)
     /// </summary>
     public const int BcryptWorkFactor = 12;
 }
 
 
 /// <summary>
-/// S3 bucket configuration keys
+/// Ключи конфигурации S3 bucket
 /// </summary>
 public static class S3BucketKeys
 {
@@ -51,7 +51,7 @@ public static class S3BucketKeys
 }
 
 /// <summary>
-/// Mission statement file structure constants
+/// Константы структуры файлов описания миссии
 /// </summary>
 public static class MissionStatementPaths
 {

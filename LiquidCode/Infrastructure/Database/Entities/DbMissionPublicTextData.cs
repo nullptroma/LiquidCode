@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 namespace LiquidCode.Infrastructure.Database.Entities;
 
 /// <summary>
-/// Mission text data entity with composite index
+/// Сущность текстовых данных миссии с составным индексом
 /// </summary>
 [Index(nameof(MissionId), nameof(Language), IsUnique = true)]
 [Index(nameof(Language))]

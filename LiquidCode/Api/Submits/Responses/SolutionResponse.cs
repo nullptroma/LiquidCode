@@ -3,7 +3,7 @@ using LiquidCode.Infrastructure.Database.Entities;
 namespace LiquidCode.Api.Submits.Responses;
 
 /// <summary>
-/// Response model for a solution
+/// Модель ответа для решения
 /// </summary>
 public record SolutionResponse(
     int Id,
@@ -16,7 +16,7 @@ public record SolutionResponse(
 )
 {
     /// <summary>
-    /// Maps database entity to response model
+    /// Отображает сущность базы данных на модель ответа
     /// </summary>
     public static SolutionResponse FromEntity(DbSolution entity) => new(
         entity.Id,

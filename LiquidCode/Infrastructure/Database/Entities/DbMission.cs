@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 namespace LiquidCode.Infrastructure.Database.Entities;
 
 /// <summary>
-/// Mission entity with improved indexing and audit fields
+/// Сущность миссии с улучшенной индексацией и полями аудита
 /// </summary>
 [Index(nameof(Difficulty))]
 [Index(nameof(CreatedAt))]

@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Mvc.ModelBinding;
 namespace LiquidCode.Api.Missions.Requests;
 
 /// <summary>
-/// Request model for uploading a new mission
+/// Модель запроса для загрузки новой миссии
 /// </summary>
 public record UploadMissionRequest(
     IFormFile MissionFile, 

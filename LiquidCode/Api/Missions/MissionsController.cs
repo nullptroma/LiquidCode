@@ -7,14 +7,14 @@ using Microsoft.AspNetCore.Mvc;
 namespace LiquidCode.Api.Missions;
 
 /// <summary>
-/// Missions controller handling mission upload, retrieval, and management
+/// Контроллер миссий, обрабатывающий загрузку миссий, получение и управление
 /// </summary>
 [Route("missions")]
 [ApiController]
 public class MissionsController(IMissionService missionService) : ControllerBase
 {
     /// <summary>
-    /// Uploads a new mission from a ZIP file
+    /// Загружает новую миссию из ZIP файла
     /// </summary>
     [Authorize]
     [HttpPost("upload")]
@@ -34,7 +34,7 @@ public class MissionsController(IMissionService missionService) : ControllerBase
     }
 
     /// <summary>
-    /// Gets mission text data in a specific language
+    /// Получает текстовые данные миссии на определенном языке
     /// </summary>
     [HttpGet("{id}/texts/{language}")]
     public async Task<IActionResult> GetMissionTexts([FromRoute] int id, [FromRoute] string language, CancellationToken cancellationToken)
@@ -50,7 +50,7 @@ public class MissionsController(IMissionService missionService) : ControllerBase
     }
 
     /// <summary>
-    /// Gets a paginated list of all missions
+    /// Получает постраничный список всех миссий
     /// </summary>
     [HttpGet]
     public async Task<IActionResult> GetMissionsList([FromQuery] int pageSize = 10, [FromQuery] int page = 0, CancellationToken cancellationToken = default)

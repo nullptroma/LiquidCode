@@ -3,7 +3,7 @@ using FluentValidation;
 namespace LiquidCode.Api.Submits.Requests;
 
 /// <summary>
-/// Validator for updating solution status requests
+/// Валидатор для запросов обновления статуса решения
 /// </summary>
 public class UpdateSolutionStatusRequestValidator : AbstractValidator<UpdateSolutionStatusRequest>
 {

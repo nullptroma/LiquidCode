@@ -5,7 +5,7 @@ using LiquidCode.Domain.Interfaces.Repositories;
 namespace LiquidCode.Domain.Services.Submits;
 
 /// <summary>
-/// Service implementation for user submission-related operations
+/// Реализация сервиса для операций, связанных с отправками пользователей
 /// </summary>
 public class SubmitService : ISubmitService
 {

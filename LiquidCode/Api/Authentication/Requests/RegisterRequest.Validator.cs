@@ -3,7 +3,7 @@ using FluentValidation;
 namespace LiquidCode.Api.Authentication.Requests;
 
 /// <summary>
-/// Validator for registration requests
+/// Валидатор для запросов регистрации
 /// </summary>
 public class RegisterRequestValidator : AbstractValidator<RegisterRequest>
 {
