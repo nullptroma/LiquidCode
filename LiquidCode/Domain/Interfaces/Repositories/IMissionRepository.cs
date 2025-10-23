@@ -7,15 +7,6 @@ namespace LiquidCode.Domain.Interfaces.Repositories;
 /// </summary>
 public interface IMissionRepository : IRepository<DbMission>
 {
-    /// <summary>
-    /// Получает миссии с пагинацией
-    /// </summary>
-    /// <param name="pageSize">Количество элементов на странице</param>
-    /// <param name="pageNumber">Номер страницы (начиная с нуля)</param>
-    /// <param name="cancellationToken">Токен отмены</param>
-    /// <returns>Кортеж (миссии, естьСледующаяСтраница)</returns>
-    Task<(IEnumerable<DbMission> Missions, bool HasNextPage)> GetMissionsPageAsync(
-        int pageSize, int pageNumber, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Получает миссии по автору

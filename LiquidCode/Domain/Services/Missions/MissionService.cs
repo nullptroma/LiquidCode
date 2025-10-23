@@ -159,7 +159,7 @@ public class MissionService : IMissionService
                 return null;
             }
 
-            var (missions, hasNextPage) = await _missionRepository.GetMissionsPageAsync(pageSize, pageNumber, cancellationToken);
+            var (missions, hasNextPage) = await _missionRepository.GetPageAsync(pageSize, pageNumber, cancellationToken);
             var apiList = missions.Select(MissionResponse.FromEntity);
 
             return new MissionsPageResponse(hasNextPage, apiList);
