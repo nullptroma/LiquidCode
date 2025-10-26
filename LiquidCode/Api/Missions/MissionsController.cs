@@ -50,12 +50,29 @@ public class MissionsController(IMissionService missionService) : ControllerBase
     }
 
     /// <summary>
+    /// Получает подробную информацию о миссии
+    /// </summary>
+    [HttpGet("{id:int}")]
+    public async Task<IActionResult> GetMission([FromRoute] int id, CancellationToken cancellationToken)
+    {
+        var mission = await missionService.GetMissionAsync(id, cancellationToken);
+        if (mission == null)
+            return NotFound("Mission not found.");
+
+        return Ok(mission);
+    }
+
+    /// <summary>
     /// Получает постраничный список всех миссий
     /// </summary>
     [HttpGet]
-    public async Task<IActionResult> GetMissionsList([FromQuery] int pageSize = 10, [FromQuery] int page = 0, CancellationToken cancellationToken = default)
+    public async Task<IActionResult> GetMissionsList(
+        [FromQuery] int pageSize = 10,
+        [FromQuery] int page = 0,
+        [FromQuery] List<string>? tags = null,
+        CancellationToken cancellationToken = default)
     {
-        var result = await missionService.GetMissionsListAsync(pageSize, page, cancellationToken);
+        var result = await missionService.GetMissionsListAsync(pageSize, page, tags, cancellationToken);
         if (result == null)
             return BadRequest("Invalid pagination parameters.");
 

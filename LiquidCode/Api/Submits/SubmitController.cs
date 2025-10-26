@@ -29,7 +29,14 @@ public class SubmitController(ISubmitService submitService, TestingHttpClient te
             return BadRequest(ModelState);
 
         var solution = await submitService.SubmitSolutionAsync(
-            request.MissionId, userId, request.SourceCode, request.Language, request.LanguageVersion, cancellationToken);
+            request.MissionId,
+            userId,
+            request.SourceCode,
+            request.Language,
+            request.LanguageVersion,
+            request.ContestId,
+            request.SourceType,
+            cancellationToken);
 
         if (solution == null)
             return BadRequest("Solution submission failed. Mission may not exist or language is not supported.");

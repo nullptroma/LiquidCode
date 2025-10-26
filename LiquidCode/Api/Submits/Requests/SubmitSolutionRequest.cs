@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using LiquidCode.Infrastructure.Database.Entities;
 
 namespace LiquidCode.Api.Submits.Requests;
 
@@ -9,5 +10,7 @@ public record SubmitSolutionRequest(
     [Required] int MissionId,
     [Required] [StringLength(16)] string Language,
     [Required] [StringLength(16)] string LanguageVersion,
-    [Required] [StringLength(10000, MinimumLength = 1)] string SourceCode
+    [Required] [StringLength(10000, MinimumLength = 1)] string SourceCode,
+    int? ContestId,
+    SubmissionSourceType SourceType = SubmissionSourceType.Direct
 );

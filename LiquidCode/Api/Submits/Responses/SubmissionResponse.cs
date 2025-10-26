@@ -8,7 +8,10 @@ namespace LiquidCode.Api.Submits.Responses;
 public record SubmissionResponse(
     int Id,
     int UserId,
-    SolutionResponse Solution
+    SolutionResponse Solution,
+    int? ContestId,
+    string? ContestName,
+    SubmissionSourceType SourceType
 )
 {
     /// <summary>
@@ -17,6 +20,9 @@ public record SubmissionResponse(
     public static SubmissionResponse FromEntity(DbUserSubmission entity) => new(
         entity.Id,
         entity.User.Id,
-        SolutionResponse.FromEntity(entity.Solution)
+        SolutionResponse.FromEntity(entity.Solution),
+        entity.ContestId,
+        entity.Contest?.Name,
+        entity.SourceType
     );
 }

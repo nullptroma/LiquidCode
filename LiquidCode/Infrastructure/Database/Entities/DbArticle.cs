@@ -18,7 +18,7 @@ public class DbArticle : ISoftDeletable, ITimestamped
     public string Name { get; set; } = "";
     
     [StringLength(256)]
-    public string S3ContentKey { get; init; } = "";
+    public string S3ContentKey { get; set; } = "";
     
     public ICollection<DbArticleTag> ArticleTags { get; init; } = new HashSet<DbArticleTag>();
     public ICollection<DbContestArticle> ContestEntries { get; init; } = new HashSet<DbContestArticle>();

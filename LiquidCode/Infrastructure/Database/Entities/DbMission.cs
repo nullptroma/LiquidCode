@@ -23,7 +23,7 @@ public class DbMission : ISoftDeletable, ITimestamped
     public string S3PrivateKey { get; init; } = "";
     
     [StringLength(256)]
-    public string S3ContentKey { get; init; } = "";
+    public string S3ContentKey { get; set; } = "";
     
     public int Difficulty { get; init; }
     

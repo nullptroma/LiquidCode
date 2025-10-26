@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using System.IO.Compression;
+using System.Linq;
 using System.Text.Encodings.Web;
 using System.Text.Json;
 using System.Text.Unicode;
@@ -18,6 +20,7 @@ public class MissionService : IMissionService
 {
     private readonly IMissionRepository _missionRepository;
     private readonly IUserRepository _userRepository;
+    private readonly ITagRepository _tagRepository;
     private readonly IS3BucketClient _s3Client;
     private readonly ILogger<MissionService> _logger;
 
@@ -30,11 +33,13 @@ public class MissionService : IMissionService
     public MissionService(
         IMissionRepository missionRepository,
         IUserRepository userRepository,
+        ITagRepository tagRepository,
         IS3BucketClient s3Client,
         ILogger<MissionService> logger)
     {
         _missionRepository = missionRepository;
         _userRepository = userRepository;
+        _tagRepository = tagRepository;
         _s3Client = s3Client;
         _logger = logger;
     }
@@ -74,6 +79,7 @@ public class MissionService : IMissionService
             // Загрузить на S3
             _logger.LogInformation("Uploading mission files to S3");
             var privateKey = await _s3Client.UploadFileWithRandomKey(S3BucketKeys.PrivateProblems, packageZipPath);
+            var contentKey = await _s3Client.UploadFileWithRandomKey(S3BucketKeys.PublicContent, statementsZipPath);
 
             // Создать миссию в базе данных
             var existingUser = await _userRepository.FindByIdAsync(userId, cancellationToken);
@@ -88,6 +94,7 @@ public class MissionService : IMissionService
                 Author = existingUser,
                 Name = form.Name,
                 S3PrivateKey = privateKey,
+                S3ContentKey = contentKey,
                 Difficulty = form.Difficulty,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
@@ -115,10 +122,15 @@ public class MissionService : IMissionService
 
             // Добавить текстовые данные миссии в базу данных
             await _missionRepository.CreateMissionTextsAsync(missionTexts, cancellationToken);
+
+            // Обработать теги
+            await SyncMissionTagsAsync(dbMission, form.Tags, cancellationToken);
+
             await _missionRepository.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Mission uploaded successfully: {MissionId}", dbMission.Id);
-            return MissionResponse.FromEntity(dbMission);
+            var fullMission = await _missionRepository.FindWithDetailsAsync(dbMission.Id, cancellationToken);
+            return MissionResponse.FromEntity(fullMission ?? dbMission);
         }
         catch (Exception ex)
         {
@@ -159,7 +171,11 @@ public class MissionService : IMissionService
         }
     }
 
-    public async Task<MissionsPageResponse?> GetMissionsListAsync(int pageSize, int pageNumber, CancellationToken cancellationToken = default)
+    public async Task<MissionsPageResponse?> GetMissionsListAsync(
+        int pageSize,
+        int pageNumber,
+        IEnumerable<string>? tags = null,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -169,7 +185,23 @@ public class MissionService : IMissionService
                 return null;
             }
 
-            var (missions, hasNextPage) = await _missionRepository.GetPageAsync(pageSize, pageNumber, cancellationToken);
+            IEnumerable<int>? tagIds = null;
+            if (tags != null)
+            {
+                var normalized = tags
+                    .Select(tag => tag.Trim())
+                    .Where(tag => !string.IsNullOrWhiteSpace(tag))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                if (normalized.Count > 0)
+                {
+                    var existingTags = await _tagRepository.FindByNamesAsync(normalized, cancellationToken);
+                    tagIds = existingTags.Select(t => t.Id).ToList();
+                }
+            }
+
+            var (missions, hasNextPage) = await _missionRepository.GetFilteredPageAsync(pageSize, pageNumber, tagIds, cancellationToken);
             var apiList = missions.Select(MissionResponse.FromEntity);
 
             return new MissionsPageResponse(hasNextPage, apiList);
@@ -179,6 +211,56 @@ public class MissionService : IMissionService
             _logger.LogError(ex, "Error getting missions list");
             return null;
         }
+    }
+
+    public async Task<MissionResponse?> GetMissionAsync(int missionId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var mission = await _missionRepository.FindWithDetailsAsync(missionId, cancellationToken);
+            return mission == null ? null : MissionResponse.FromEntity(mission);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting mission details: {MissionId}", missionId);
+            return null;
+        }
+    }
+
+    private async Task SyncMissionTagsAsync(DbMission mission, IEnumerable<string>? tags, CancellationToken cancellationToken)
+    {
+        var normalized = tags?
+            .Select(tag => tag.Trim())
+            .Where(tag => !string.IsNullOrWhiteSpace(tag))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList() ?? new List<string>();
+
+        if (normalized.Count == 0)
+        {
+            await _missionRepository.SyncTagsAsync(mission, Array.Empty<int>(), cancellationToken);
+            return;
+        }
+
+        var existing = await _tagRepository.FindByNamesAsync(normalized, cancellationToken);
+        var allTags = existing.ToDictionary(t => t.Name, t => t, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var tagName in normalized)
+        {
+            if (allTags.ContainsKey(tagName))
+                continue;
+
+            var newTag = new DbTag
+            {
+                Name = tagName,
+                CreatedAt = DateTime.UtcNow,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            await _tagRepository.CreateAsync(newTag, cancellationToken);
+            allTags[tagName] = newTag;
+        }
+
+        await _missionRepository.SyncTagsAsync(mission, allTags.Values.Select(t => t.Id), cancellationToken);
     }
 
     private List<DbMissionPublicTextData> ExtractMissionTexts(string statementSectionsPath, int missionId)

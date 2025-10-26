@@ -1,6 +1,7 @@
-using LiquidCode.Shared.Constants;
+using System.Linq;
 using LiquidCode.Infrastructure.Database.Entities;
 using LiquidCode.Domain.Interfaces.Repositories;
+using Microsoft.Extensions.Logging;
 
 namespace LiquidCode.Domain.Services.Submits;
 
@@ -12,22 +13,32 @@ public class SubmitService : ISubmitService
     private readonly ISubmitRepository _submitRepository;
     private readonly IMissionRepository _missionRepository;
     private readonly IUserRepository _userRepository;
+    private readonly IContestRepository _contestRepository;
     private readonly ILogger<SubmitService> _logger;
 
     public SubmitService(
         ISubmitRepository submitRepository,
         IMissionRepository missionRepository,
         IUserRepository userRepository,
+        IContestRepository contestRepository,
         ILogger<SubmitService> logger)
     {
         _submitRepository = submitRepository;
         _missionRepository = missionRepository;
         _userRepository = userRepository;
+        _contestRepository = contestRepository;
         _logger = logger;
     }
 
     public async Task<DbSolution?> SubmitSolutionAsync(
-        int missionId, int userId, string sourceCode, string language, string languageVersion, CancellationToken cancellationToken = default)
+        int missionId,
+        int userId,
+        string sourceCode,
+        string language,
+        string languageVersion,
+        int? contestId,
+        SubmissionSourceType sourceType,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -54,6 +65,55 @@ public class SubmitService : ISubmitService
                 return null;
             }
 
+            DbContest? contest = null;
+            var finalSourceType = sourceType;
+            if (contestId.HasValue)
+            {
+                contest = await _contestRepository.FindWithDetailsAsync(contestId.Value, cancellationToken);
+                if (contest == null)
+                {
+                    _logger.LogWarning("Contest not found: {ContestId}", contestId);
+                    return null;
+                }
+
+                if (contest.IsDeleted)
+                {
+                    _logger.LogWarning("Contest is deleted: {ContestId}", contestId);
+                    return null;
+                }
+
+                var membership = contest.Memberships.FirstOrDefault(m => m.UserId == userId);
+                var isOrganizer = membership != null && membership.Role.HasFlag(ContestMembershipRole.Organizer);
+                if (membership == null)
+                {
+                    _logger.LogWarning("User {UserId} is not enrolled in contest {ContestId}", userId, contestId);
+                    return null;
+                }
+
+                var now = DateTime.UtcNow;
+                if (!isOrganizer && (now < contest.StartsAt || now > contest.EndsAt))
+                {
+                    _logger.LogWarning("Contest {ContestId} is not active for user {UserId}", contestId, userId);
+                    return null;
+                }
+
+                if (!contest.Missions.Any(cm => cm.MissionId == missionId))
+                {
+                    _logger.LogWarning("Mission {MissionId} is not part of contest {ContestId}", missionId, contestId);
+                    return null;
+                }
+
+                if (finalSourceType == SubmissionSourceType.Direct)
+                {
+                    finalSourceType = SubmissionSourceType.ContestCompetition;
+                }
+            }
+
+            if (contest == null)
+            {
+                finalSourceType = SubmissionSourceType.Direct;
+            }
+
             // Создать решение
             var solution = new DbSolution
             {
@@ -69,7 +129,10 @@ public class SubmitService : ISubmitService
             var submission = new DbUserSubmission
             {
                 User = user,
-                Solution = solution
+                Solution = solution,
+                Contest = contest,
+                ContestId = contest?.Id,
+                SourceType = finalSourceType
             };
 
             await _submitRepository.CreateAsync(submission, cancellationToken);

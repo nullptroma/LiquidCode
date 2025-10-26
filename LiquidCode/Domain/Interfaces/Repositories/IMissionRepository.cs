@@ -14,6 +14,25 @@ public interface IMissionRepository : IRepository<DbMission>
     Task<IEnumerable<DbMission>> GetMissionsByAuthorAsync(int authorId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Получает миссию с подключенными тегами и участием в контестах
+    /// </summary>
+    Task<DbMission?> FindWithDetailsAsync(int id, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Получает страницу миссий с фильтрацией по тегам
+    /// </summary>
+    Task<(IEnumerable<DbMission> Items, bool HasNextPage)> GetFilteredPageAsync(
+        int pageSize,
+        int pageNumber,
+        IEnumerable<int>? tagIds,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Обновляет связи миссии с тегами
+    /// </summary>
+    Task SyncTagsAsync(DbMission mission, IEnumerable<int> tagIds, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Получает текстовые данные миссии на определенном языке
     /// </summary>
     Task<DbMissionPublicTextData?> GetMissionTextAsync(int missionId, string language, CancellationToken cancellationToken = default);

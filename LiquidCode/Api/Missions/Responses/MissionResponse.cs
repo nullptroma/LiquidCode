@@ -6,11 +6,13 @@ namespace LiquidCode.Api.Missions.Responses;
 /// Модель ответа для миссии
 /// </summary>
 public record MissionResponse(
-    int Id, 
-    int AuthorId, 
-    string Name, 
-    int Difficulty, 
-    DateTime CreatedAt, 
+    int Id,
+    int AuthorId,
+    string Name,
+    int Difficulty,
+    string S3ContentKey,
+    IReadOnlyList<string> Tags,
+    DateTime CreatedAt,
     DateTime UpdatedAt
 )
 {
@@ -22,6 +24,8 @@ public record MissionResponse(
         entity.Author.Id,
         entity.Name,
         entity.Difficulty,
+        entity.S3ContentKey,
+        entity.MissionTags.Select(mt => mt.Tag.Name).Distinct().OrderBy(name => name).ToList(),
         entity.CreatedAt,
         entity.UpdatedAt
     );

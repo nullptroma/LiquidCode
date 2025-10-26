@@ -4,8 +4,12 @@ using FluentValidation.AspNetCore;
 using LiquidCode;
 using LiquidCode.Domain.Interfaces.Repositories;
 using LiquidCode.Domain.Services.Authentication;
+using LiquidCode.Domain.Services.Articles;
+using LiquidCode.Domain.Services.Contests;
+using LiquidCode.Domain.Services.Groups;
 using LiquidCode.Domain.Services.Missions;
 using LiquidCode.Domain.Services.Submits;
+using LiquidCode.Domain.Services.Tags;
 using LiquidCode.Infrastructure.Middleware;
 using LiquidCode.Infrastructure.Database;
 using LiquidCode.Infrastructure.Database.Repositories;
@@ -87,11 +91,19 @@ builder.Services.AddSingleton(new TestingHttpClient(builder.Configuration[Config
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IMissionRepository, MissionRepository>();
 builder.Services.AddScoped<ISubmitRepository, SubmitRepository>();
+builder.Services.AddScoped<IArticleRepository, ArticleRepository>();
+builder.Services.AddScoped<ITagRepository, TagRepository>();
+builder.Services.AddScoped<IContestRepository, ContestRepository>();
+builder.Services.AddScoped<IGroupRepository, GroupRepository>();
 
 // Добавить сервисы
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
 builder.Services.AddScoped<IMissionService, MissionService>();
 builder.Services.AddScoped<ISubmitService, SubmitService>();
+builder.Services.AddScoped<IArticleService, ArticleService>();
+builder.Services.AddScoped<ITagService, TagService>();
+builder.Services.AddScoped<IContestService, ContestService>();
+builder.Services.AddScoped<IGroupService, GroupService>();
 
 builder.Services.AddDbContext<LiquidDbContext>(options =>
     options.UseNpgsql(dbConnectionString).UseSnakeCaseNamingConvention());
