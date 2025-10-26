@@ -66,7 +66,7 @@ public class SubmitService : ISubmitService
             };
 
             // Создать отправку
-            var submission = new DbUserSubmit
+            var submission = new DbUserSubmission
             {
                 User = user,
                 Solution = solution
@@ -84,7 +84,7 @@ public class SubmitService : ISubmitService
         }
     }
 
-    public async Task<DbUserSubmit?> GetSubmissionAsync(int submissionId, CancellationToken cancellationToken = default)
+    public async Task<DbUserSubmission?> GetSubmissionAsync(int submissionId, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -97,7 +97,7 @@ public class SubmitService : ISubmitService
         }
     }
 
-    public async Task<IEnumerable<DbUserSubmit>> GetUserSubmissionsAsync(int userId, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<DbUserSubmission>> GetUserSubmissionsAsync(int userId, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -106,11 +106,11 @@ public class SubmitService : ISubmitService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting user submissions: {UserId}", userId);
-            return Enumerable.Empty<DbUserSubmit>();
+            return Enumerable.Empty<DbUserSubmission>();
         }
     }
 
-    public async Task<IEnumerable<DbUserSubmit>> GetMissionSubmissionsAsync(int missionId, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<DbUserSubmission>> GetMissionSubmissionsAsync(int missionId, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -119,7 +119,7 @@ public class SubmitService : ISubmitService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting mission submissions: {MissionId}", missionId);
-            return Enumerable.Empty<DbUserSubmit>();
+            return Enumerable.Empty<DbUserSubmission>();
         }
     }
 

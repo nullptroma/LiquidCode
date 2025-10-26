@@ -5,22 +5,22 @@ namespace LiquidCode.Domain.Interfaces.Repositories;
 /// <summary>
 /// Интерфейс репозитория для операций с базой данных, связанных с отправками пользователей
 /// </summary>
-public interface ISubmitRepository : IRepository<DbUserSubmit>
+public interface ISubmitRepository : IRepository<DbUserSubmission>
 {
     /// <summary>
     /// Получает отправки по пользователю
     /// </summary>
-    Task<IEnumerable<DbUserSubmit>> GetSubmissionsByUserAsync(int userId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<DbUserSubmission>> GetSubmissionsByUserAsync(int userId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Получает отправки по миссии
     /// </summary>
-    Task<IEnumerable<DbUserSubmit>> GetSubmissionsByMissionAsync(int missionId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<DbUserSubmission>> GetSubmissionsByMissionAsync(int missionId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Получает отправку со всеми связанными данными
     /// </summary>
-    Task<DbUserSubmit?> GetSubmissionWithDetailsAsync(int submissionId, CancellationToken cancellationToken = default);
+    Task<DbUserSubmission?> GetSubmissionWithDetailsAsync(int submissionId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Получает решение

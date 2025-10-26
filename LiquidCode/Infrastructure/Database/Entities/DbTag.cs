@@ -1,25 +1,26 @@
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
 
 namespace LiquidCode.Infrastructure.Database.Entities;
 
 /// <summary>
-/// Сущность отправки пользователя с индексацией и временными метками
+/// Тег для статей и миссий
 /// </summary>
-[Index(nameof(CreatedAt))]
+[Index(nameof(Name), IsUnique = true)]
 [Index(nameof(IsDeleted))]
-public class DbUserSubmit : ISoftDeletable, ITimestamped
+public class DbTag : ISoftDeletable, ITimestamped
 {
     public int Id { get; set; }
     
-    public DbUser User { get; init; } = null!;
-    public DbSolution Solution { get; init; } = null!;
+    [StringLength(64)]
+    public string Name { get; set; } = "";
     
-    // Поддержка мягкого удаления
+    public ICollection<DbMissionTag> MissionTags { get; init; } = new HashSet<DbMissionTag>();
+    public ICollection<DbArticleTag> ArticleTags { get; init; } = new HashSet<DbArticleTag>();
+    
     public bool IsDeleted { get; set; }
     public DateTime? DeletedAt { get; set; }
-    
-    // Временные метки
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }
