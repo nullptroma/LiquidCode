@@ -48,6 +48,7 @@ public static class AppConstants
 public static class S3BucketKeys
 {
     public const string PrivateProblems = "problems";
+    public const string PublicContent = "content";
 }
 
 /// <summary>

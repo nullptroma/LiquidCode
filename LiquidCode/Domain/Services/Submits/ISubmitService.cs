@@ -15,10 +15,19 @@ public interface ISubmitService
     /// <param name="sourceCode">Содержимое исходного кода</param>
     /// <param name="language">Язык программирования</param>
     /// <param name="languageVersion">Версия языка программирования</param>
+    /// <param name="contestId">Идентификатор контеста, если отправка выполняется в его рамках</param>
+    /// <param name="sourceType">Источник, из которого инициирована отправка</param>
     /// <param name="cancellationToken">Токен отмены</param>
     /// <returns>Созданное решение или null, если отправка не удалась</returns>
     Task<DbSolution?> SubmitSolutionAsync(
-        int missionId, int userId, string sourceCode, string language, string languageVersion, CancellationToken cancellationToken = default);
+        int missionId,
+        int userId,
+        string sourceCode,
+        string language,
+        string languageVersion,
+        int? contestId,
+        SubmissionSourceType sourceType,
+        CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Получает конкретную отправку
@@ -26,7 +35,7 @@ public interface ISubmitService
     /// <param name="submissionId">ID отправки</param>
     /// <param name="cancellationToken">Токен отмены</param>
     /// <returns>Отправка с связанными данными или null, если не найдена</returns>
-    Task<DbUserSubmit?> GetSubmissionAsync(int submissionId, CancellationToken cancellationToken = default);
+    Task<DbUserSubmission?> GetSubmissionAsync(int submissionId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Получает все отправки пользователя
@@ -34,7 +43,7 @@ public interface ISubmitService
     /// <param name="userId">ID пользователя</param>
     /// <param name="cancellationToken">Токен отмены</param>
     /// <returns>Список отправок</returns>
-    Task<IEnumerable<DbUserSubmit>> GetUserSubmissionsAsync(int userId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<DbUserSubmission>> GetUserSubmissionsAsync(int userId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Получает все отправки для миссии
@@ -42,7 +51,7 @@ public interface ISubmitService
     /// <param name="missionId">ID миссии</param>
     /// <param name="cancellationToken">Токен отмены</param>
     /// <returns>Список отправок</returns>
-    Task<IEnumerable<DbUserSubmit>> GetMissionSubmissionsAsync(int missionId, CancellationToken cancellationToken = default);
+    Task<IEnumerable<DbUserSubmission>> GetMissionSubmissionsAsync(int missionId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Обновляет статус решения

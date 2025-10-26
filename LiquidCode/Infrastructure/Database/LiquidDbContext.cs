@@ -15,7 +15,17 @@ public class LiquidDbContext : DbContext
     public DbSet<DbMission> Missions { get; set; } = null!;
     public DbSet<DbMissionPublicTextData> MissionsTextData { get; set; } = null!;
     public DbSet<DbSolution> Solutions { get; set; } = null!;
-    public DbSet<DbUserSubmit> UserSubmits { get; set; } = null!;
+    public DbSet<DbUserSubmission> UserSubmits { get; set; } = null!;
+    public DbSet<DbArticle> Articles { get; set; } = null!;
+    public DbSet<DbTag> Tags { get; set; } = null!;
+    public DbSet<DbMissionTag> MissionTags { get; set; } = null!;
+    public DbSet<DbArticleTag> ArticleTags { get; set; } = null!;
+    public DbSet<DbContest> Contests { get; set; } = null!;
+    public DbSet<DbContestMission> ContestMissions { get; set; } = null!;
+    public DbSet<DbContestArticle> ContestArticles { get; set; } = null!;
+    public DbSet<DbContestMembership> ContestMemberships { get; set; } = null!;
+    public DbSet<DbGroup> Groups { get; set; } = null!;
+    public DbSet<DbGroupMembership> GroupMemberships { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

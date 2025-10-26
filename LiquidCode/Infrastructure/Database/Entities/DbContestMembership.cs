@@ -1,0 +1,47 @@
+using System;
+using System.ComponentModel.DataAnnotations;
+using Microsoft.EntityFrameworkCore;
+
+namespace LiquidCode.Infrastructure.Database.Entities;
+
+/// <summary>
+/// Пользователь контеста с ролью участника или организатора
+/// </summary>
+[Index(nameof(Role))]
+[PrimaryKey(nameof(ContestId), nameof(UserId))]
+public class DbContestMembership : ITimestamped
+{
+    public int ContestId { get; init; }
+    public DbContest Contest { get; init; } = null!;
+    
+    public int UserId { get; init; }
+    public DbUser User { get; init; } = null!;
+    
+    public ContestMembershipRole Role { get; set; } = ContestMembershipRole.Participant;
+
+    /// <summary>
+    /// Временные метки активной попытки для гибкого окна
+    /// </summary>
+    public DateTime? ActiveAttemptStartedAt { get; set; }
+
+    /// <summary>
+    /// Время завершения активной попытки, если задано
+    /// </summary>
+    public DateTime? ActiveAttemptExpiresAt { get; set; }
+
+    /// <summary>
+    /// Количество запущенных попыток
+    /// </summary>
+    public int AttemptCount { get; set; }
+    
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+}
+
+[Flags]
+public enum ContestMembershipRole
+{
+    None = 0,
+    Participant = 1,
+    Organizer = 2
+}

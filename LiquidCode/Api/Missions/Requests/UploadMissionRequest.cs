@@ -6,7 +6,8 @@ namespace LiquidCode.Api.Missions.Requests;
 /// Модель запроса для загрузки новой миссии
 /// </summary>
 public record UploadMissionRequest(
-    IFormFile MissionFile, 
-    string Name, 
-    [BindRequired] int Difficulty
+    IFormFile MissionFile,
+    string Name,
+    [BindRequired] int Difficulty,
+    IEnumerable<string>? Tags
 );

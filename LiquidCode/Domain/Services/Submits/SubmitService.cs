@@ -1,6 +1,7 @@
-using LiquidCode.Shared.Constants;
+using System.Linq;
 using LiquidCode.Infrastructure.Database.Entities;
 using LiquidCode.Domain.Interfaces.Repositories;
+using Microsoft.Extensions.Logging;
 
 namespace LiquidCode.Domain.Services.Submits;
 
@@ -12,22 +13,32 @@ public class SubmitService : ISubmitService
     private readonly ISubmitRepository _submitRepository;
     private readonly IMissionRepository _missionRepository;
     private readonly IUserRepository _userRepository;
+    private readonly IContestRepository _contestRepository;
     private readonly ILogger<SubmitService> _logger;
 
     public SubmitService(
         ISubmitRepository submitRepository,
         IMissionRepository missionRepository,
         IUserRepository userRepository,
+        IContestRepository contestRepository,
         ILogger<SubmitService> logger)
     {
         _submitRepository = submitRepository;
         _missionRepository = missionRepository;
         _userRepository = userRepository;
+        _contestRepository = contestRepository;
         _logger = logger;
     }
 
     public async Task<DbSolution?> SubmitSolutionAsync(
-        int missionId, int userId, string sourceCode, string language, string languageVersion, CancellationToken cancellationToken = default)
+        int missionId,
+        int userId,
+        string sourceCode,
+        string language,
+        string languageVersion,
+        int? contestId,
+        SubmissionSourceType sourceType,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -54,6 +65,106 @@ public class SubmitService : ISubmitService
                 return null;
             }
 
+            DbContest? contest = null;
+            var finalSourceType = sourceType;
+            if (contestId.HasValue)
+            {
+                contest = await _contestRepository.FindWithDetailsAsync(contestId.Value, cancellationToken);
+                if (contest == null)
+                {
+                    _logger.LogWarning("Contest not found: {ContestId}", contestId);
+                    return null;
+                }
+
+                if (contest.IsDeleted)
+                {
+                    _logger.LogWarning("Contest is deleted: {ContestId}", contestId);
+                    return null;
+                }
+
+                var membership = contest.Memberships.FirstOrDefault(m => m.UserId == userId);
+                var isOrganizer = membership != null && membership.Role.HasFlag(ContestMembershipRole.Organizer);
+                if (membership == null)
+                {
+                    _logger.LogWarning("User {UserId} is not enrolled in contest {ContestId}", userId, contestId);
+                    return null;
+                }
+
+                if (!contest.Missions.Any(cm => cm.MissionId == missionId))
+                {
+                    _logger.LogWarning("Mission {MissionId} is not part of contest {ContestId}", missionId, contestId);
+                    return null;
+                }
+
+                var now = DateTime.UtcNow;
+                switch (contest.ScheduleType)
+                {
+                    case ContestScheduleType.FixedWindow:
+                        if (!contest.StartsAt.HasValue || !contest.EndsAt.HasValue)
+                        {
+                            _logger.LogWarning("Contest {ContestId} has inconsistent fixed window configuration", contestId);
+                            return null;
+                        }
+
+                        if (!isOrganizer && (now < contest.StartsAt.Value || now > contest.EndsAt.Value))
+                        {
+                            _logger.LogWarning("Contest {ContestId} is not active for user {UserId}", contestId, userId);
+                            return null;
+                        }
+
+                        if (finalSourceType == SubmissionSourceType.Direct)
+                        {
+                            finalSourceType = SubmissionSourceType.Contest;
+                        }
+
+                        break;
+
+                    case ContestScheduleType.FlexibleWindow:
+                        if (!contest.AvailableFrom.HasValue || !contest.AvailableUntil.HasValue || !contest.AttemptDurationMinutes.HasValue)
+                        {
+                            _logger.LogWarning("Contest {ContestId} has inconsistent flexible window configuration", contestId);
+                            return null;
+                        }
+
+                        if (!isOrganizer)
+                        {
+                            if (now < contest.AvailableFrom.Value || now > contest.AvailableUntil.Value)
+                            {
+                                _logger.LogWarning("Contest {ContestId} is not available for user {UserId}", contestId, userId);
+                                return null;
+                            }
+
+                            if (membership.ActiveAttemptStartedAt == null || membership.ActiveAttemptExpiresAt == null)
+                            {
+                                _logger.LogWarning("User {UserId} did not start an attempt in contest {ContestId}", userId, contestId);
+                                return null;
+                            }
+
+                            if (now > membership.ActiveAttemptExpiresAt.Value)
+                            {
+                                _logger.LogWarning("Attempt for user {UserId} in contest {ContestId} has expired", userId, contestId);
+                                return null;
+                            }
+                        }
+
+                        if (finalSourceType == SubmissionSourceType.Direct)
+                        {
+                            finalSourceType = SubmissionSourceType.ContestFlexibleWindow;
+                        }
+
+                        break;
+
+                    default:
+                        _logger.LogWarning("Contest {ContestId} has unsupported schedule type {ScheduleType}", contestId, contest.ScheduleType);
+                        return null;
+                }
+            }
+
+            if (contest == null)
+            {
+                finalSourceType = SubmissionSourceType.Direct;
+            }
+
             // Создать решение
             var solution = new DbSolution
             {
@@ -66,10 +177,13 @@ public class SubmitService : ISubmitService
             };
 
             // Создать отправку
-            var submission = new DbUserSubmit
+            var submission = new DbUserSubmission
             {
                 User = user,
-                Solution = solution
+                Solution = solution,
+                Contest = contest,
+                ContestId = contest?.Id,
+                SourceType = finalSourceType
             };
 
             await _submitRepository.CreateAsync(submission, cancellationToken);
@@ -84,7 +198,7 @@ public class SubmitService : ISubmitService
         }
     }
 
-    public async Task<DbUserSubmit?> GetSubmissionAsync(int submissionId, CancellationToken cancellationToken = default)
+    public async Task<DbUserSubmission?> GetSubmissionAsync(int submissionId, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -97,7 +211,7 @@ public class SubmitService : ISubmitService
         }
     }
 
-    public async Task<IEnumerable<DbUserSubmit>> GetUserSubmissionsAsync(int userId, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<DbUserSubmission>> GetUserSubmissionsAsync(int userId, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -106,11 +220,11 @@ public class SubmitService : ISubmitService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting user submissions: {UserId}", userId);
-            return Enumerable.Empty<DbUserSubmit>();
+            return Enumerable.Empty<DbUserSubmission>();
         }
     }
 
-    public async Task<IEnumerable<DbUserSubmit>> GetMissionSubmissionsAsync(int missionId, CancellationToken cancellationToken = default)
+    public async Task<IEnumerable<DbUserSubmission>> GetMissionSubmissionsAsync(int missionId, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -119,7 +233,7 @@ public class SubmitService : ISubmitService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting mission submissions: {MissionId}", missionId);
-            return Enumerable.Empty<DbUserSubmit>();
+            return Enumerable.Empty<DbUserSubmission>();
         }
     }
 

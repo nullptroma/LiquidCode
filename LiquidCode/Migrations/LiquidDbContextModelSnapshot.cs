@@ -22,6 +22,361 @@ namespace LiquidCode.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbArticle", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AuthorId")
+                        .HasColumnType("integer")
+                        .HasColumnName("author_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("name");
+
+                    b.Property<string>("S3ContentKey")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("s3content_key");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_articles");
+
+                    b.HasIndex("AuthorId")
+                        .HasDatabaseName("ix_articles_author_id");
+
+                    b.HasIndex("IsDeleted")
+                        .HasDatabaseName("ix_articles_is_deleted");
+
+                    b.ToTable("articles", (string)null);
+                });
+
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbArticleTag", b =>
+                {
+                    b.Property<int>("ArticleId")
+                        .HasColumnType("integer")
+                        .HasColumnName("article_id");
+
+                    b.Property<int>("TagId")
+                        .HasColumnType("integer")
+                        .HasColumnName("tag_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("ArticleId", "TagId")
+                        .HasName("pk_article_tags");
+
+                    b.HasIndex("TagId")
+                        .HasDatabaseName("ix_article_tags_tag_id");
+
+                    b.ToTable("article_tags", (string)null);
+                });
+
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbContest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("AttemptDurationMinutes")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempt_duration_minutes");
+
+                    b.Property<DateTime?>("AvailableFrom")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("available_from");
+
+                    b.Property<DateTime?>("AvailableUntil")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("available_until");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1024)
+                        .HasColumnType("character varying(1024)")
+                        .HasColumnName("description");
+
+                    b.Property<DateTime?>("EndsAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ends_at");
+
+                    b.Property<int?>("GroupId")
+                        .HasColumnType("integer")
+                        .HasColumnName("group_id");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("name");
+
+                    b.Property<int>("ScheduleType")
+                        .HasColumnType("integer")
+                        .HasColumnName("schedule_type");
+
+                    b.Property<DateTime?>("StartsAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("starts_at");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_contests");
+
+                    b.HasIndex("AvailableFrom")
+                        .HasDatabaseName("ix_contests_available_from");
+
+                    b.HasIndex("AvailableUntil")
+                        .HasDatabaseName("ix_contests_available_until");
+
+                    b.HasIndex("EndsAt")
+                        .HasDatabaseName("ix_contests_ends_at");
+
+                    b.HasIndex("GroupId")
+                        .HasDatabaseName("ix_contests_group_id");
+
+                    b.HasIndex("IsDeleted")
+                        .HasDatabaseName("ix_contests_is_deleted");
+
+                    b.HasIndex("StartsAt")
+                        .HasDatabaseName("ix_contests_starts_at");
+
+                    b.ToTable("contests", (string)null);
+                });
+
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbContestArticle", b =>
+                {
+                    b.Property<int>("ContestId")
+                        .HasColumnType("integer")
+                        .HasColumnName("contest_id");
+
+                    b.Property<int>("ArticleId")
+                        .HasColumnType("integer")
+                        .HasColumnName("article_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("ContestId", "ArticleId")
+                        .HasName("pk_contest_articles");
+
+                    b.HasIndex("ArticleId")
+                        .HasDatabaseName("ix_contest_articles_article_id");
+
+                    b.ToTable("contest_articles", (string)null);
+                });
+
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbContestMembership", b =>
+                {
+                    b.Property<int>("ContestId")
+                        .HasColumnType("integer")
+                        .HasColumnName("contest_id");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
+
+                    b.Property<DateTime?>("ActiveAttemptExpiresAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("active_attempt_expires_at");
+
+                    b.Property<DateTime?>("ActiveAttemptStartedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("active_attempt_started_at");
+
+                    b.Property<int>("AttemptCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("attempt_count");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("Role")
+                        .HasColumnType("integer")
+                        .HasColumnName("role");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("ContestId", "UserId")
+                        .HasName("pk_contest_memberships");
+
+                    b.HasIndex("Role")
+                        .HasDatabaseName("ix_contest_memberships_role");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_contest_memberships_user_id");
+
+                    b.ToTable("contest_memberships", (string)null);
+                });
+
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbContestMission", b =>
+                {
+                    b.Property<int>("ContestId")
+                        .HasColumnType("integer")
+                        .HasColumnName("contest_id");
+
+                    b.Property<int>("MissionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("mission_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("integer")
+                        .HasColumnName("sort_order");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("ContestId", "MissionId")
+                        .HasName("pk_contest_missions");
+
+                    b.HasIndex("MissionId")
+                        .HasDatabaseName("ix_contest_missions_mission_id");
+
+                    b.ToTable("contest_missions", (string)null);
+                });
+
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbGroup", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("description");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_groups");
+
+                    b.HasIndex("IsDeleted")
+                        .HasDatabaseName("ix_groups_is_deleted");
+
+                    b.ToTable("groups", (string)null);
+                });
+
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbGroupMembership", b =>
+                {
+                    b.Property<int>("GroupId")
+                        .HasColumnType("integer")
+                        .HasColumnName("group_id");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer")
+                        .HasColumnName("user_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<int>("Role")
+                        .HasColumnType("integer")
+                        .HasColumnName("role");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("GroupId", "UserId")
+                        .HasName("pk_group_memberships");
+
+                    b.HasIndex("Role")
+                        .HasDatabaseName("ix_group_memberships_role");
+
+                    b.HasIndex("UserId")
+                        .HasDatabaseName("ix_group_memberships_user_id");
+
+                    b.ToTable("group_memberships", (string)null);
+                });
+
             modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbMission", b =>
                 {
                     b.Property<int>("Id")
@@ -56,6 +411,12 @@ namespace LiquidCode.Migrations
                         .HasMaxLength(128)
                         .HasColumnType("character varying(128)")
                         .HasColumnName("name");
+
+                    b.Property<string>("S3ContentKey")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("s3content_key");
 
                     b.Property<string>("S3PrivateKey")
                         .IsRequired()
@@ -129,6 +490,33 @@ namespace LiquidCode.Migrations
                         .HasDatabaseName("ix_missions_text_data_mission_id_language");
 
                     b.ToTable("missions_text_data", (string)null);
+                });
+
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbMissionTag", b =>
+                {
+                    b.Property<int>("MissionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("mission_id");
+
+                    b.Property<int>("TagId")
+                        .HasColumnType("integer")
+                        .HasColumnName("tag_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("MissionId", "TagId")
+                        .HasName("pk_mission_tags");
+
+                    b.HasIndex("TagId")
+                        .HasDatabaseName("ix_mission_tags_tag_id");
+
+                    b.ToTable("mission_tags", (string)null);
                 });
 
             modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbRefreshToken", b =>
@@ -242,6 +630,50 @@ namespace LiquidCode.Migrations
                     b.ToTable("solutions", (string)null);
                 });
 
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbTag", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("deleted_at");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean")
+                        .HasColumnName("is_deleted");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("name");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_tags");
+
+                    b.HasIndex("IsDeleted")
+                        .HasDatabaseName("ix_tags_is_deleted");
+
+                    b.HasIndex("Name")
+                        .IsUnique()
+                        .HasDatabaseName("ix_tags_name");
+
+                    b.ToTable("tags", (string)null);
+                });
+
             modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbUser", b =>
                 {
                     b.Property<int>("Id")
@@ -307,7 +739,7 @@ namespace LiquidCode.Migrations
                     b.ToTable("users", (string)null);
                 });
 
-            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbUserSubmit", b =>
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbUserSubmission", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -315,6 +747,10 @@ namespace LiquidCode.Migrations
                         .HasColumnName("id");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("ContestId")
+                        .HasColumnType("integer")
+                        .HasColumnName("contest_id");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -332,6 +768,10 @@ namespace LiquidCode.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("solution_id");
 
+                    b.Property<int>("SourceType")
+                        .HasColumnType("integer")
+                        .HasColumnName("source_type");
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at");
@@ -342,6 +782,9 @@ namespace LiquidCode.Migrations
 
                     b.HasKey("Id")
                         .HasName("pk_user_submits");
+
+                    b.HasIndex("ContestId")
+                        .HasDatabaseName("ix_user_submits_contest_id");
 
                     b.HasIndex("CreatedAt")
                         .HasDatabaseName("ix_user_submits_created_at");
@@ -358,6 +801,133 @@ namespace LiquidCode.Migrations
                     b.ToTable("user_submits", (string)null);
                 });
 
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbArticle", b =>
+                {
+                    b.HasOne("LiquidCode.Infrastructure.Database.Entities.DbUser", "Author")
+                        .WithMany()
+                        .HasForeignKey("AuthorId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_articles_users_author_id");
+
+                    b.Navigation("Author");
+                });
+
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbArticleTag", b =>
+                {
+                    b.HasOne("LiquidCode.Infrastructure.Database.Entities.DbArticle", "Article")
+                        .WithMany("ArticleTags")
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_article_tags_articles_article_id");
+
+                    b.HasOne("LiquidCode.Infrastructure.Database.Entities.DbTag", "Tag")
+                        .WithMany("ArticleTags")
+                        .HasForeignKey("TagId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_article_tags_tags_tag_id");
+
+                    b.Navigation("Article");
+
+                    b.Navigation("Tag");
+                });
+
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbContest", b =>
+                {
+                    b.HasOne("LiquidCode.Infrastructure.Database.Entities.DbGroup", "Group")
+                        .WithMany("Contests")
+                        .HasForeignKey("GroupId")
+                        .HasConstraintName("fk_contests_groups_group_id");
+
+                    b.Navigation("Group");
+                });
+
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbContestArticle", b =>
+                {
+                    b.HasOne("LiquidCode.Infrastructure.Database.Entities.DbArticle", "Article")
+                        .WithMany("ContestEntries")
+                        .HasForeignKey("ArticleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_contest_articles_articles_article_id");
+
+                    b.HasOne("LiquidCode.Infrastructure.Database.Entities.DbContest", "Contest")
+                        .WithMany("Articles")
+                        .HasForeignKey("ContestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_contest_articles_contests_contest_id");
+
+                    b.Navigation("Article");
+
+                    b.Navigation("Contest");
+                });
+
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbContestMembership", b =>
+                {
+                    b.HasOne("LiquidCode.Infrastructure.Database.Entities.DbContest", "Contest")
+                        .WithMany("Memberships")
+                        .HasForeignKey("ContestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_contest_memberships_contests_contest_id");
+
+                    b.HasOne("LiquidCode.Infrastructure.Database.Entities.DbUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_contest_memberships_users_user_id");
+
+                    b.Navigation("Contest");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbContestMission", b =>
+                {
+                    b.HasOne("LiquidCode.Infrastructure.Database.Entities.DbContest", "Contest")
+                        .WithMany("Missions")
+                        .HasForeignKey("ContestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_contest_missions_contests_contest_id");
+
+                    b.HasOne("LiquidCode.Infrastructure.Database.Entities.DbMission", "Mission")
+                        .WithMany("ContestEntries")
+                        .HasForeignKey("MissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_contest_missions_missions_mission_id");
+
+                    b.Navigation("Contest");
+
+                    b.Navigation("Mission");
+                });
+
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbGroupMembership", b =>
+                {
+                    b.HasOne("LiquidCode.Infrastructure.Database.Entities.DbGroup", "Group")
+                        .WithMany("Memberships")
+                        .HasForeignKey("GroupId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_group_memberships_groups_group_id");
+
+                    b.HasOne("LiquidCode.Infrastructure.Database.Entities.DbUser", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_group_memberships_users_user_id");
+
+                    b.Navigation("Group");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbMission", b =>
                 {
                     b.HasOne("LiquidCode.Infrastructure.Database.Entities.DbUser", "Author")
@@ -368,6 +938,27 @@ namespace LiquidCode.Migrations
                         .HasConstraintName("fk_missions_users_author_id");
 
                     b.Navigation("Author");
+                });
+
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbMissionTag", b =>
+                {
+                    b.HasOne("LiquidCode.Infrastructure.Database.Entities.DbMission", "Mission")
+                        .WithMany("MissionTags")
+                        .HasForeignKey("MissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_mission_tags_missions_mission_id");
+
+                    b.HasOne("LiquidCode.Infrastructure.Database.Entities.DbTag", "Tag")
+                        .WithMany("MissionTags")
+                        .HasForeignKey("TagId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_mission_tags_tags_tag_id");
+
+                    b.Navigation("Mission");
+
+                    b.Navigation("Tag");
                 });
 
             modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbRefreshToken", b =>
@@ -394,8 +985,13 @@ namespace LiquidCode.Migrations
                     b.Navigation("Mission");
                 });
 
-            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbUserSubmit", b =>
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbUserSubmission", b =>
                 {
+                    b.HasOne("LiquidCode.Infrastructure.Database.Entities.DbContest", "Contest")
+                        .WithMany()
+                        .HasForeignKey("ContestId")
+                        .HasConstraintName("fk_user_submits_contests_contest_id");
+
                     b.HasOne("LiquidCode.Infrastructure.Database.Entities.DbSolution", "Solution")
                         .WithMany()
                         .HasForeignKey("SolutionId")
@@ -410,9 +1006,48 @@ namespace LiquidCode.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_user_submits_users_user_id");
 
+                    b.Navigation("Contest");
+
                     b.Navigation("Solution");
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbArticle", b =>
+                {
+                    b.Navigation("ArticleTags");
+
+                    b.Navigation("ContestEntries");
+                });
+
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbContest", b =>
+                {
+                    b.Navigation("Articles");
+
+                    b.Navigation("Memberships");
+
+                    b.Navigation("Missions");
+                });
+
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbGroup", b =>
+                {
+                    b.Navigation("Contests");
+
+                    b.Navigation("Memberships");
+                });
+
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbMission", b =>
+                {
+                    b.Navigation("ContestEntries");
+
+                    b.Navigation("MissionTags");
+                });
+
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbTag", b =>
+                {
+                    b.Navigation("ArticleTags");
+
+                    b.Navigation("MissionTags");
                 });
 #pragma warning restore 612, 618
         }

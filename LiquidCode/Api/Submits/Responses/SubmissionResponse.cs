@@ -8,15 +8,21 @@ namespace LiquidCode.Api.Submits.Responses;
 public record SubmissionResponse(
     int Id,
     int UserId,
-    SolutionResponse Solution
+    SolutionResponse Solution,
+    int? ContestId,
+    string? ContestName,
+    SubmissionSourceType SourceType
 )
 {
     /// <summary>
     /// Отображает сущность базы данных на модель ответа
     /// </summary>
-    public static SubmissionResponse FromEntity(DbUserSubmit entity) => new(
+    public static SubmissionResponse FromEntity(DbUserSubmission entity) => new(
         entity.Id,
         entity.User.Id,
-        SolutionResponse.FromEntity(entity.Solution)
+        SolutionResponse.FromEntity(entity.Solution),
+        entity.ContestId,
+        entity.Contest?.Name,
+        entity.SourceType
     );
 }

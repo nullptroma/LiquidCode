@@ -11,54 +11,61 @@ namespace LiquidCode.Infrastructure.Database.Repositories;
 public class SubmitRepository : ISubmitRepository
 {
     private readonly LiquidDbContext _dbContext;
-    private readonly DbCrud<DbUserSubmit> _submitRepository;
+    private readonly DbCrud<DbUserSubmission> _submitRepository;
 
     public SubmitRepository(LiquidDbContext dbContext)
     {
         _dbContext = dbContext;
-        _submitRepository = new DbCrud<DbUserSubmit>(dbContext);
+        _submitRepository = new DbCrud<DbUserSubmission>(dbContext);
     }
 
     // IRepository<DbUserSubmit> implementation (delegated to _submitRepository)
-    public Task<DbUserSubmit?> FindByIdAsync(int id, CancellationToken cancellationToken = default) =>
+    public Task<DbUserSubmission?> FindByIdAsync(int id, CancellationToken cancellationToken = default) =>
         _submitRepository.FindByIdAsync(id, cancellationToken);
 
-    public Task<(IEnumerable<DbUserSubmit> Items, bool HasNextPage)> GetPageAsync(
+    public Task<(IEnumerable<DbUserSubmission> Items, bool HasNextPage)> GetPageAsync(
         int pageSize, int pageNumber, CancellationToken cancellationToken = default) =>
         _submitRepository.GetPageAsync(pageSize, pageNumber, cancellationToken);
 
-    public Task CreateAsync(DbUserSubmit entity, CancellationToken cancellationToken = default) =>
+    public Task CreateAsync(DbUserSubmission entity, CancellationToken cancellationToken = default) =>
         _submitRepository.CreateAsync(entity, cancellationToken);
 
-    public Task UpdateAsync(DbUserSubmit entity, CancellationToken cancellationToken = default) =>
+    public Task UpdateAsync(DbUserSubmission entity, CancellationToken cancellationToken = default) =>
         _submitRepository.UpdateAsync(entity, cancellationToken);
 
-    public Task DeleteAsync(DbUserSubmit entity, CancellationToken cancellationToken = default) =>
+    public Task DeleteAsync(DbUserSubmission entity, CancellationToken cancellationToken = default) =>
         _submitRepository.DeleteAsync(entity, cancellationToken);
 
-    public Task SoftDeleteAsync(DbUserSubmit entity, CancellationToken cancellationToken = default) =>
+    public Task SoftDeleteAsync(DbUserSubmission entity, CancellationToken cancellationToken = default) =>
         _submitRepository.SoftDeleteAsync(entity, cancellationToken);
 
     public Task SaveChangesAsync(CancellationToken cancellationToken = default) =>
         _submitRepository.SaveChangesAsync(cancellationToken);
 
     // ISubmitRepository specific methods
-    public async Task<IEnumerable<DbUserSubmit>> GetSubmissionsByUserAsync(int userId, CancellationToken cancellationToken = default) =>
-        await _dbContext.Set<DbUserSubmit>()
+    public async Task<IEnumerable<DbUserSubmission>> GetSubmissionsByUserAsync(int userId, CancellationToken cancellationToken = default) =>
+        await _dbContext.Set<DbUserSubmission>()
+            .Include(s => s.Solution)
+                .ThenInclude(sol => sol.Mission)
+            .Include(s => s.Contest)
             .Where(s => s.User.Id == userId)
             .OrderByDescending(s => s.Solution!.Time)
             .ToListAsync(cancellationToken);
 
-    public async Task<IEnumerable<DbUserSubmit>> GetSubmissionsByMissionAsync(int missionId, CancellationToken cancellationToken = default) =>
-        await _dbContext.Set<DbUserSubmit>()
+    public async Task<IEnumerable<DbUserSubmission>> GetSubmissionsByMissionAsync(int missionId, CancellationToken cancellationToken = default) =>
+        await _dbContext.Set<DbUserSubmission>()
+            .Include(s => s.User)
+            .Include(s => s.Contest)
             .Where(s => s.Solution!.Mission.Id == missionId)
             .OrderByDescending(s => s.Solution!.Time)
             .ToListAsync(cancellationToken);
 
-    public async Task<DbUserSubmit?> GetSubmissionWithDetailsAsync(int submissionId, CancellationToken cancellationToken = default) =>
-        await _dbContext.Set<DbUserSubmit>()
+    public async Task<DbUserSubmission?> GetSubmissionWithDetailsAsync(int submissionId, CancellationToken cancellationToken = default) =>
+        await _dbContext.Set<DbUserSubmission>()
             .Include(s => s.User)
             .Include(s => s.Solution)
+                .ThenInclude(sol => sol.Mission)
+            .Include(s => s.Contest)
             .FirstOrDefaultAsync(s => s.Id == submissionId, cancellationToken);
 
     public async Task<DbSolution?> GetSolutionAsync(int solutionId, CancellationToken cancellationToken = default) =>

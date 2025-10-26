@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,7 +22,13 @@ public class DbMission : ISoftDeletable, ITimestamped
     [StringLength(256)] 
     public string S3PrivateKey { get; init; } = "";
     
+    [StringLength(256)]
+    public string S3ContentKey { get; set; } = "";
+    
     public int Difficulty { get; init; }
+    
+    public ICollection<DbMissionTag> MissionTags { get; init; } = new HashSet<DbMissionTag>();
+    public ICollection<DbContestMission> ContestEntries { get; init; } = new HashSet<DbContestMission>();
     
     // Поддержка мягкого удаления
     public bool IsDeleted { get; set; }

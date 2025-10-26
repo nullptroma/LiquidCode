@@ -49,6 +49,81 @@ public class MissionRepository : IMissionRepository
             .OrderByDescending(m => m.CreatedAt)
             .ToListAsync(cancellationToken);
 
+    public async Task<DbMission?> FindWithDetailsAsync(int id, CancellationToken cancellationToken = default) =>
+        await _dbContext.Missions
+            .Include(m => m.Author)
+            .Include(m => m.MissionTags)
+                .ThenInclude(mt => mt.Tag)
+            .Include(m => m.ContestEntries)
+                .ThenInclude(cm => cm.Contest)
+            .FirstOrDefaultAsync(m => m.Id == id, cancellationToken);
+
+    public async Task<(IEnumerable<DbMission> Items, bool HasNextPage)> GetFilteredPageAsync(
+        int pageSize,
+        int pageNumber,
+        IEnumerable<int>? tagIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (pageSize <= 0 || pageNumber < 0)
+            throw new ArgumentException("Page size must be positive, page number must be non-negative");
+
+        var query = _dbContext.Missions
+            .Include(m => m.Author)
+            .Include(m => m.MissionTags)
+                .ThenInclude(mt => mt.Tag)
+            .Where(m => !m.IsDeleted);
+
+        if (tagIds != null)
+        {
+            var tagArray = tagIds.ToArray();
+            if (tagArray.Length > 0)
+            {
+                query = query.Where(m => m.MissionTags.Any(mt => tagArray.Contains(mt.TagId)));
+            }
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var hasNextPage = totalCount > pageSize * (pageNumber + 1);
+
+        var items = await query
+            .OrderByDescending(m => m.CreatedAt)
+            .Skip(pageSize * pageNumber)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return (items, hasNextPage);
+    }
+
+    public async Task SyncTagsAsync(DbMission mission, IEnumerable<int> tagIds, CancellationToken cancellationToken = default)
+    {
+        var targetIds = tagIds?.ToHashSet() ?? new HashSet<int>();
+
+        var existing = await _dbContext.MissionTags
+            .Where(mt => mt.MissionId == mission.Id)
+            .ToListAsync(cancellationToken);
+
+        var toRemove = existing.Where(e => !targetIds.Contains(e.TagId)).ToList();
+        if (toRemove.Count > 0)
+        {
+            _dbContext.MissionTags.RemoveRange(toRemove);
+        }
+
+    var existingIds = existing.Select(e => e.TagId).ToHashSet();
+        var toAdd = targetIds.Except(existingIds)
+            .Select(tagId => new DbMissionTag
+            {
+                MissionId = mission.Id,
+                TagId = tagId
+            }).ToList();
+
+        if (toAdd.Count > 0)
+        {
+            await _dbContext.MissionTags.AddRangeAsync(toAdd, cancellationToken);
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
     public async Task<DbMissionPublicTextData?> GetMissionTextAsync(int missionId, string language, CancellationToken cancellationToken = default) =>
         await _dbContext.MissionsTextData
             .FirstOrDefaultAsync(m => m.MissionId == missionId && m.Language == language, cancellationToken);
