@@ -17,4 +17,5 @@ public interface IContestService
     Task<ContestsPageResponse?> GetForGroupAsync(int groupId, int pageSize, int pageNumber, CancellationToken cancellationToken = default);
     Task<bool> UpsertMemberAsync(int contestId, int requesterId, int targetUserId, ContestMembershipRole role, CancellationToken cancellationToken = default);
     Task<bool> RemoveMemberAsync(int contestId, int requesterId, int targetUserId, CancellationToken cancellationToken = default);
+    Task<ContestAttemptResponse?> StartAttemptAsync(int contestId, int userId, CancellationToken cancellationToken = default);
 }

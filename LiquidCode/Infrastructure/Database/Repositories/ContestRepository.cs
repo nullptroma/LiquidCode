@@ -73,8 +73,11 @@ public class ContestRepository : IContestRepository
             .Include(c => c.Memberships).ThenInclude(m => m.User)
             .Include(c => c.Missions).ThenInclude(cm => cm.Mission)
             .Include(c => c.Articles).ThenInclude(ca => ca.Article)
-            .Where(c => !c.IsDeleted && c.EndsAt >= startPoint)
-            .OrderBy(c => c.StartsAt);
+            .Where(c => !c.IsDeleted &&
+                        ((c.ScheduleType == ContestScheduleType.FixedWindow && c.EndsAt >= startPoint) ||
+                         (c.ScheduleType == ContestScheduleType.FlexibleWindow && c.AvailableUntil >= startPoint)))
+            .OrderBy(c => c.ScheduleType)
+            .ThenBy(c => c.ScheduleType == ContestScheduleType.FixedWindow ? c.StartsAt : c.AvailableFrom);
 
         var totalCount = await query.CountAsync(cancellationToken);
         var hasNextPage = totalCount > pageSize * (pageNumber + 1);
@@ -102,7 +105,8 @@ public class ContestRepository : IContestRepository
             .Include(c => c.Missions).ThenInclude(cm => cm.Mission)
             .Include(c => c.Articles).ThenInclude(ca => ca.Article)
             .Where(c => c.GroupId == groupId && !c.IsDeleted)
-            .OrderByDescending(c => c.StartsAt);
+            .OrderByDescending(c => c.ScheduleType == ContestScheduleType.FixedWindow ? c.StartsAt : c.AvailableFrom)
+            .ThenByDescending(c => c.Id);
 
         var totalCount = await query.CountAsync(cancellationToken);
         var hasNextPage = totalCount > pageSize * (pageNumber + 1);
@@ -236,4 +240,8 @@ public class ContestRepository : IContestRepository
             await _dbContext.SaveChangesAsync(cancellationToken);
         }
     }
+
+    public Task<DbContestMembership?> GetMembershipAsync(int contestId, int userId, CancellationToken cancellationToken = default) =>
+        _dbContext.ContestMemberships
+            .FirstOrDefaultAsync(m => m.ContestId == contestId && m.UserId == userId, cancellationToken);
 }

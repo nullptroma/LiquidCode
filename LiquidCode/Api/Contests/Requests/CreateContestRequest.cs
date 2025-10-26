@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using LiquidCode.Infrastructure.Database.Entities;
 
 namespace LiquidCode.Api.Contests.Requests;
 
@@ -8,8 +9,12 @@ namespace LiquidCode.Api.Contests.Requests;
 public record CreateContestRequest(
     [Required] [StringLength(128, MinimumLength = 3)] string Name,
     string? Description,
-    DateTime StartsAt,
-    DateTime EndsAt,
+    ContestScheduleType ScheduleType,
+    DateTime? StartsAt,
+    DateTime? EndsAt,
+    DateTime? AvailableFrom,
+    DateTime? AvailableUntil,
+    int? AttemptDurationMinutes,
     int? GroupId,
     IEnumerable<int>? MissionIds,
     IEnumerable<int>? ArticleIds,

@@ -39,8 +39,19 @@ public class ContestService : IContestService
 
     public async Task<ContestResponse?> CreateAsync(CreateContestRequest request, int creatorId, CancellationToken cancellationToken = default)
     {
-        if (request.StartsAt >= request.EndsAt)
+        if (!TryBuildSchedule(
+                request.ScheduleType,
+                request.StartsAt,
+                request.EndsAt,
+                request.AvailableFrom,
+                request.AvailableUntil,
+                request.AttemptDurationMinutes,
+                out var schedule,
+                out var validationError))
+        {
+            _logger.LogWarning("Invalid contest schedule during creation: {Error}", validationError);
             return null;
+        }
 
         var creator = await _userRepository.FindByIdAsync(creatorId, cancellationToken);
         if (creator == null)
@@ -68,8 +79,12 @@ public class ContestService : IContestService
         {
             Name = request.Name.Trim(),
             Description = request.Description?.Trim(),
-            StartsAt = request.StartsAt,
-            EndsAt = request.EndsAt,
+            ScheduleType = schedule.ScheduleType,
+            StartsAt = schedule.StartsAt,
+            EndsAt = schedule.EndsAt,
+            AvailableFrom = schedule.AvailableFrom,
+            AvailableUntil = schedule.AvailableUntil,
+            AttemptDurationMinutes = schedule.AttemptDurationMinutes,
             GroupId = request.GroupId,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
@@ -101,14 +116,47 @@ public class ContestService : IContestService
         if (request.Description != null)
             contest.Description = request.Description.Trim();
 
-        if (request.StartsAt.HasValue && request.EndsAt.HasValue && request.StartsAt >= request.EndsAt)
+        var targetScheduleType = request.ScheduleType ?? contest.ScheduleType;
+        var candidateStartsAt = request.StartsAt ?? contest.StartsAt;
+        var candidateEndsAt = request.EndsAt ?? contest.EndsAt;
+        var candidateAvailableFrom = request.AvailableFrom ?? contest.AvailableFrom;
+        var candidateAvailableUntil = request.AvailableUntil ?? contest.AvailableUntil;
+        var candidateAttemptDuration = request.AttemptDurationMinutes ?? contest.AttemptDurationMinutes;
+
+        if (!TryBuildSchedule(
+                targetScheduleType,
+                candidateStartsAt,
+                candidateEndsAt,
+                candidateAvailableFrom,
+                candidateAvailableUntil,
+                candidateAttemptDuration,
+                out var schedule,
+                out var validationError))
+        {
+            _logger.LogWarning("Invalid contest schedule update for contest {ContestId}: {Error}", contestId, validationError);
             return null;
+        }
 
-        if (request.StartsAt.HasValue)
-            contest.StartsAt = request.StartsAt.Value;
+        var previousScheduleType = contest.ScheduleType;
+        var previousAvailableFrom = contest.AvailableFrom;
+        var previousAvailableUntil = contest.AvailableUntil;
+        var previousAttemptDuration = contest.AttemptDurationMinutes;
 
-        if (request.EndsAt.HasValue)
-            contest.EndsAt = request.EndsAt.Value;
+        contest.ScheduleType = schedule.ScheduleType;
+        contest.StartsAt = schedule.StartsAt;
+        contest.EndsAt = schedule.EndsAt;
+        contest.AvailableFrom = schedule.AvailableFrom;
+        contest.AvailableUntil = schedule.AvailableUntil;
+        contest.AttemptDurationMinutes = schedule.AttemptDurationMinutes;
+
+        if (previousScheduleType != schedule.ScheduleType ||
+            (schedule.ScheduleType == ContestScheduleType.FlexibleWindow &&
+             (previousAvailableFrom != schedule.AvailableFrom ||
+              previousAvailableUntil != schedule.AvailableUntil ||
+              previousAttemptDuration != schedule.AttemptDurationMinutes)))
+        {
+            ResetFlexibleAttempts(contest);
+        }
 
         contest.UpdatedAt = DateTime.UtcNow;
 
@@ -183,6 +231,163 @@ public class ContestService : IContestService
         return true;
     }
 
+    public async Task<ContestAttemptResponse?> StartAttemptAsync(int contestId, int userId, CancellationToken cancellationToken = default)
+    {
+        var contest = await _contestRepository.FindWithDetailsAsync(contestId, cancellationToken);
+        if (contest == null || contest.IsDeleted)
+            return null;
+
+        if (contest.ScheduleType != ContestScheduleType.FlexibleWindow)
+        {
+            _logger.LogWarning("Attempt start requested for contest {ContestId} with schedule type {ScheduleType}", contestId, contest.ScheduleType);
+            return null;
+        }
+
+        if (!contest.AvailableFrom.HasValue || !contest.AvailableUntil.HasValue || !contest.AttemptDurationMinutes.HasValue)
+        {
+            _logger.LogWarning("Contest {ContestId} has inconsistent flexible schedule configuration", contestId);
+            return null;
+        }
+
+        var membership = contest.Memberships.FirstOrDefault(m => m.UserId == userId);
+        if (membership == null)
+        {
+            _logger.LogWarning("User {UserId} is not enrolled in contest {ContestId}", userId, contestId);
+            return null;
+        }
+
+        var now = DateTime.UtcNow;
+        var isOrganizer = membership.Role.HasFlag(ContestMembershipRole.Organizer);
+
+        if (!isOrganizer && (now < contest.AvailableFrom.Value || now > contest.AvailableUntil.Value))
+        {
+            _logger.LogWarning("Contest {ContestId} is not available for starting attempt by user {UserId}", contestId, userId);
+            return null;
+        }
+
+        if (membership.ActiveAttemptStartedAt.HasValue &&
+            membership.ActiveAttemptExpiresAt.HasValue &&
+            now <= membership.ActiveAttemptExpiresAt.Value)
+        {
+            return new ContestAttemptResponse(
+                contest.Id,
+                userId,
+                contest.ScheduleType,
+                membership.ActiveAttemptStartedAt.Value,
+                membership.ActiveAttemptExpiresAt.Value,
+                membership.AttemptCount);
+        }
+
+        var expireAt = now.AddMinutes(contest.AttemptDurationMinutes.Value);
+        if (contest.AvailableUntil.Value < expireAt)
+        {
+            expireAt = contest.AvailableUntil.Value;
+        }
+
+        if (expireAt <= now)
+        {
+            _logger.LogWarning("Calculated attempt window is invalid for contest {ContestId} and user {UserId}", contestId, userId);
+            return null;
+        }
+
+        membership.ActiveAttemptStartedAt = now;
+        membership.ActiveAttemptExpiresAt = expireAt;
+        membership.AttemptCount += 1;
+        membership.UpdatedAt = DateTime.UtcNow;
+
+        await _contestRepository.SaveChangesAsync(cancellationToken);
+
+        return new ContestAttemptResponse(
+            contest.Id,
+            userId,
+            contest.ScheduleType,
+            membership.ActiveAttemptStartedAt.Value,
+            membership.ActiveAttemptExpiresAt.Value,
+            membership.AttemptCount);
+    }
+
+    private static void ResetFlexibleAttempts(DbContest contest)
+    {
+        foreach (var membership in contest.Memberships)
+        {
+            membership.ActiveAttemptStartedAt = null;
+            membership.ActiveAttemptExpiresAt = null;
+            membership.UpdatedAt = DateTime.UtcNow;
+        }
+    }
+
+    private static bool TryBuildSchedule(
+        ContestScheduleType scheduleType,
+        DateTime? startsAt,
+        DateTime? endsAt,
+        DateTime? availableFrom,
+        DateTime? availableUntil,
+        int? attemptDurationMinutes,
+        out ContestScheduleData schedule,
+        out string? error)
+    {
+        schedule = default!;
+        error = null;
+
+        switch (scheduleType)
+        {
+            case ContestScheduleType.FixedWindow when !startsAt.HasValue || !endsAt.HasValue:
+                error = "Для фиксированного контеста необходимо указать время начала и окончания.";
+                return false;
+            case ContestScheduleType.FixedWindow when startsAt!.Value >= endsAt!.Value:
+                error = "Время начала должно быть раньше времени окончания.";
+                return false;
+            case ContestScheduleType.FixedWindow:
+                schedule = new ContestScheduleData(
+                    scheduleType,
+                    startsAt.Value,
+                    endsAt.Value,
+                    null,
+                    null,
+                    null);
+                return true;
+
+            case ContestScheduleType.FlexibleWindow when !availableFrom.HasValue || !availableUntil.HasValue:
+                error = "Для гибкого контеста необходимо указать окно доступности.";
+                return false;
+            case ContestScheduleType.FlexibleWindow when !attemptDurationMinutes.HasValue:
+                error = "Не указана длительность попытки.";
+                return false;
+            case ContestScheduleType.FlexibleWindow when availableFrom!.Value >= availableUntil!.Value:
+                error = "Начало окна должно быть раньше окончания.";
+                return false;
+            case ContestScheduleType.FlexibleWindow when attemptDurationMinutes!.Value <= 0:
+                error = "Длительность попытки должна быть положительной.";
+                return false;
+            case ContestScheduleType.FlexibleWindow:
+                var totalWindowMinutes = (int)(availableUntil.Value - availableFrom.Value).TotalMinutes;
+                if (totalWindowMinutes <= 0)
+                {
+                    error = "Окно доступности слишком короткое.";
+                    return false;
+                }
+
+                if (attemptDurationMinutes.Value > totalWindowMinutes)
+                {
+                    error = "Длительность попытки не может превышать окно доступности.";
+                    return false;
+                }
+
+                schedule = new ContestScheduleData(
+                    scheduleType,
+                    null,
+                    null,
+                    availableFrom.Value,
+                    availableUntil.Value,
+                    attemptDurationMinutes.Value);
+                return true;
+
+            default:
+                error = $"Неизвестный тип расписания: {scheduleType}";
+                return false;
+        }
+    }
+
     private async Task SyncLineupAsync(DbContest contest, IEnumerable<int>? missionIds, IEnumerable<int>? articleIds, CancellationToken cancellationToken)
     {
         if (missionIds != null)
@@ -255,4 +460,13 @@ public class ContestService : IContestService
         var membership = contest.Memberships.FirstOrDefault(m => m.UserId == userId);
         return membership != null && membership.Role.HasFlag(ContestMembershipRole.Organizer);
     }
+
+    private sealed record ContestScheduleData(
+        ContestScheduleType ScheduleType,
+        DateTime? StartsAt,
+        DateTime? EndsAt,
+        DateTime? AvailableFrom,
+        DateTime? AvailableUntil,
+        int? AttemptDurationMinutes
+    );
 }

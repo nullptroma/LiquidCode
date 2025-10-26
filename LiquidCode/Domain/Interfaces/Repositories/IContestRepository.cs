@@ -26,4 +26,5 @@ public interface IContestRepository : IRepository<DbContest>
 
     Task UpsertMembershipAsync(int contestId, int userId, ContestMembershipRole role, CancellationToken cancellationToken = default);
     Task RemoveMembershipAsync(int contestId, int userId, CancellationToken cancellationToken = default);
+    Task<DbContestMembership?> GetMembershipAsync(int contestId, int userId, CancellationToken cancellationToken = default);
 }

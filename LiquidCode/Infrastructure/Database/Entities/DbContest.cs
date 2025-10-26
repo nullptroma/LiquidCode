@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
@@ -9,6 +10,8 @@ namespace LiquidCode.Infrastructure.Database.Entities;
 /// </summary>
 [Index(nameof(StartsAt))]
 [Index(nameof(EndsAt))]
+[Index(nameof(AvailableFrom))]
+[Index(nameof(AvailableUntil))]
 [Index(nameof(IsDeleted))]
 public class DbContest : ISoftDeletable, ITimestamped
 {
@@ -20,8 +23,15 @@ public class DbContest : ISoftDeletable, ITimestamped
     [StringLength(1024)]
     public string? Description { get; set; }
     
-    public DateTime StartsAt { get; set; }
-    public DateTime EndsAt { get; set; }
+    public ContestScheduleType ScheduleType { get; set; } = ContestScheduleType.FixedWindow;
+
+    public DateTime? StartsAt { get; set; }
+    public DateTime? EndsAt { get; set; }
+
+    public DateTime? AvailableFrom { get; set; }
+    public DateTime? AvailableUntil { get; set; }
+
+    public int? AttemptDurationMinutes { get; set; }
     
     public int? GroupId { get; set; }
     public DbGroup? Group { get; set; }
@@ -34,4 +44,13 @@ public class DbContest : ISoftDeletable, ITimestamped
     public DateTime? DeletedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+}
+
+/// <summary>
+/// Тип временного окна контеста
+/// </summary>
+public enum ContestScheduleType
+{
+    FixedWindow = 0,
+    FlexibleWindow = 1
 }

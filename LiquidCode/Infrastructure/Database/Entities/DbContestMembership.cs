@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,6 +18,21 @@ public class DbContestMembership : ITimestamped
     public DbUser User { get; init; } = null!;
     
     public ContestMembershipRole Role { get; set; } = ContestMembershipRole.Participant;
+
+    /// <summary>
+    /// Временные метки активной попытки для гибкого окна
+    /// </summary>
+    public DateTime? ActiveAttemptStartedAt { get; set; }
+
+    /// <summary>
+    /// Время завершения активной попытки, если задано
+    /// </summary>
+    public DateTime? ActiveAttemptExpiresAt { get; set; }
+
+    /// <summary>
+    /// Количество запущенных попыток
+    /// </summary>
+    public int AttemptCount { get; set; }
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

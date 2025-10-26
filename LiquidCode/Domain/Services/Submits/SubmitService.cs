@@ -90,22 +90,73 @@ public class SubmitService : ISubmitService
                     return null;
                 }
 
-                var now = DateTime.UtcNow;
-                if (!isOrganizer && (now < contest.StartsAt || now > contest.EndsAt))
-                {
-                    _logger.LogWarning("Contest {ContestId} is not active for user {UserId}", contestId, userId);
-                    return null;
-                }
-
                 if (!contest.Missions.Any(cm => cm.MissionId == missionId))
                 {
                     _logger.LogWarning("Mission {MissionId} is not part of contest {ContestId}", missionId, contestId);
                     return null;
                 }
 
-                if (finalSourceType == SubmissionSourceType.Direct)
+                var now = DateTime.UtcNow;
+                switch (contest.ScheduleType)
                 {
-                    finalSourceType = SubmissionSourceType.ContestCompetition;
+                    case ContestScheduleType.FixedWindow:
+                        if (!contest.StartsAt.HasValue || !contest.EndsAt.HasValue)
+                        {
+                            _logger.LogWarning("Contest {ContestId} has inconsistent fixed window configuration", contestId);
+                            return null;
+                        }
+
+                        if (!isOrganizer && (now < contest.StartsAt.Value || now > contest.EndsAt.Value))
+                        {
+                            _logger.LogWarning("Contest {ContestId} is not active for user {UserId}", contestId, userId);
+                            return null;
+                        }
+
+                        if (finalSourceType == SubmissionSourceType.Direct)
+                        {
+                            finalSourceType = SubmissionSourceType.Contest;
+                        }
+
+                        break;
+
+                    case ContestScheduleType.FlexibleWindow:
+                        if (!contest.AvailableFrom.HasValue || !contest.AvailableUntil.HasValue || !contest.AttemptDurationMinutes.HasValue)
+                        {
+                            _logger.LogWarning("Contest {ContestId} has inconsistent flexible window configuration", contestId);
+                            return null;
+                        }
+
+                        if (!isOrganizer)
+                        {
+                            if (now < contest.AvailableFrom.Value || now > contest.AvailableUntil.Value)
+                            {
+                                _logger.LogWarning("Contest {ContestId} is not available for user {UserId}", contestId, userId);
+                                return null;
+                            }
+
+                            if (membership.ActiveAttemptStartedAt == null || membership.ActiveAttemptExpiresAt == null)
+                            {
+                                _logger.LogWarning("User {UserId} did not start an attempt in contest {ContestId}", userId, contestId);
+                                return null;
+                            }
+
+                            if (now > membership.ActiveAttemptExpiresAt.Value)
+                            {
+                                _logger.LogWarning("Attempt for user {UserId} in contest {ContestId} has expired", userId, contestId);
+                                return null;
+                            }
+                        }
+
+                        if (finalSourceType == SubmissionSourceType.Direct)
+                        {
+                            finalSourceType = SubmissionSourceType.ContestFlexibleWindow;
+                        }
+
+                        break;
+
+                    default:
+                        _logger.LogWarning("Contest {ContestId} has unsupported schedule type {ScheduleType}", contestId, contest.ScheduleType);
+                        return null;
                 }
             }
 

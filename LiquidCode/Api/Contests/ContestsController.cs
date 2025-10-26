@@ -105,6 +105,23 @@ public class ContestsController(IContestService contestService) : ControllerBase
     }
 
     /// <summary>
+    /// Запускает персональную попытку контеста для текущего пользователя
+    /// </summary>
+    [Authorize]
+    [HttpPost("{id:int}/attempts")]
+    public async Task<IActionResult> StartAttempt([FromRoute] int id, CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out var userId))
+            return Unauthorized("User ID not found in claims.");
+
+        var result = await contestService.StartAttemptAsync(id, userId, cancellationToken);
+        if (result == null)
+            return BadRequest("Unable to start attempt or contest not available.");
+
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Возвращает список контестов (глобальный или по группе)
     /// </summary>
     [HttpGet]

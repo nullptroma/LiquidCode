@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using LiquidCode.Infrastructure.Database.Entities;
@@ -24,8 +25,17 @@ public record GroupResponse(
             .ToList(),
         entity.Contests
             .Where(c => !c.IsDeleted)
-            .OrderByDescending(c => c.StartsAt)
-            .Select(c => new GroupContestSummary(c.Id, c.Name, c.StartsAt, c.EndsAt))
+            .OrderByDescending(c => c.ScheduleType == ContestScheduleType.FixedWindow ? c.StartsAt : c.AvailableFrom)
+            .ThenByDescending(c => c.Id)
+            .Select(c => new GroupContestSummary(
+                c.Id,
+                c.Name,
+                c.ScheduleType,
+                c.StartsAt,
+                c.EndsAt,
+                c.AvailableFrom,
+                c.AvailableUntil,
+                c.AttemptDurationMinutes))
             .ToList()
     );
 }
@@ -38,4 +48,13 @@ public record GroupMemberResponse(int UserId, string Username, GroupMembershipRo
 /// <summary>
 /// Краткое описание контеста, созданного в группе
 /// </summary>
-public record GroupContestSummary(int ContestId, string Name, DateTime StartsAt, DateTime EndsAt);
+public record GroupContestSummary(
+    int ContestId,
+    string Name,
+    ContestScheduleType ScheduleType,
+    DateTime? StartsAt,
+    DateTime? EndsAt,
+    DateTime? AvailableFrom,
+    DateTime? AvailableUntil,
+    int? AttemptDurationMinutes
+);

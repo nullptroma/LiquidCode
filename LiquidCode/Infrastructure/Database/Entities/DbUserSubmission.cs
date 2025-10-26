@@ -35,5 +35,6 @@ public class DbUserSubmission : ISoftDeletable, ITimestamped
 public enum SubmissionSourceType
 {
     Direct = 0,
-    Contest = 1
+    Contest = 1,
+    ContestFlexibleWindow = 2
 }
