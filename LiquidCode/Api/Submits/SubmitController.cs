@@ -2,7 +2,9 @@ using System;
 using System.Linq;
 using LiquidCode.Api.Submits.Requests;
 using LiquidCode.Api.Submits.Responses;
+using LiquidCode.Domain.Services.Contests;
 using LiquidCode.Domain.Services.Submits;
+using LiquidCode.Infrastructure.Database.Entities;
 using LiquidCode.Infrastructure.External.TestingModule;
 using LiquidCode.Shared.Constants;
 using LiquidCode.Shared.Extensions;
@@ -44,6 +46,9 @@ public class SubmitController(
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
+        var contestId = request.ContestId;
+        var contest = contestId == null ? null : await _contestService.GetAsync(contestId.Value, cancellationToken);
+
         var solution = await _submitService.SubmitSolutionAsync(
             request.MissionId,
             userId,
@@ -51,7 +56,6 @@ public class SubmitController(
             request.Language,
             request.LanguageVersion,
             request.ContestId,
-            request.SourceType,
             cancellationToken);
 
         if (solution == null)

@@ -41,7 +41,6 @@ public class SubmitService : ISubmitService
         string language,
         string languageVersion,
         int? contestId,
-        SubmissionSourceType sourceType,
         CancellationToken cancellationToken = default)
     {
         try
@@ -70,6 +69,7 @@ public class SubmitService : ISubmitService
             }
 
             DbContest? contest = null;
+
             var finalSourceType = sourceType;
             if (contestId.HasValue)
             {

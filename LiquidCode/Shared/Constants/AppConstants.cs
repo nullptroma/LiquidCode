@@ -13,7 +13,7 @@ public static class AppConstants
     /// <summary>
     /// Время истечения JWT токена в минутах
     /// </summary>
-    public const int JwtExpirationMinutes = 10;
+    public const int JwtExpirationMinutes = 1440; // TODO: убавить, день для удобства
 
     /// <summary>
     /// Время истечения токена обновления в днях

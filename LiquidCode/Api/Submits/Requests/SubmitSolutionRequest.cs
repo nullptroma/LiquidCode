@@ -11,6 +11,4 @@ public record SubmitSolutionRequest(
     [Required] [StringLength(16)] string Language,
     [Required] [StringLength(16)] string LanguageVersion,
     [Required] [StringLength(10000, MinimumLength = 1)] string SourceCode,
-    int? ContestId,
-    SubmissionSourceType SourceType = SubmissionSourceType.Direct
-);
+    int? ContestId);
