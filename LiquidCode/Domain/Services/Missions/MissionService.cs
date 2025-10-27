@@ -49,39 +49,10 @@ public class MissionService : IMissionService
         var tempDir = Path.GetTempPath();
         var unpackFolder = Path.Combine(tempDir, Path.GetFileNameWithoutExtension(Path.GetRandomFileName()));
         var packageZipPath = Path.Combine(tempDir, Path.GetFileNameWithoutExtension(Path.GetRandomFileName()) + ".zip");
-        var statementsZipPath = Path.Combine(tempDir, Path.GetFileNameWithoutExtension(Path.GetRandomFileName()) + ".zip");
 
         try
         {
-            // Сохранить загруженный файл
-            _logger.LogInformation("Saving mission file: {FileName}", form.MissionFile.Name);
-            using (var fileStream = System.IO.File.Open(packageZipPath, FileMode.OpenOrCreate))
-            {
-                await form.MissionFile.CopyToAsync(fileStream, cancellationToken);
-            }
-
-            // Распаковать ZIP файл
-            _logger.LogInformation("Extracting mission ZIP to: {UnpackFolder}", unpackFolder);
-            ZipFile.ExtractToDirectory(packageZipPath, unpackFolder);
-
-            // Проверить, существует ли папка statement-sections
-            var statementSectionsPath = Path.Combine(unpackFolder, MissionStatementPaths.StatementSectionsFolder);
-            if (!Directory.Exists(statementSectionsPath))
-            {
-                _logger.LogError("statement-sections folder not found in mission ZIP");
-                return null;
-            }
-
-            // Упаковать разделы утверждений
-            _logger.LogInformation("Creating statements ZIP: {StatementsZipPath}", statementsZipPath);
-            ZipFile.CreateFromDirectory(statementSectionsPath, statementsZipPath, CompressionLevel.SmallestSize, false);
-
-            // Загрузить на S3
-            _logger.LogInformation("Uploading mission files to S3");
-            var privateKey = await _s3Client.UploadFileWithRandomKey(S3BucketKeys.PrivateProblems, packageZipPath);
-            var contentKey = await _s3Client.UploadFileWithRandomKey(S3BucketKeys.PublicContent, statementsZipPath);
-
-            // Создать миссию в базе данных
+            // Получить юзера
             var existingUser = await _userRepository.FindByIdAsync(userId, cancellationToken);
             if (existingUser == null)
             {
@@ -89,39 +60,29 @@ public class MissionService : IMissionService
                 return null;
             }
 
+            // Сохранить загруженный файл
+            _logger.LogInformation("Saving mission file: {FileName}", form.MissionFile.Name);
+            using (var fileStream = System.IO.File.Open(packageZipPath, FileMode.OpenOrCreate))
+            {
+                await form.MissionFile.CopyToAsync(fileStream, cancellationToken);
+            }
+
+            // Загрузить на S3
+            _logger.LogInformation("Uploading mission files to S3");
+            var privateKey = await _s3Client.UploadFileWithRandomKey(S3BucketKeys.PrivateProblems, packageZipPath);
+
+            // Создать миссию в базе данных
             var dbMission = new DbMission
             {
                 Author = existingUser,
                 Name = form.Name,
                 S3PrivateKey = privateKey,
-                S3ContentKey = contentKey,
                 Difficulty = form.Difficulty,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
 
             await _missionRepository.CreateAsync(dbMission, cancellationToken);
-
-            // Распарсить и сохранить текстовые данные миссии
-            var missionTexts = ExtractMissionTexts(statementSectionsPath, dbMission.Id);
-            
-            // Обновить имя миссии из русского языка, если доступно, иначе из первого доступного языка
-            var russianText = missionTexts.FirstOrDefault(t => t.Language == "russian");
-            if (russianText != null)
-            {
-                var russianData = JsonSerializer.Deserialize<JsonMissionData>(russianText.Data, JsonSerializerOptions);
-                if (russianData?.Name != null)
-                    dbMission.Name = russianData.Name;
-            }
-            else if (missionTexts.Count > 0)
-            {
-                var firstData = JsonSerializer.Deserialize<JsonMissionData>(missionTexts[0].Data, JsonSerializerOptions);
-                if (firstData?.Name != null)
-                    dbMission.Name = firstData.Name;
-            }
-
-            // Добавить текстовые данные миссии в базу данных
-            await _missionRepository.CreateMissionTextsAsync(missionTexts, cancellationToken);
 
             // Обработать теги
             await SyncMissionTagsAsync(dbMission, form.Tags, cancellationToken);
@@ -140,34 +101,7 @@ public class MissionService : IMissionService
         finally
         {
             // Очистить временные файлы
-            CleanupTemporaryFiles(unpackFolder, packageZipPath, statementsZipPath);
-        }
-    }
-
-    public async Task<string?> GetMissionTextAsync(int missionId, string language, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            var mission = await _missionRepository.FindByIdAsync(missionId, cancellationToken);
-            if (mission == null)
-            {
-                _logger.LogWarning("Mission not found: {MissionId}", missionId);
-                return null;
-            }
-
-            var textData = await _missionRepository.GetMissionTextAsync(missionId, language, cancellationToken);
-            if (textData == null)
-            {
-                _logger.LogWarning("Mission text not found: {MissionId}, {Language}", missionId, language);
-                return null;
-            }
-
-            return textData.Data;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error getting mission text: {MissionId}, {Language}", missionId, language);
-            return null;
+            CleanupTemporaryFiles(unpackFolder, packageZipPath);
         }
     }
 
@@ -263,96 +197,21 @@ public class MissionService : IMissionService
         await _missionRepository.SyncTagsAsync(mission, allTags.Values.Select(t => t.Id), cancellationToken);
     }
 
-    private List<DbMissionPublicTextData> ExtractMissionTexts(string statementSectionsPath, int missionId)
-    {
-        var missionTexts = new List<DbMissionPublicTextData>();
-        var directoryInfo = new DirectoryInfo(statementSectionsPath);
-
-        foreach (var languageDir in directoryInfo.GetDirectories())
-        {
-            try
-            {
-                var data = GetDataFromStatementSections(languageDir);
-                var json = JsonSerializer.Serialize(data, JsonSerializerOptions);
-
-                missionTexts.Add(new DbMissionPublicTextData
-                {
-                    MissionId = missionId,
-                    Language = languageDir.Name,
-                    Data = json
-                });
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Error extracting mission text for language: {Language}", languageDir.Name);
-            }
-        }
-
-        return missionTexts;
-    }
-
-    private JsonMissionData GetDataFromStatementSections(DirectoryInfo dir)
-    {
-        var files = dir.GetFiles();
-        var data = new JsonMissionData
-        {
-            Name = System.IO.File.ReadAllText(files.Single(f => f.Name == MissionStatementPaths.NameFile).FullName),
-            Input = System.IO.File.ReadAllText(files.Single(f => f.Name == MissionStatementPaths.InputFile).FullName),
-            Output = System.IO.File.ReadAllText(files.Single(f => f.Name == MissionStatementPaths.OutputFile).FullName),
-            Legend = System.IO.File.ReadAllText(files.Single(f => f.Name == MissionStatementPaths.LegendFile).FullName),
-            Examples = [],
-            ExampleAnswers = []
-        };
-
-        var exampleFiles = dir.GetFiles()
-            .Where(f => f.Name.StartsWith(MissionStatementPaths.ExampleFilePrefix))
-            .OrderBy(f =>
-            {
-                var numberPart = f.Name[MissionStatementPaths.ExampleFilePrefix.Length..];
-                if (numberPart.Contains('.'))
-                    numberPart = numberPart[..numberPart.IndexOf(".", StringComparison.Ordinal)];
-                return int.TryParse(numberPart, out var num) ? num : int.MaxValue;
-            });
-
-        foreach (var exampleFile in exampleFiles)
-        {
-            var content = System.IO.File.ReadAllText(exampleFile.FullName);
-            if (exampleFile.Name.EndsWith("a"))
-                data.ExampleAnswers.Add(content);
-            else
-                data.Examples.Add(content);
-        }
-
-        return data;
-    }
-
-    private void CleanupTemporaryFiles(string unpackFolder, string packageZipPath, string statementsZipPath)
+    private void CleanupTemporaryFiles(params string[] paths)
     {
         try
         {
-            if (Directory.Exists(unpackFolder))
-                Directory.Delete(unpackFolder, true);
-            if (System.IO.File.Exists(packageZipPath))
-                System.IO.File.Delete(packageZipPath);
-            if (System.IO.File.Exists(statementsZipPath))
-                System.IO.File.Delete(statementsZipPath);
+            foreach (var path in paths)
+            {
+                if (Directory.Exists(path))
+                    Directory.Delete(path, true);
+                else if (System.IO.File.Exists(path))
+                    System.IO.File.Delete(path);
+            }
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Error cleaning up temporary files");
         }
     }
-}
-
-/// <summary>
-/// Внутренняя модель для структуры данных описания миссии
-/// </summary>
-internal class JsonMissionData
-{
-    public string Name { get; set; } = "";
-    public string Input { get; set; } = "";
-    public string Output { get; set; } = "";
-    public string Legend { get; set; } = "";
-    public List<string> Examples { get; set; } = [];
-    public List<string> ExampleAnswers { get; set; } = [];
 }

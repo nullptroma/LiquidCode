@@ -1,3 +1,4 @@
+using LiquidCode.Api.Submits.Dto;
 using LiquidCode.Infrastructure.Database.Entities;
 
 namespace LiquidCode.Domain.Services.Submits;
@@ -54,12 +55,43 @@ public interface ISubmitService
     Task<IEnumerable<DbUserSubmission>> GetMissionSubmissionsAsync(int missionId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Обновляет статус решения
+    /// Применяет обновление статуса решения от тестирующего модуля
     /// </summary>
-    /// <param name="solutionId">ID решения</param>
-    /// <param name="status">Новый статус</param>
+    /// <param name="solutionId">Идентификатор решения</param>
+    /// <param name="callbackToken">Одноразовый токен обратного вызова</param>
+    /// <param name="state">Новое состояние выполнения</param>
+    /// <param name="errorCode">Информация об ошибке выполнения</param>
+    /// <param name="message">Сообщение от тестирующего модуля</param>
+    /// <param name="currentTest">Номер текущего теста</param>
+    /// <param name="amountOfTests">Общее количество тестов</param>
     /// <param name="cancellationToken">Токен отмены</param>
-    /// <returns>Обновленное решение или null, если не найдено</returns>
-    Task<DbSolution?> UpdateSolutionStatusAsync(int solutionId, string status, CancellationToken cancellationToken = default);
+    /// <returns>Результат применения обновления</returns>
+    Task<TesterCallbackUpdateResult> UpdateTesterStatusAsync(
+        int solutionId,
+        string callbackToken,
+        TesterState state,
+        TesterErrorCode errorCode,
+        string? message,
+        int currentTest,
+        int amountOfTests,
+        CancellationToken cancellationToken = default);
 
 }
+
+/// <summary>
+/// Возможный исход применения обратного вызова тестирующего модуля
+/// </summary>
+public enum TesterCallbackUpdateStatus
+{
+    Success,
+    NotFound,
+    TokenMismatch,
+    Error
+}
+
+/// <summary>
+/// Результат применения обратного вызова тестирующего модуля
+/// </summary>
+public readonly record struct TesterCallbackUpdateResult(
+    TesterCallbackUpdateStatus Status,
+    DbSolution? Solution);

@@ -124,22 +124,6 @@ public class MissionRepository : IMissionRepository
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task<DbMissionPublicTextData?> GetMissionTextAsync(int missionId, string language, CancellationToken cancellationToken = default) =>
-        await _dbContext.MissionsTextData
-            .FirstOrDefaultAsync(m => m.MissionId == missionId && m.Language == language, cancellationToken);
-
-    public async Task<IEnumerable<string>> GetMissionLanguagesAsync(int missionId, CancellationToken cancellationToken = default) =>
-        await _dbContext.MissionsTextData
-            .Where(m => m.MissionId == missionId)
-            .Select(m => m.Language)
-            .ToListAsync(cancellationToken);
-
-    public async Task CreateMissionTextAsync(DbMissionPublicTextData textData, CancellationToken cancellationToken = default) =>
-        await _dbContext.MissionsTextData.AddAsync(textData, cancellationToken);
-
-    public async Task CreateMissionTextsAsync(IEnumerable<DbMissionPublicTextData> textData, CancellationToken cancellationToken = default) =>
-        await _dbContext.MissionsTextData.AddRangeAsync(textData, cancellationToken);
-
     public async Task<int> CountMissionsAsync(CancellationToken cancellationToken = default) =>
         await _dbContext.Set<DbMission>().CountAsync(cancellationToken);
 }
