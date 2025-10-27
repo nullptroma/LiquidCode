@@ -70,7 +70,7 @@ public class SubmitService : ISubmitService
 
             DbContest? contest = null;
 
-            var finalSourceType = sourceType;
+            var finalSourceType = SubmissionSourceType.Direct;
             if (contestId.HasValue)
             {
                 contest = await _contestRepository.FindWithDetailsAsync(contestId.Value, cancellationToken);
