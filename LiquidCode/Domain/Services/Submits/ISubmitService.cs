@@ -17,7 +17,6 @@ public interface ISubmitService
     /// <param name="language">Язык программирования</param>
     /// <param name="languageVersion">Версия языка программирования</param>
     /// <param name="contestId">Идентификатор контеста, если отправка выполняется в его рамках</param>
-    /// <param name="sourceType">Источник, из которого инициирована отправка</param>
     /// <param name="cancellationToken">Токен отмены</param>
     /// <returns>Созданное решение или null, если отправка не удалась</returns>
     Task<DbSolution?> SubmitSolutionAsync(
@@ -27,7 +26,6 @@ public interface ISubmitService
         string language,
         string languageVersion,
         int? contestId,
-        SubmissionSourceType sourceType,
         CancellationToken cancellationToken = default);
 
     /// <summary>

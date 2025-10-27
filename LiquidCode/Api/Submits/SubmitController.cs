@@ -46,8 +46,6 @@ public class SubmitController(
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
-        var contestId = request.ContestId;
-        var contest = contestId == null ? null : await _contestService.GetAsync(contestId.Value, cancellationToken);
 
         var solution = await _submitService.SubmitSolutionAsync(
             request.MissionId,
