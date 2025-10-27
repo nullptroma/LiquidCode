@@ -34,22 +34,6 @@ public class MissionsController(IMissionService missionService) : ControllerBase
     }
 
     /// <summary>
-    /// Получает текстовые данные миссии на определенном языке
-    /// </summary>
-    [HttpGet("{id}/texts/{language}")]
-    public async Task<IActionResult> GetMissionTexts([FromRoute] int id, [FromRoute] string language, CancellationToken cancellationToken)
-    {
-        if (string.IsNullOrWhiteSpace(language))
-            return BadRequest("Language parameter is required.");
-
-        var textData = await missionService.GetMissionTextAsync(id, language, cancellationToken);
-        if (textData == null)
-            return NotFound("Mission or language not found.");
-
-        return Ok(textData);
-    }
-
-    /// <summary>
     /// Получает подробную информацию о миссии
     /// </summary>
     [HttpGet("{id:int}")]

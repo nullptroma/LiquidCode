@@ -65,7 +65,7 @@ public class UploadMissionRequestValidator : AbstractValidator<UploadMissionRequ
         RuleFor(x => x.Difficulty)
             .GreaterThan(0)
             .WithMessage("Difficulty must be greater than 0")
-            .LessThanOrEqualTo(5)
-            .WithMessage("Difficulty must be between 1 and 5");
+            .LessThanOrEqualTo(10000)
+            .WithMessage("Difficulty must be between 1 and 10000");
     }
 }

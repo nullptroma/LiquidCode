@@ -17,16 +17,7 @@ public interface IMissionService
     /// <param name="cancellationToken">Токен отмены</param>
     /// <returns>Созданная модель миссии или null, если загрузка не удалась</returns>
     Task<MissionResponse?> UploadMissionAsync(UploadMissionRequest form, int userId, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Получает текстовые данные миссии на определенном языке
-    /// </summary>
-    /// <param name="missionId">ID миссии</param>
-    /// <param name="language">Код языка</param>
-    /// <param name="cancellationToken">Токен отмены</param>
-    /// <returns>Текстовые данные миссии в виде строки JSON или null, если не найдено</returns>
-    Task<string?> GetMissionTextAsync(int missionId, string language, CancellationToken cancellationToken = default);
-
+    
     /// <summary>
     /// Получает постраничный список миссий
     /// </summary>
