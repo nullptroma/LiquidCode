@@ -20,7 +20,7 @@ public class DbMission : ISoftDeletable, ITimestamped
     public string Name { get; set; } = "";
     
     [StringLength(256)] 
-    public string S3PrivateKey { get; init; } = "";
+    public string S3Key { get; init; } = "";
     
     public int Difficulty { get; init; }
     

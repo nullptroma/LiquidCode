@@ -2,7 +2,7 @@ using LiquidCode.Api.Groups.Requests;
 using LiquidCode.Api.Groups.Responses;
 using LiquidCode.Infrastructure.Database.Entities;
 
-namespace LiquidCode.Domain.Services.Groups;
+namespace LiquidCode.Domain.Interfaces.Services;
 
 /// <summary>
 /// Сервис управления группами

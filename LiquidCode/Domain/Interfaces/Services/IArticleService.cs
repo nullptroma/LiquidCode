@@ -1,7 +1,7 @@
 using LiquidCode.Api.Articles.Requests;
 using LiquidCode.Api.Articles.Responses;
 
-namespace LiquidCode.Domain.Services.Articles;
+namespace LiquidCode.Domain.Interfaces.Services;
 
 /// <summary>
 /// Сервис управления статьями

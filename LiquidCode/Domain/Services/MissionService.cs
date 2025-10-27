@@ -10,6 +10,7 @@ using LiquidCode.Shared.Constants;
 using LiquidCode.Infrastructure.Database.Entities;
 using LiquidCode.Domain.Interfaces.Repositories;
 using LiquidCode.Infrastructure.External.S3;
+using LiquidCode.Domain.Interfaces.Services;
 
 namespace LiquidCode.Domain.Services.Missions;
 
@@ -76,7 +77,7 @@ public class MissionService : IMissionService
             {
                 Author = existingUser,
                 Name = form.Name,
-                S3PrivateKey = privateKey,
+                S3Key = privateKey,
                 Difficulty = form.Difficulty,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow

@@ -4,6 +4,7 @@ using System.Linq;
 using LiquidCode.Api.Contests.Requests;
 using LiquidCode.Api.Contests.Responses;
 using LiquidCode.Domain.Interfaces.Repositories;
+using LiquidCode.Domain.Interfaces.Services;
 using LiquidCode.Infrastructure.Database.Entities;
 using Microsoft.Extensions.Logging;
 

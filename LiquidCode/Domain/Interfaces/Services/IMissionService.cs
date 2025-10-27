@@ -2,7 +2,7 @@ using LiquidCode.Api.Missions.Requests;
 using LiquidCode.Api.Missions.Responses;
 using LiquidCode.Infrastructure.Database.Entities;
 
-namespace LiquidCode.Domain.Services.Missions;
+namespace LiquidCode.Domain.Interfaces.Services;
 
 /// <summary>
 /// Интерфейс сервиса для операций, связанных с миссиями

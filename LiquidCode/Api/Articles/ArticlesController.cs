@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using LiquidCode.Api.Articles.Requests;
-using LiquidCode.Domain.Services.Articles;
+using LiquidCode.Domain.Interfaces.Services;
 using LiquidCode.Shared.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

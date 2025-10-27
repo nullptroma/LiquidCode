@@ -5,6 +5,7 @@ using BCrypt.Net;
 using LiquidCode.Api.Authentication.Requests;
 using LiquidCode.Api.Authentication.Responses;
 using LiquidCode.Domain.Interfaces.Repositories;
+using LiquidCode.Domain.Interfaces.Services;
 using LiquidCode.Infrastructure.Database.Entities;
 using LiquidCode.Shared.Constants;
 using LiquidCode.Shared.Extensions;

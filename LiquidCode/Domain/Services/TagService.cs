@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using LiquidCode.Api.Tags.Responses;
 using LiquidCode.Domain.Interfaces.Repositories;
+using LiquidCode.Domain.Interfaces.Services;
 using LiquidCode.Infrastructure.Database.Entities;
 using Microsoft.Extensions.Logging;
 
