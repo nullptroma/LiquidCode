@@ -1,3 +1,4 @@
+using LiquidCode.Api.Submits.Dto;
 using LiquidCode.Infrastructure.Database.Entities;
 
 namespace LiquidCode.Api.Submits.Responses;
@@ -12,7 +13,12 @@ public record SolutionResponse(
     string LanguageVersion,
     string SourceCode,
     string Status,
-    DateTime Time
+    DateTime Time,
+    TesterState TesterState,
+    TesterErrorCode TesterErrorCode,
+    string? TesterMessage,
+    int CurrentTest,
+    int AmountOfTests
 )
 {
     /// <summary>
@@ -25,6 +31,11 @@ public record SolutionResponse(
         entity.LanguageVersion,
         entity.SourceCode,
         entity.Status,
-        entity.Time
+        entity.Time,
+        entity.TestingState,
+        entity.TestingErrorCode,
+        entity.TestingMessage,
+        entity.CurrentTest,
+        entity.AmountOfTests
     );
 }

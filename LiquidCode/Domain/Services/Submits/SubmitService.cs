@@ -1,6 +1,10 @@
+using System;
 using System.Linq;
-using LiquidCode.Infrastructure.Database.Entities;
+using System.Security.Cryptography;
+using System.Text;
 using LiquidCode.Domain.Interfaces.Repositories;
+using LiquidCode.Infrastructure.Database.Entities;
+using LiquidCode.Api.Submits.Dto;
 using Microsoft.Extensions.Logging;
 
 namespace LiquidCode.Domain.Services.Submits;
@@ -172,7 +176,13 @@ public class SubmitService : ISubmitService
                 Language = language,
                 LanguageVersion = languageVersion,
                 SourceCode = sourceCode,
-                Status = "submitted",
+                Status = ComposeStatus(TesterState.Waiting, TesterErrorCode.None, null, 0, 0),
+                TestingState = TesterState.Waiting,
+                TestingErrorCode = TesterErrorCode.None,
+                TestingMessage = null,
+                CurrentTest = 0,
+                AmountOfTests = 0,
+                CallbackToken = GenerateCallbackToken(),
                 Time = DateTime.UtcNow
             };
 
@@ -237,7 +247,15 @@ public class SubmitService : ISubmitService
         }
     }
 
-    public async Task<DbSolution?> UpdateSolutionStatusAsync(int solutionId, string status, CancellationToken cancellationToken = default)
+    public async Task<TesterCallbackUpdateResult> UpdateTesterStatusAsync(
+        int solutionId,
+        string callbackToken,
+        TesterState state,
+        TesterErrorCode errorCode,
+        string? message,
+        int currentTest,
+        int amountOfTests,
+        CancellationToken cancellationToken = default)
     {
         try
         {
@@ -245,20 +263,95 @@ public class SubmitService : ISubmitService
             if (solution == null)
             {
                 _logger.LogWarning("Solution not found: {SolutionId}", solutionId);
-                return null;
+                return new TesterCallbackUpdateResult(TesterCallbackUpdateStatus.NotFound, null);
             }
 
-            solution.Status = status;
-            // TODO: Реализовать метод обновления в репозитории
+            if (string.IsNullOrWhiteSpace(solution.CallbackToken) || !IsTokenMatch(solution.CallbackToken, callbackToken))
+            {
+                _logger.LogWarning("Callback token mismatch for solution {SolutionId}", solutionId);
+                return new TesterCallbackUpdateResult(TesterCallbackUpdateStatus.TokenMismatch, null);
+            }
+
+            var normalizedAmount = Math.Max(amountOfTests, 0);
+            var normalizedCurrent = Math.Clamp(currentTest, 0, normalizedAmount > 0 ? normalizedAmount : int.MaxValue);
+            var trimmedMessage = string.IsNullOrWhiteSpace(message) ? null : message.Trim();
+
+            solution.TestingState = state;
+            solution.TestingErrorCode = errorCode;
+            solution.TestingMessage = trimmedMessage;
+            solution.CurrentTest = normalizedCurrent;
+            solution.AmountOfTests = normalizedAmount;
+            solution.Status = ComposeStatus(state, errorCode, trimmedMessage, normalizedCurrent, normalizedAmount);
+            solution.CallbackToken = null;
+
             await _submitRepository.SaveChangesAsync(cancellationToken);
 
-            _logger.LogInformation("Solution status updated: SolutionId={SolutionId}, Status={Status}", solutionId, status);
-            return solution;
+            _logger.LogInformation(
+                "Solution tester status updated: SolutionId={SolutionId}, State={State}, ErrorCode={ErrorCode}, CurrentTest={CurrentTest}, TotalTests={TotalTests}",
+                solutionId,
+                state,
+                errorCode,
+                normalizedCurrent,
+                normalizedAmount);
+            return new TesterCallbackUpdateResult(TesterCallbackUpdateStatus.Success, solution);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error updating solution status: {SolutionId}", solutionId);
-            return null;
+            _logger.LogError(ex, "Error updating tester status: {SolutionId}", solutionId);
+            return new TesterCallbackUpdateResult(TesterCallbackUpdateStatus.Error, null);
         }
+    }
+
+    private static string ComposeStatus(
+        TesterState state,
+        TesterErrorCode errorCode,
+        string? message,
+        int currentTest,
+        int amountOfTests)
+    {
+        var baseStatus = state switch
+        {
+            TesterState.Waiting => "Waiting",
+            TesterState.Compiling => "Compiling",
+            TesterState.Testing => amountOfTests > 0
+                ? $"Testing {Math.Clamp(currentTest, 0, amountOfTests)}/{amountOfTests}"
+                : "Testing",
+            TesterState.Done => errorCode switch
+            {
+                TesterErrorCode.None => "Accepted",
+                TesterErrorCode.CompileError => "Compilation error",
+                TesterErrorCode.RuntimeError => "Runtime error",
+                TesterErrorCode.MemoryError => "Memory limit exceeded",
+                TesterErrorCode.TimeLimitError => "Time limit exceeded",
+                TesterErrorCode.IncorrectAnswer => "Wrong answer",
+                _ => "Unknown error"
+            },
+            _ => "Unknown state"
+        };
+
+        return string.IsNullOrWhiteSpace(message)
+            ? baseStatus
+            : $"{baseStatus}: {message}";
+    }
+
+    private static string GenerateCallbackToken()
+    {
+        Span<byte> buffer = stackalloc byte[32];
+        RandomNumberGenerator.Fill(buffer);
+        return Convert.ToHexString(buffer).ToLowerInvariant();
+    }
+
+    private static bool IsTokenMatch(string storedToken, string providedToken)
+    {
+        if (string.IsNullOrWhiteSpace(storedToken) || string.IsNullOrWhiteSpace(providedToken))
+            return false;
+
+    var storedBytes = Encoding.UTF8.GetBytes(storedToken.Trim().ToLowerInvariant());
+    var providedBytes = Encoding.UTF8.GetBytes(providedToken.Trim().ToLowerInvariant());
+
+        if (storedBytes.Length != providedBytes.Length)
+            return false;
+
+        return CryptographicOperations.FixedTimeEquals(storedBytes, providedBytes);
     }
 }

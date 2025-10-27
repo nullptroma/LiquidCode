@@ -70,6 +70,7 @@ public class SubmitRepository : ISubmitRepository
 
     public async Task<DbSolution?> GetSolutionAsync(int solutionId, CancellationToken cancellationToken = default) =>
         await _dbContext.Solutions
+            .Include(s => s.Mission)
             .FirstOrDefaultAsync(s => s.Id == solutionId, cancellationToken);
 
     public async Task AddSolutionAsync(DbSolution solution, CancellationToken cancellationToken = default) =>

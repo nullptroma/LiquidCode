@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json.Serialization;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using LiquidCode;
@@ -21,6 +22,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Reflection;
+using Microsoft.Extensions.Logging;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -68,7 +70,10 @@ if (builder.Configuration[ConfigurationKeys.MigrateOnlyFlag] == "1")
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
-builder.Services.AddControllers();
+builder.Services.AddControllers().AddJsonOptions(options =>
+{
+    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 
 // Настроить разрешающую политику CORS, чтобы браузеры могли отправлять запросы с
 // пользовательскими заголовками (например, Content-Type) и предварительный OPTIONS запрос
@@ -84,8 +89,13 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddS3Buckets(builder.Configuration);
-builder.Services.AddSingleton(new TestingHttpClient(builder.Configuration[ConfigurationKeys.TestingModuleUrl] ??
-                                                    throw new ArgumentNullException(ConfigurationKeys.TestingModuleUrl)));
+builder.Services.AddSingleton<TestingHttpClient>(provider =>
+{
+    var endpoint = builder.Configuration[ConfigurationKeys.TestingModuleUrl] ??
+                    throw new ArgumentNullException(ConfigurationKeys.TestingModuleUrl);
+    var logger = provider.GetRequiredService<ILogger<TestingHttpClient>>();
+    return new TestingHttpClient(endpoint, logger);
+});
 
 // Добавить репозитории
 builder.Services.AddScoped<IUserRepository, UserRepository>();

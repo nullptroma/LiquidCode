@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using LiquidCode.Api.Submits.Dto;
 using Microsoft.EntityFrameworkCore;
 
 namespace LiquidCode.Infrastructure.Database.Entities;
@@ -30,6 +31,20 @@ public class DbSolution : ITimestamped
     [StringLength(32)] 
     [Required] 
     public string Status { get; set; } = null!;
+
+    public TesterState TestingState { get; set; } = TesterState.Waiting;
+
+    public TesterErrorCode TestingErrorCode { get; set; } = TesterErrorCode.None;
+
+    [StringLength(512)]
+    public string? TestingMessage { get; set; }
+
+    public int CurrentTest { get; set; }
+
+    public int AmountOfTests { get; set; }
+
+    [StringLength(128)]
+    public string? CallbackToken { get; set; }
     
     public DateTime Time { get; init; }
     
