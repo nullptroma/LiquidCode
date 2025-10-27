@@ -412,12 +412,6 @@ namespace LiquidCode.Migrations
                         .HasColumnType("character varying(128)")
                         .HasColumnName("name");
 
-                    b.Property<string>("S3ContentKey")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
-                        .HasColumnName("s3content_key");
-
                     b.Property<string>("S3PrivateKey")
                         .IsRequired()
                         .HasMaxLength(256)
@@ -444,52 +438,6 @@ namespace LiquidCode.Migrations
                         .HasDatabaseName("ix_missions_is_deleted");
 
                     b.ToTable("missions", (string)null);
-                });
-
-            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbMissionPublicTextData", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Data")
-                        .IsRequired()
-                        .HasMaxLength(30000)
-                        .HasColumnType("character varying(30000)")
-                        .HasColumnName("data");
-
-                    b.Property<string>("Language")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("language");
-
-                    b.Property<int>("MissionId")
-                        .HasColumnType("integer")
-                        .HasColumnName("mission_id");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id")
-                        .HasName("pk_missions_text_data");
-
-                    b.HasIndex("Language")
-                        .HasDatabaseName("ix_missions_text_data_language");
-
-                    b.HasIndex("MissionId", "Language")
-                        .IsUnique()
-                        .HasDatabaseName("ix_missions_text_data_mission_id_language");
-
-                    b.ToTable("missions_text_data", (string)null);
                 });
 
             modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbMissionTag", b =>
