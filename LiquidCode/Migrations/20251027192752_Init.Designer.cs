@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace LiquidCode.Migrations
 {
     [DbContext(typeof(LiquidDbContext))]
-    [Migration("20251026203406_ContestSchedulingModes")]
-    partial class ContestSchedulingModes
+    [Migration("20251027192752_Init")]
+    partial class Init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -415,12 +415,6 @@ namespace LiquidCode.Migrations
                         .HasColumnType("character varying(128)")
                         .HasColumnName("name");
 
-                    b.Property<string>("S3ContentKey")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("character varying(256)")
-                        .HasColumnName("s3content_key");
-
                     b.Property<string>("S3PrivateKey")
                         .IsRequired()
                         .HasMaxLength(256)
@@ -447,52 +441,6 @@ namespace LiquidCode.Migrations
                         .HasDatabaseName("ix_missions_is_deleted");
 
                     b.ToTable("missions", (string)null);
-                });
-
-            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbMissionPublicTextData", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at");
-
-                    b.Property<string>("Data")
-                        .IsRequired()
-                        .HasMaxLength(30000)
-                        .HasColumnType("character varying(30000)")
-                        .HasColumnName("data");
-
-                    b.Property<string>("Language")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("language");
-
-                    b.Property<int>("MissionId")
-                        .HasColumnType("integer")
-                        .HasColumnName("mission_id");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at");
-
-                    b.HasKey("Id")
-                        .HasName("pk_missions_text_data");
-
-                    b.HasIndex("Language")
-                        .HasDatabaseName("ix_missions_text_data_language");
-
-                    b.HasIndex("MissionId", "Language")
-                        .IsUnique()
-                        .HasDatabaseName("ix_missions_text_data_mission_id_language");
-
-                    b.ToTable("missions_text_data", (string)null);
                 });
 
             modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbMissionTag", b =>
@@ -578,9 +526,22 @@ namespace LiquidCode.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
+                    b.Property<int>("AmountOfTests")
+                        .HasColumnType("integer")
+                        .HasColumnName("amount_of_tests");
+
+                    b.Property<string>("CallbackToken")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("callback_token");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
+
+                    b.Property<int>("CurrentTest")
+                        .HasColumnType("integer")
+                        .HasColumnName("current_test");
 
                     b.Property<string>("Language")
                         .IsRequired()
@@ -609,6 +570,19 @@ namespace LiquidCode.Migrations
                         .HasMaxLength(32)
                         .HasColumnType("character varying(32)")
                         .HasColumnName("status");
+
+                    b.Property<int>("TestingErrorCode")
+                        .HasColumnType("integer")
+                        .HasColumnName("testing_error_code");
+
+                    b.Property<string>("TestingMessage")
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("testing_message");
+
+                    b.Property<int>("TestingState")
+                        .HasColumnType("integer")
+                        .HasColumnName("testing_state");
 
                     b.Property<DateTime>("Time")
                         .HasColumnType("timestamp with time zone")
