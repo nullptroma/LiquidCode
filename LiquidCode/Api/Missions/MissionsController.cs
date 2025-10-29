@@ -1,5 +1,5 @@
 using LiquidCode.Api.Missions.Requests;
-using LiquidCode.Domain.Services.Missions;
+using LiquidCode.Domain.Interfaces.Services;
 using LiquidCode.Shared.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

@@ -21,7 +21,7 @@ public record ArticleResponse(
         entity.Id,
         entity.Author.Id,
         entity.Name,
-        entity.S3ContentKey,
+        entity.S3Key,
         entity.ArticleTags.Select(at => at.Tag.Name).Distinct().OrderBy(name => name).ToList(),
         entity.CreatedAt,
         entity.UpdatedAt

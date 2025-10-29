@@ -1,7 +1,7 @@
 using LiquidCode.Api.Authentication.Requests;
 using LiquidCode.Api.Authentication.Responses;
 
-namespace LiquidCode.Domain.Services.Authentication;
+namespace LiquidCode.Domain.Interfaces.Services;
 
 /// <summary>
 /// Интерфейс сервиса для операций аутентификации

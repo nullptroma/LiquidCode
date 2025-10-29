@@ -1,5 +1,5 @@
 using LiquidCode.Api.Tags.Requests;
-using LiquidCode.Domain.Services.Tags;
+using LiquidCode.Domain.Interfaces.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

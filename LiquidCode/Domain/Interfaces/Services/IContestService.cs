@@ -2,7 +2,7 @@ using LiquidCode.Api.Contests.Requests;
 using LiquidCode.Api.Contests.Responses;
 using LiquidCode.Infrastructure.Database.Entities;
 
-namespace LiquidCode.Domain.Services.Contests;
+namespace LiquidCode.Domain.Interfaces.Services;
 
 /// <summary>
 /// Сервис управления контестами

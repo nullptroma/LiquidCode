@@ -1,6 +1,6 @@
 using LiquidCode.Api.Tags.Responses;
 
-namespace LiquidCode.Domain.Services.Tags;
+namespace LiquidCode.Domain.Interfaces.Services;
 
 /// <summary>
 /// Сервис управления тегами

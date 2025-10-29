@@ -2,8 +2,8 @@ using System;
 using System.Linq;
 using LiquidCode.Api.Submits.Requests;
 using LiquidCode.Api.Submits.Responses;
+using LiquidCode.Domain.Interfaces.Services;
 using LiquidCode.Domain.Services.Contests;
-using LiquidCode.Domain.Services.Submits;
 using LiquidCode.Infrastructure.Database.Entities;
 using LiquidCode.Infrastructure.External.TestingModule;
 using LiquidCode.Shared.Constants;
@@ -65,7 +65,7 @@ public class SubmitController(
             if (string.IsNullOrWhiteSpace(callbackToken))
                 throw new InvalidOperationException("Callback token is not generated.");
 
-            var missionKey = solution.Mission?.S3PrivateKey;
+            var missionKey = solution.Mission?.S3Key;
             if (string.IsNullOrWhiteSpace(missionKey))
                 throw new InvalidOperationException("Mission package key is missing.");
 

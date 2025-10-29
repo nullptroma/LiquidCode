@@ -4,6 +4,7 @@ using System.Linq;
 using LiquidCode.Api.Articles.Requests;
 using LiquidCode.Api.Articles.Responses;
 using LiquidCode.Domain.Interfaces.Repositories;
+using LiquidCode.Domain.Interfaces.Services;
 using LiquidCode.Infrastructure.Database.Entities;
 using LiquidCode.Infrastructure.External.S3;
 using LiquidCode.Shared.Constants;
@@ -65,7 +66,7 @@ public class ArticleService : IArticleService
             {
                 Author = user,
                 Name = request.Name,
-                S3ContentKey = contentKey,
+                S3Key = contentKey,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };
@@ -116,7 +117,7 @@ public class ArticleService : IArticleService
                 }
 
                 var contentKey = await _s3Client.UploadFileWithRandomKey(S3BucketKeys.PublicContent, tempFile);
-                article.S3ContentKey = contentKey;
+                article.S3Key = contentKey;
             }
             finally
             {

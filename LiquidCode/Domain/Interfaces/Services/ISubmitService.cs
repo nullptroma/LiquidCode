@@ -1,7 +1,7 @@
 using LiquidCode.Api.Submits.Dto;
 using LiquidCode.Infrastructure.Database.Entities;
 
-namespace LiquidCode.Domain.Services.Submits;
+namespace LiquidCode.Domain.Interfaces.Services;
 
 /// <summary>
 /// Интерфейс сервиса для операций, связанных с отправками пользователей

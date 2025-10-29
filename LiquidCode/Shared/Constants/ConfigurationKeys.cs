@@ -16,6 +16,7 @@ public static class ConfigurationKeys
     public const string S3AccessKey = "S3_ACCESS_KEY";
     public const string S3SecretKey = "S3_SECRET_KEY";
     public const string S3PrivateBucket = "S3_PRIVATE_BUCKET";
+    public const string S3PublicBucket = "S3_PUBLIC_BUCKET";
     public const string S3Endpoint = "S3_ENDPOINT";
     public const string TestingModuleUrl = "TESTING_MODULE_URL";
 }
