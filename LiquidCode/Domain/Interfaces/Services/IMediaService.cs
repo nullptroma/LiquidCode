@@ -12,16 +12,8 @@ public interface IMediaService
     /// </summary>
     /// <param name="file">Файл для загрузки</param>
     /// <param name="cancellationToken"></param>
-    /// <returns>Ключ файла в S3</returns>
+    /// <returns>Ссылка на скачивание файла</returns>
     Task<string> UploadMediaAsync(IFormFile file, CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Получает ссылку на скачивание медиа файла
-    /// </summary>
-    /// <param name="key">Ключ файла в S3</param>
-    /// <param name="cancellationToken"></param>
-    /// <returns>Ссылка на файл</returns>
-    Task<string> GetMediaUrlAsync(string key, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Определяет тип медиа файла по его имени

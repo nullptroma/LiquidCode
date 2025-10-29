@@ -309,6 +309,29 @@ namespace LiquidCode.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "mission_statements",
+                columns: table => new
+                {
+                    id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    mission_id = table.Column<int>(type: "integer", nullable: false),
+                    language = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    StatementTextsJson = table.Column<string>(type: "text", nullable: false),
+                    created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_mission_statements", x => x.id);
+                    table.ForeignKey(
+                        name: "fk_mission_statements_missions_mission_id",
+                        column: x => x.mission_id,
+                        principalTable: "missions",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "mission_tags",
                 columns: table => new
                 {
@@ -362,6 +385,29 @@ namespace LiquidCode.Migrations
                         name: "fk_solutions_missions_mission_id",
                         column: x => x.mission_id,
                         principalTable: "missions",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "mission_statement_medias",
+                columns: table => new
+                {
+                    id = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    statement_id = table.Column<int>(type: "integer", nullable: false),
+                    file_name = table.Column<string>(type: "character varying(256)", maxLength: 256, nullable: false),
+                    media_key = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: false),
+                    media_url = table.Column<string>(type: "character varying(512)", maxLength: 512, nullable: false),
+                    order_index = table.Column<int>(type: "integer", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_mission_statement_medias", x => x.id);
+                    table.ForeignKey(
+                        name: "fk_mission_statement_medias_mission_statements_statement_id",
+                        column: x => x.statement_id,
+                        principalTable: "mission_statements",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Cascade);
                 });
@@ -482,6 +528,26 @@ namespace LiquidCode.Migrations
                 name: "ix_groups_is_deleted",
                 table: "groups",
                 column: "is_deleted");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_mission_statement_medias_media_key",
+                table: "mission_statement_medias",
+                column: "media_key");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_mission_statement_medias_statement_id",
+                table: "mission_statement_medias",
+                column: "statement_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_mission_statements_language",
+                table: "mission_statements",
+                column: "language");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_mission_statements_mission_id",
+                table: "mission_statements",
+                column: "mission_id");
 
             migrationBuilder.CreateIndex(
                 name: "ix_mission_tags_tag_id",
@@ -605,6 +671,9 @@ namespace LiquidCode.Migrations
                 name: "group_memberships");
 
             migrationBuilder.DropTable(
+                name: "mission_statement_medias");
+
+            migrationBuilder.DropTable(
                 name: "mission_tags");
 
             migrationBuilder.DropTable(
@@ -615,6 +684,9 @@ namespace LiquidCode.Migrations
 
             migrationBuilder.DropTable(
                 name: "articles");
+
+            migrationBuilder.DropTable(
+                name: "mission_statements");
 
             migrationBuilder.DropTable(
                 name: "tags");

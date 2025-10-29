@@ -36,4 +36,15 @@ public interface IMissionRepository : IRepository<DbMission>
     /// Подсчитывает общее количество миссий
     /// </summary>
     Task<int> CountMissionsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Создает новый текст миссии (statement) для конкретного языка
+    /// </summary>
+    Task CreateMissionStatementAsync(DbMissionStatement statement, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Создает запись о медиа файле для текста миссии
+    /// </summary>
+    Task CreateMissionStatementMediaAsync(DbMissionStatementMedia media, CancellationToken cancellationToken = default);
 }
+

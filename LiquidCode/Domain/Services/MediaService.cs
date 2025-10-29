@@ -47,8 +47,10 @@ public class MediaService : IMediaService
                 return string.Empty;
             }
 
-            _logger.LogInformation("File uploaded to S3 with key: {Key}", key);
-            return key;
+            // Получить URL вместо возврата key
+            var url = await _s3Client.BuildFileUrl(key);
+            _logger.LogInformation("File uploaded to S3 with key: {Key}, URL: {Url}", key, url);
+            return url;
         }
         catch (Exception ex)
         {
@@ -62,27 +64,6 @@ public class MediaService : IMediaService
             {
                 File.Delete(tempPath);
             }
-        }
-    }
-
-    public async Task<string> GetMediaUrlAsync(string key, CancellationToken cancellationToken = default)
-    {
-        if (string.IsNullOrEmpty(key))
-        {
-            _logger.LogWarning("Key is empty or null");
-            return string.Empty;
-        }
-
-        try
-        {
-            var url = await _s3Client.BuildFileUrl(key);
-            _logger.LogInformation("Generated URL for key: {Key}", key);
-            return url;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error generating media URL for key: {Key}", key);
-            return string.Empty;
         }
     }
 
