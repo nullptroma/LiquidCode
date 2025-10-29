@@ -11,7 +11,13 @@ public static class ServiceCollectionExtensions
         var privateBucketName = config[ConfigurationKeys.S3PrivateBucket] ??
                                 throw new ArgumentNullException(ConfigurationKeys.S3PrivateBucket);
         services.AddSingleton<IS3BucketClient, S3BucketClient>(provider =>
-            new S3BucketClient(provider.GetRequiredService<IConfiguration>(), new Bucket(privateBucketName, false))
+            new S3BucketClient(config, new Bucket(privateBucketName, false))
+        );
+
+        var publicBucketName = config[ConfigurationKeys.S3PublicBucket] ??
+                                throw new ArgumentNullException(ConfigurationKeys.S3PublicBucket);
+        services.AddSingleton<IS3PublicBucketClient, S3PublicBucketClient>(provider =>
+            new S3PublicBucketClient(config, new Bucket(publicBucketName, true))
         );
     }
 }
