@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace LiquidCode.Migrations
 {
     [DbContext(typeof(LiquidDbContext))]
-    [Migration("20251027192752_Init")]
+    [Migration("20251029152436_Init")]
     partial class Init
     {
         /// <inheritdoc />
@@ -56,11 +56,11 @@ namespace LiquidCode.Migrations
                         .HasColumnType("character varying(128)")
                         .HasColumnName("name");
 
-                    b.Property<string>("S3ContentKey")
+                    b.Property<string>("S3Key")
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)")
-                        .HasColumnName("s3content_key");
+                        .HasColumnName("s3key");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
@@ -415,11 +415,11 @@ namespace LiquidCode.Migrations
                         .HasColumnType("character varying(128)")
                         .HasColumnName("name");
 
-                    b.Property<string>("S3PrivateKey")
+                    b.Property<string>("S3Key")
                         .IsRequired()
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)")
-                        .HasColumnName("s3private_key");
+                        .HasColumnName("s3key");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone")
