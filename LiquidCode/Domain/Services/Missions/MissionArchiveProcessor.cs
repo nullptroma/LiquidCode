@@ -41,7 +41,7 @@ public class MissionArchiveProcessor
                 // Найти каталоги с statements для каждого языка
                 var statementDirs = zipArchive.Entries
                     .Select(e => e.FullName)
-                    .Where(name => name.Contains("statements/") || name.Contains("statement-sections/"))
+                    .Where(name => name.Contains("statements/"))
                     .Select(name => ExtractLanguageAndPath(name))
                     .Where(x => x.Language != null)
                     .Distinct()
@@ -82,10 +82,9 @@ public class MissionArchiveProcessor
     {
         var parts = fullPath.Split('/', StringSplitOptions.RemoveEmptyEntries);
         
-        // Ищем индекс "statements" или "statement-sections"
+        // Ищем индекс "statements"
         var stmtIndex = System.Array.FindIndex(parts, p => 
-            p.Equals("statements", StringComparison.OrdinalIgnoreCase) || 
-            p.Equals("statement-sections", StringComparison.OrdinalIgnoreCase));
+            p.Equals("statements", StringComparison.OrdinalIgnoreCase));
 
         if (stmtIndex >= 0 && stmtIndex + 1 < parts.Length)
         {
