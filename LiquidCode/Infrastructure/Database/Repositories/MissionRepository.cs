@@ -56,6 +56,8 @@ public class MissionRepository : IMissionRepository
                 .ThenInclude(mt => mt.Tag)
             .Include(m => m.ContestEntries)
                 .ThenInclude(cm => cm.Contest)
+            .Include(m => m.Statements)
+                .ThenInclude(s => s.MediaFiles)
             .FirstOrDefaultAsync(m => m.Id == id, cancellationToken);
 
     public async Task<(IEnumerable<DbMission> Items, bool HasNextPage)> GetFilteredPageAsync(

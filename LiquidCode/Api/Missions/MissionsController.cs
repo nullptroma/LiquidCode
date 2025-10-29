@@ -1,4 +1,5 @@
 using LiquidCode.Api.Missions.Requests;
+using LiquidCode.Api.Missions.Responses;
 using LiquidCode.Domain.Interfaces.Services;
 using LiquidCode.Shared.Extensions;
 using Microsoft.AspNetCore.Authorization;
@@ -28,13 +29,13 @@ public class MissionsController(IMissionService missionService) : ControllerBase
 
         var result = await missionService.UploadMissionAsync(request, userId, cancellationToken);
         if (result == null)
-            return BadRequest("Mission upload failed. Ensure the ZIP file contains a valid 'statement-sections' folder.");
+            return BadRequest("Mission upload failed. Ensure the ZIP file contains a valid 'statements' folder.");
 
         return Ok(result);
     }
 
     /// <summary>
-    /// Получает подробную информацию о миссии
+    /// Получает подробную информацию о миссии с текстами и медиа
     /// </summary>
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetMission([FromRoute] int id, CancellationToken cancellationToken)

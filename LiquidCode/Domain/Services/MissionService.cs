@@ -103,7 +103,7 @@ public class MissionService : IMissionService
 
             _logger.LogInformation("Mission uploaded successfully: {MissionId}", dbMission.Id);
             var fullMission = await _missionRepository.FindWithDetailsAsync(dbMission.Id, cancellationToken);
-            return MissionResponse.FromEntity(fullMission ?? dbMission);
+            return MissionResponse.FromEntity(fullMission ?? dbMission, includeStatements: true);
         }
         catch (Exception ex)
         {
@@ -148,7 +148,7 @@ public class MissionService : IMissionService
             }
 
             var (missions, hasNextPage) = await _missionRepository.GetFilteredPageAsync(pageSize, pageNumber, tagIds, cancellationToken);
-            var apiList = missions.Select(MissionResponse.FromEntity);
+            var apiList = missions.Select(m => MissionResponse.FromEntity(m, includeStatements: false));
 
             return new MissionsPageResponse(hasNextPage, apiList);
         }
@@ -164,7 +164,7 @@ public class MissionService : IMissionService
         try
         {
             var mission = await _missionRepository.FindWithDetailsAsync(missionId, cancellationToken);
-            return mission == null ? null : MissionResponse.FromEntity(mission);
+            return mission == null ? null : MissionResponse.FromEntity(mission, includeStatements: true);
         }
         catch (Exception ex)
         {
