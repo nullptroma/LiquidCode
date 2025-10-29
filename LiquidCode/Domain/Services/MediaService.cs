@@ -1,6 +1,7 @@
 using LiquidCode.Domain.Enums;
 using LiquidCode.Domain.Interfaces.Services;
 using LiquidCode.Infrastructure.External.S3;
+using LiquidCode.Shared.Constants;
 using Microsoft.Extensions.Logging;
 
 namespace LiquidCode.Domain.Services;
@@ -69,14 +70,15 @@ public class MediaService : IMediaService
 
     public MediaType GetMediaType(string fileName)
     {
-        var extension = Path.GetExtension(fileName).ToLowerInvariant();
+        var extension = Path.GetExtension(fileName);
+        
         return extension switch
         {
-            ".jpg" or ".jpeg" or ".png" or ".gif" or ".bmp" or ".tiff" or ".webp" => MediaType.Images,
-            ".mp4" or ".avi" or ".mkv" or ".mov" or ".wmv" or ".flv" or ".webm" => MediaType.Videos,
-            ".mp3" or ".wav" or ".flac" or ".aac" or ".ogg" or ".wma" => MediaType.Audio,
-            ".zip" or ".rar" or ".7z" or ".tar" or ".gz" or ".bz2" => MediaType.Archives,
-            ".txt" or ".md" or ".markdown" or ".tex" or ".latex" => MediaType.Documents,
+            _ when MediaTypeExtensions.ImageExtensions.Contains(extension) => MediaType.Images,
+            _ when MediaTypeExtensions.VideoExtensions.Contains(extension) => MediaType.Videos,
+            _ when MediaTypeExtensions.AudioExtensions.Contains(extension) => MediaType.Audio,
+            _ when MediaTypeExtensions.ArchiveExtensions.Contains(extension) => MediaType.Archives,
+            _ when MediaTypeExtensions.DocumentExtensions.Contains(extension) => MediaType.Documents,
             _ => MediaType.Other
         };
     }
