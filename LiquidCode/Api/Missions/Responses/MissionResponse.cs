@@ -52,7 +52,6 @@ public record MissionStatementResponse(
         entity.Language,
         entity.StatementTexts,
         entity.MediaFiles
-            .OrderBy(m => m.OrderIndex)
             .Select(m => MissionStatementMediaResponse.FromEntity(m))
             .ToList()
     );
@@ -64,8 +63,7 @@ public record MissionStatementResponse(
 public record MissionStatementMediaResponse(
     int Id,
     string FileName,
-    string MediaUrl,
-    int OrderIndex
+    string MediaUrl
 )
 {
     /// <summary>
@@ -74,7 +72,6 @@ public record MissionStatementMediaResponse(
     public static MissionStatementMediaResponse FromEntity(DbMissionStatementMedia entity) => new(
         entity.Id,
         entity.FileName,
-        entity.MediaUrl,
-        entity.OrderIndex
+        entity.MediaUrl
     );
 }

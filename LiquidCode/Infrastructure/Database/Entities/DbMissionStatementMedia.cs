@@ -32,9 +32,4 @@ public class DbMissionStatementMedia
     /// </summary>
     [StringLength(512)]
     public string MediaUrl { get; set; } = "";
-    
-    /// <summary>
-    /// Порядок отображения файла среди других медиа в этом тексте
-    /// </summary>
-    public int OrderIndex { get; set; }
 }

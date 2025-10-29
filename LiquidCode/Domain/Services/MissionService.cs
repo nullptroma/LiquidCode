@@ -261,8 +261,6 @@ public class MissionService : IMissionService
 
         using (var zipArchive = ZipFile.OpenRead(zipFilePath))
         {
-            var orderIndex = 0;
-
             foreach (var imageData in imageFiles)
             {
                 try
@@ -305,8 +303,7 @@ public class MissionService : IMissionService
                                     Statement = statement,
                                     FileName = imageData.FileName,
                                     MediaKey = mediaUrl,
-                                    MediaUrl = mediaUrl,
-                                    OrderIndex = orderIndex++
+                                    MediaUrl = mediaUrl
                                 };
 
                                 await _missionRepository.CreateMissionStatementMediaAsync(media, cancellationToken);
