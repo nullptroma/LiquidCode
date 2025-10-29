@@ -15,7 +15,7 @@ public interface IMissionService
     /// <param name="form">Форма загрузки с файлом миссии и метаданными</param>
     /// <param name="userId">ID пользователя, загружающего миссию</param>
     /// <param name="cancellationToken">Токен отмены</param>
-    /// <returns>Созданная модель миссии или null, если загрузка не удалась</returns>
+    /// <returns>Созданная миссия с полной информацией о statements или null, если загрузка не удалась</returns>
     Task<MissionResponse?> UploadMissionAsync(UploadMissionRequest form, int userId, CancellationToken cancellationToken = default);
     
     /// <summary>
@@ -33,7 +33,7 @@ public interface IMissionService
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Получает подробную информацию о миссии
+    /// Получает подробную информацию о миссии с текстами и медиа
     /// </summary>
     Task<MissionResponse?> GetMissionAsync(int missionId, CancellationToken cancellationToken = default);
 }
