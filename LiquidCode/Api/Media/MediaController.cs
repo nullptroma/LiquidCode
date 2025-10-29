@@ -8,7 +8,7 @@ namespace LiquidCode.Api.Media;
 /// <summary>
 /// Контроллер для управления медиа файлами
 /// </summary>
-[Route("api/media")]
+[Route("media")]
 [ApiController]
 public class MediaController(IMediaService mediaService) : ControllerBase
 {
