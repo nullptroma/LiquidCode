@@ -440,6 +440,97 @@ namespace LiquidCode.Migrations
                     b.ToTable("missions", (string)null);
                 });
 
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbMissionStatement", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at");
+
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("language");
+
+                    b.Property<int>("MissionId")
+                        .HasColumnType("integer")
+                        .HasColumnName("mission_id");
+
+                    b.Property<string>("StatementTexts")
+                        .IsRequired()
+                        .HasColumnType("text")
+                        .HasColumnName("StatementTextsJson");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.HasKey("Id")
+                        .HasName("pk_mission_statements");
+
+                    b.HasIndex("Language")
+                        .HasDatabaseName("ix_mission_statements_language");
+
+                    b.HasIndex("MissionId")
+                        .HasDatabaseName("ix_mission_statements_mission_id");
+
+                    b.ToTable("mission_statements", (string)null);
+                });
+
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbMissionStatementMedia", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("character varying(256)")
+                        .HasColumnName("file_name");
+
+                    b.Property<string>("MediaKey")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("media_key");
+
+                    b.Property<string>("MediaUrl")
+                        .IsRequired()
+                        .HasMaxLength(512)
+                        .HasColumnType("character varying(512)")
+                        .HasColumnName("media_url");
+
+                    b.Property<int>("OrderIndex")
+                        .HasColumnType("integer")
+                        .HasColumnName("order_index");
+
+                    b.Property<int>("StatementId")
+                        .HasColumnType("integer")
+                        .HasColumnName("statement_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_mission_statement_medias");
+
+                    b.HasIndex("MediaKey")
+                        .HasDatabaseName("ix_mission_statement_medias_media_key");
+
+                    b.HasIndex("StatementId")
+                        .HasDatabaseName("ix_mission_statement_medias_statement_id");
+
+                    b.ToTable("mission_statement_medias", (string)null);
+                });
+
             modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbMissionTag", b =>
                 {
                     b.Property<int>("MissionId")
@@ -914,6 +1005,30 @@ namespace LiquidCode.Migrations
                     b.Navigation("Author");
                 });
 
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbMissionStatement", b =>
+                {
+                    b.HasOne("LiquidCode.Infrastructure.Database.Entities.DbMission", "Mission")
+                        .WithMany("Statements")
+                        .HasForeignKey("MissionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_mission_statements_missions_mission_id");
+
+                    b.Navigation("Mission");
+                });
+
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbMissionStatementMedia", b =>
+                {
+                    b.HasOne("LiquidCode.Infrastructure.Database.Entities.DbMissionStatement", "Statement")
+                        .WithMany("MediaFiles")
+                        .HasForeignKey("StatementId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_mission_statement_medias_mission_statements_statement_id");
+
+                    b.Navigation("Statement");
+                });
+
             modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbMissionTag", b =>
                 {
                     b.HasOne("LiquidCode.Infrastructure.Database.Entities.DbMission", "Mission")
@@ -1015,6 +1130,13 @@ namespace LiquidCode.Migrations
                     b.Navigation("ContestEntries");
 
                     b.Navigation("MissionTags");
+
+                    b.Navigation("Statements");
+                });
+
+            modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbMissionStatement", b =>
+                {
+                    b.Navigation("MediaFiles");
                 });
 
             modelBuilder.Entity("LiquidCode.Infrastructure.Database.Entities.DbTag", b =>

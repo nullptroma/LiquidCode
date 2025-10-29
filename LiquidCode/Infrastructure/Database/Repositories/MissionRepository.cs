@@ -126,4 +126,16 @@ public class MissionRepository : IMissionRepository
 
     public async Task<int> CountMissionsAsync(CancellationToken cancellationToken = default) =>
         await _dbContext.Set<DbMission>().CountAsync(cancellationToken);
+
+    public async Task CreateMissionStatementAsync(DbMissionStatement statement, CancellationToken cancellationToken = default)
+    {
+        await _dbContext.MissionStatements.AddAsync(statement, cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task CreateMissionStatementMediaAsync(DbMissionStatementMedia media, CancellationToken cancellationToken = default)
+    {
+        await _dbContext.MissionStatementMedias.AddAsync(media, cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
 }

@@ -26,6 +26,7 @@ public class DbMission : ISoftDeletable, ITimestamped
     
     public ICollection<DbMissionTag> MissionTags { get; init; } = new HashSet<DbMissionTag>();
     public ICollection<DbContestMission> ContestEntries { get; init; } = new HashSet<DbContestMission>();
+    public ICollection<DbMissionStatement> Statements { get; init; } = new HashSet<DbMissionStatement>();
     
     // Поддержка мягкого удаления
     public bool IsDeleted { get; set; }
