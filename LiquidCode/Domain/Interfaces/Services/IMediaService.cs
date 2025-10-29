@@ -1,3 +1,5 @@
+using LiquidCode.Domain.Enums;
+
 namespace LiquidCode.Domain.Interfaces.Services;
 
 /// <summary>
@@ -20,4 +22,11 @@ public interface IMediaService
     /// <param name="cancellationToken"></param>
     /// <returns>Ссылка на файл</returns>
     Task<string> GetMediaUrlAsync(string key, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Определяет тип медиа файла по его имени
+    /// </summary>
+    /// <param name="fileName"></param>
+    /// <returns></returns>
+    public MediaType GetMediaType(string fileName);
 }

@@ -1,3 +1,4 @@
+using LiquidCode.Domain.Enums;
 using LiquidCode.Domain.Interfaces.Services;
 using LiquidCode.Infrastructure.External.S3;
 using Microsoft.Extensions.Logging;
@@ -27,7 +28,7 @@ public class MediaService : IMediaService
         }
 
         // Определить базовую папку на основе типа файла
-        var baseFolder = GetBaseFolder(file.FileName);
+        var baseFolder = GetMediaType(file.FileName);
 
         // Сохранить файл временно
         var tempPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + Path.GetExtension(file.FileName));
@@ -39,7 +40,7 @@ public class MediaService : IMediaService
             }
 
             // Загрузить в S3
-            var key = await _s3Client.UploadFileWithRandomKey(baseFolder, tempPath);
+            var key = await _s3Client.UploadFileWithRandomKey(baseFolder.ToString().ToLower(), tempPath);
             if (string.IsNullOrEmpty(key))
             {
                 _logger.LogError("Failed to upload file to S3");
@@ -85,16 +86,17 @@ public class MediaService : IMediaService
         }
     }
 
-    private static string GetBaseFolder(string fileName)
+    public MediaType GetMediaType(string fileName)
     {
         var extension = Path.GetExtension(fileName).ToLowerInvariant();
         return extension switch
         {
-            ".jpg" or ".jpeg" or ".png" or ".gif" or ".bmp" or ".tiff" or ".webp" => "images",
-            ".mp4" or ".avi" or ".mkv" or ".mov" or ".wmv" or ".flv" or ".webm" => "videos",
-            ".mp3" or ".wav" or ".flac" or ".aac" or ".ogg" or ".wma" => "audio",
-            ".zip" or ".rar" or ".7z" or ".tar" or ".gz" or ".bz2" => "archives",
-            _ => "other"
+            ".jpg" or ".jpeg" or ".png" or ".gif" or ".bmp" or ".tiff" or ".webp" => MediaType.Images,
+            ".mp4" or ".avi" or ".mkv" or ".mov" or ".wmv" or ".flv" or ".webm" => MediaType.Videos,
+            ".mp3" or ".wav" or ".flac" or ".aac" or ".ogg" or ".wma" => MediaType.Audio,
+            ".zip" or ".rar" or ".7z" or ".tar" or ".gz" or ".bz2" => MediaType.Archives,
+            ".txt" or ".md" or ".markdown" or ".tex" or ".latex" => MediaType.Documents,
+            _ => MediaType.Other
         };
     }
 }
