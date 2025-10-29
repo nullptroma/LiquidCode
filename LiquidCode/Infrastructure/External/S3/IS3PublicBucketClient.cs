@@ -1,14 +1,11 @@
 namespace LiquidCode.Infrastructure.External.S3;
 
-public interface IS3BucketClient
+public interface IS3PublicBucketClient : IS3BucketClient
 { 
-    Bucket BucketInfo { get; }
-
-    Task<List<string>> GetAllFiles();
-
     /// <summary>
-    /// Загружает файл с случайным ключом
+    /// Строит ссылку на объект в S3 для публичного скачивания.
     /// </summary>
-    /// <returns>Возвращает ключ на S3</returns>
-    Task<string> UploadFileWithRandomKey(string baseFolder, string localFilePath);
+    /// <param name="key"></param>
+    /// <returns></returns>
+    Task<string> BuildFileUrl(string key);
 }

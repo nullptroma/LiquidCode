@@ -11,6 +11,7 @@ using LiquidCode.Domain.Services.Groups;
 using LiquidCode.Domain.Services.Missions;
 using LiquidCode.Domain.Services.Submits;
 using LiquidCode.Domain.Services.Tags;
+using LiquidCode.Domain.Services;
 using LiquidCode.Infrastructure.Middleware;
 using LiquidCode.Infrastructure.Database;
 using LiquidCode.Infrastructure.Database.Repositories;
@@ -90,7 +91,7 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddS3Buckets(builder.Configuration);
-builder.Services.AddSingleton<TestingHttpClient>(provider =>
+builder.Services.AddSingleton(provider =>
 {
     var endpoint = builder.Configuration[ConfigurationKeys.TestingModuleUrl] ??
                     throw new ArgumentNullException(ConfigurationKeys.TestingModuleUrl);
@@ -115,6 +116,7 @@ builder.Services.AddScoped<IArticleService, ArticleService>();
 builder.Services.AddScoped<ITagService, TagService>();
 builder.Services.AddScoped<IContestService, ContestService>();
 builder.Services.AddScoped<IGroupService, GroupService>();
+builder.Services.AddScoped<IMediaService, MediaService>();
 
 builder.Services.AddDbContext<LiquidDbContext>(options =>
     options.UseNpgsql(dbConnectionString).UseSnakeCaseNamingConvention());

@@ -10,15 +10,11 @@ public class S3PublicBucketClient : S3BucketClient, IS3PublicBucketClient
 {
     public S3PublicBucketClient(IConfiguration conf, Bucket bucket)
     : base(conf, bucket)
-    {
-        AmazonS3Config config = new AmazonS3Config
-        {
-            ServiceURL = conf[ConfigurationKeys.S3Endpoint],
-            UseHttp = true,
-            ForcePathStyle = true,
-        };
+    { }
 
-        AWSCredentials creds = new BasicAWSCredentials(conf[ConfigurationKeys.S3AccessKey], conf[ConfigurationKeys.S3SecretKey]);
+    public Task<string> BuildFileUrl(string key)
+    {
+        var url = $"{Client.Config.ServiceURL}/{BucketInfo.Name}/{key}";
+        return Task.FromResult(url);
     }
-    
 }
