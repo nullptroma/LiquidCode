@@ -30,7 +30,7 @@ public class MediaService : IMediaService
         var baseFolder = GetBaseFolder(file.FileName);
 
         // Сохранить файл временно
-        var tempPath = Path.GetTempFileName();
+        var tempPath = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString() + Path.GetExtension(file.FileName));
         try
         {
             await using (var stream = File.Create(tempPath))

@@ -14,7 +14,8 @@ public class S3PublicBucketClient : S3BucketClient, IS3PublicBucketClient
 
     public Task<string> BuildFileUrl(string key)
     {
-        var url = $"{Client.Config.ServiceURL}/{BucketInfo.Name}/{key}";
-        return Task.FromResult(url);
+        var baseUrl = new Uri(Client.Config.ServiceURL);
+        var url = new Uri(baseUrl, $"{BucketInfo.Name}/{key}");
+        return Task.FromResult(url.AbsoluteUri);
     }
 }
