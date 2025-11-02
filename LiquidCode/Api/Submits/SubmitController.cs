@@ -3,10 +3,13 @@ using System.Linq;
 using LiquidCode.Api.Submits.Requests;
 using LiquidCode.Api.Submits.Responses;
 using LiquidCode.Domain.Interfaces.Services;
+using LiquidCode.Shared.Constants;
 using LiquidCode.Shared.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace LiquidCode.Api.Submits;
@@ -18,11 +21,15 @@ namespace LiquidCode.Api.Submits;
 [ApiController]
 public class SubmitController(
     ISubmitService submitService,
-    ILogger<SubmitController> logger) : ControllerBase
+    ILogger<SubmitController> logger,
+    LinkGenerator linkGenerator,
+    IConfiguration configuration) : ControllerBase
 {
     private const string CallbackRouteName = "SubmitTesterCallback";
     private readonly ISubmitService _submitService = submitService;
     private readonly ILogger<SubmitController> _logger = logger;
+    private readonly LinkGenerator _linkGenerator = linkGenerator;
+    private readonly Uri _serviceBaseUri = ParseServiceBaseUri(configuration);
 
     /// <summary>
     /// Отправляет решение для миссии
@@ -165,15 +172,28 @@ public class SubmitController(
         if (string.IsNullOrWhiteSpace(token))
             throw new InvalidOperationException("Callback token is not provided.");
 
-        if (!Request.Host.HasValue)
-            throw new InvalidOperationException("Unable to determine request host for callback URL generation.");
+        if (HttpContext == null)
+            throw new InvalidOperationException("HTTP context is not available for callback URL generation.");
 
-        var scheme = string.IsNullOrWhiteSpace(Request.Scheme) ? Uri.UriSchemeHttps : Request.Scheme;
+        var relativePath = _linkGenerator.GetPathByName(HttpContext, CallbackRouteName, new { token });
+        if (string.IsNullOrWhiteSpace(relativePath))
+            throw new InvalidOperationException("Unable to build callback path.");
 
-        var link = Url.RouteUrl(CallbackRouteName, values: new { token }, protocol: scheme, host: Request.Host.Value);
-        if (string.IsNullOrWhiteSpace(link))
+        if (!Uri.TryCreate(_serviceBaseUri, relativePath, out var callbackUri))
             throw new InvalidOperationException("Unable to build callback URL.");
 
-        return link;
+        return callbackUri.ToString();
+    }
+
+    private static Uri ParseServiceBaseUri(IConfiguration configuration)
+    {
+        var baseUrl = configuration[ConfigurationKeys.ServiceBaseUrl];
+        if (string.IsNullOrWhiteSpace(baseUrl))
+            throw new InvalidOperationException($"Configuration value '{ConfigurationKeys.ServiceBaseUrl}' is not provided.");
+
+        if (!Uri.TryCreate(baseUrl, UriKind.Absolute, out var parsedUri))
+            throw new InvalidOperationException($"Configuration value '{ConfigurationKeys.ServiceBaseUrl}' is not a valid absolute URI.");
+
+        return parsedUri;
     }
 }
