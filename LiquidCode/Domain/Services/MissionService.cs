@@ -224,12 +224,13 @@ public class MissionService : IMissionService
                 return;
             }
 
-            foreach (var (language, statementData) in statements)
+            foreach (var statementData in statements)
             {
                 var dbStatement = new DbMissionStatement
                 {
                     Mission = mission,
-                    Language = language,
+                    Language = statementData.Language,
+                    Format = statementData.Format,
                     StatementTexts = statementData.StatementTexts,
                     CreatedAt = DateTime.UtcNow,
                     UpdatedAt = DateTime.UtcNow

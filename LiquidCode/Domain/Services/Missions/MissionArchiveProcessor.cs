@@ -3,8 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using LiquidCode.Domain.Enums;
 using LiquidCode.Domain.Interfaces.Services;
 using Microsoft.Extensions.Logging;
@@ -18,8 +16,26 @@ public class MissionArchiveProcessor
 {
     private readonly ILogger<MissionArchiveProcessor> _logger;
     private readonly IMediaService _mediaService;
-    
-    private static readonly string[] IgnoredDirs = { ".pdf", ".html", "tests", "solutions", "scripts", "files" };
+
+    private static readonly HashSet<string> IgnoredDirs = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".pdf",
+        "tests",
+        "solutions",
+        "scripts",
+        "files"
+    };
+    private sealed record StatementDirectory(string Language, StatementFormat Format, string Path);
+
+
+    private static readonly HashSet<string> HtmlStatementTextExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".html",
+        ".htm",
+        ".css",
+        ".js",
+        ".json"
+    };
 
     public MissionArchiveProcessor(ILogger<MissionArchiveProcessor> logger, IMediaService mediaService)
     {
@@ -28,47 +44,56 @@ public class MissionArchiveProcessor
     }
 
     /// <summary>
-    /// Распаковывает архив и извлекает statements по языкам
+    /// Распаковывает архив и извлекает statements по языкам и форматам
     /// </summary>
-    public Dictionary<string, MissionStatementData> ExtractStatements(string zipFilePath)
+    public List<MissionStatementData> ExtractStatements(string zipFilePath)
     {
-        var statements = new Dictionary<string, MissionStatementData>(StringComparer.OrdinalIgnoreCase);
+        var statements = new List<MissionStatementData>();
 
         try
         {
             using (var zipArchive = ZipFile.OpenRead(zipFilePath))
             {
-                // Найти каталоги с statements для каждого языка
+                // Найти каталоги с statements для каждого языка и формата
                 var statementDirs = zipArchive.Entries
-                    .Select(e => e.FullName)
-                    .Where(name => name.Contains("statements/"))
-                    .Select(name => ExtractLanguageAndPath(name))
-                    .Where(x => x.Language != null)
+                    .Where(entry => entry.FullName.Contains("statements/", StringComparison.OrdinalIgnoreCase))
+                    .Select(entry => ExtractLanguageAndPath(entry.FullName))
+                    .Where(dir => dir is not null)
+                    .Select(dir => dir!)
                     .Distinct()
-                    .GroupBy(x => x.Language)
-                    .ToDictionary(g => g.Key!, g => g.ToList());
+                    .ToList();
 
-                foreach (var (language, paths) in statementDirs)
+                foreach (var directory in statementDirs)
                 {
-                    _logger.LogInformation("Processing statements for language: {Language}", language);
-                    var statementData = new MissionStatementData { Language = language };
+                    _logger.LogInformation(
+                        "Processing statements for language {Language} in format {Format}",
+                        directory.Language,
+                        directory.Format);
+
+                    var statementData = new MissionStatementData
+                    {
+                        Language = directory.Language,
+                        Format = directory.Format
+                    };
 
                     // Группируем файлы по типам в этом языке
                     var entries = zipArchive.Entries
-                        .Where(e => paths.Any(p => p.Path != null && e.FullName.StartsWith(p.Path, StringComparison.OrdinalIgnoreCase)))
+                        .Where(e => e.FullName.StartsWith(directory.Path, StringComparison.OrdinalIgnoreCase))
                         .ToList();
 
                     // Извлекаем текстовые файлы (включая примеры)
                     ExtractTextFiles(entries, statementData);
 
                     // Извлекаем картинки
-                    ExtractImageFiles(entries, zipArchive, statementData);
+                    ExtractImageFiles(entries, statementData);
 
-                    statements[language] = statementData;
+                    statements.Add(statementData);
                 }
             }
 
-            _logger.LogInformation("Successfully extracted statements for {LanguageCount} languages", statements.Count);
+            _logger.LogInformation(
+                "Successfully extracted {Count} statement variations from archive",
+                statements.Count);
         }
         catch (Exception ex)
         {
@@ -78,27 +103,67 @@ public class MissionArchiveProcessor
         return statements;
     }
 
-    private (string? Language, string? Path) ExtractLanguageAndPath(string fullPath)
+    private StatementDirectory? ExtractLanguageAndPath(string fullPath)
     {
         var parts = fullPath.Split('/', StringSplitOptions.RemoveEmptyEntries);
-        
+
         // Ищем индекс "statements"
-        var stmtIndex = System.Array.FindIndex(parts, p => 
+        var stmtIndex = System.Array.FindIndex(parts, p =>
             p.Equals("statements", StringComparison.OrdinalIgnoreCase));
 
-        if (stmtIndex >= 0 && stmtIndex + 1 < parts.Length)
+        if (stmtIndex < 0 || stmtIndex + 1 >= parts.Length)
         {
-            var language = parts[stmtIndex + 1];
-            
-            // Игнорируем .pdf и .html каталоги
-            if (!IgnoredDirs.Any(dir => language.Equals(dir, StringComparison.OrdinalIgnoreCase)))
-            {
-                var pathBase = string.Join("/", parts.Take(stmtIndex + 2));
-                return (language, pathBase);
-            }
+            return null;
         }
 
-        return (null, null);
+        var firstSegment = parts[stmtIndex + 1];
+
+        if (firstSegment.StartsWith(".", StringComparison.Ordinal))
+        {
+            // Каталоги вида .html/<language>/...
+            if (string.Equals(firstSegment, ".pdf", StringComparison.OrdinalIgnoreCase) || stmtIndex + 2 >= parts.Length)
+            {
+                return null;
+            }
+
+            var nestedLanguage = parts[stmtIndex + 2];
+
+            if (ShouldIgnoreSegment(nestedLanguage))
+            {
+                return null;
+            }
+
+            var format = ResolveFormat(firstSegment);
+            if (format == null)
+            {
+                return null;
+            }
+
+            var pathBase = string.Join("/", parts.Take(stmtIndex + 3)) + "/";
+
+            return new StatementDirectory(nestedLanguage, format.Value, pathBase);
+        }
+
+        if (ShouldIgnoreSegment(firstSegment))
+        {
+            return null;
+        }
+
+        var directPathBase = string.Join("/", parts.Take(stmtIndex + 2)) + "/";
+        return new StatementDirectory(firstSegment, StatementFormat.Latex, directPathBase);
+    }
+
+    private static bool ShouldIgnoreSegment(string segment) =>
+        IgnoredDirs.Contains(segment);
+
+    private static StatementFormat? ResolveFormat(string segment)
+    {
+        if (segment.Equals(".html", StringComparison.OrdinalIgnoreCase))
+        {
+            return StatementFormat.Html;
+        }
+
+        return null;
     }
 
     private void ExtractTextFiles(List<ZipArchiveEntry> entries, MissionStatementData statement)
@@ -114,8 +179,12 @@ public class MissionArchiveProcessor
             // Проверяем, является ли это текстовым файлом или примером
             var mediaType = _mediaService.GetMediaType(entry.Name);
             var isExample = entry.Name.StartsWith("example.", StringComparison.OrdinalIgnoreCase);
-            
-            if (mediaType == MediaType.Documents || isExample)
+
+            var extension = Path.GetExtension(entry.Name);
+            var isHtmlText = statement.Format == StatementFormat.Html &&
+                             HtmlStatementTextExtensions.Contains(extension);
+
+            if (mediaType == MediaType.Documents || isExample || isHtmlText)
             {
                 var content = ReadZipEntry(entry);
                 if (!string.IsNullOrEmpty(content))
@@ -128,7 +197,7 @@ public class MissionArchiveProcessor
         statement.StatementTexts = texts;
     }
 
-    private void ExtractImageFiles(List<ZipArchiveEntry> entries, ZipArchive zipArchive, MissionStatementData statement)
+    private void ExtractImageFiles(List<ZipArchiveEntry> entries, MissionStatementData statement)
     {
         var imageFiles = entries
             .Where(e => _mediaService.GetMediaType(e.Name) == MediaType.Images)
@@ -144,8 +213,11 @@ public class MissionArchiveProcessor
             });
         }
 
-        _logger.LogInformation("Found {ImageCount} image files for language {Language}", 
-            imageFiles.Count, statement.Language);
+        _logger.LogInformation(
+            "Found {ImageCount} image files for language {Language} (format {Format})",
+            imageFiles.Count,
+            statement.Language,
+            statement.Format);
     }
 
     private string ReadZipEntry(ZipArchiveEntry entry)
@@ -171,6 +243,11 @@ public class MissionArchiveProcessor
 public class MissionStatementData
 {
     public string Language { get; set; } = "";
+
+    /// <summary>
+    /// Формат исходных файлов (Latex, Html и т.д.)
+    /// </summary>
+    public StatementFormat Format { get; set; } = StatementFormat.Latex;
     
     /// <summary>
     /// Словарь всех текстовых файлов (problem.tex, input.tex, example.01, example.01.a и т.д.)

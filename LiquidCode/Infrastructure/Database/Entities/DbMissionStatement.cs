@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using LiquidCode.Domain.Enums;
 
 namespace LiquidCode.Infrastructure.Database.Entities;
 
@@ -10,6 +10,7 @@ namespace LiquidCode.Infrastructure.Database.Entities;
 /// </summary>
 [Index(nameof(MissionId))]
 [Index(nameof(Language))]
+[Index(nameof(MissionId), nameof(Language), nameof(Format), IsUnique = true)]
 public class DbMissionStatement : ITimestamped
 {
     public int Id { get; set; }
@@ -22,6 +23,11 @@ public class DbMissionStatement : ITimestamped
     /// </summary>
     [StringLength(50)]
     public string Language { get; set; } = "";
+
+    /// <summary>
+    /// Формат исходных файлов (Latex, Html и т.д.)
+    /// </summary>
+    public StatementFormat Format { get; set; } = StatementFormat.Latex;
     
     /// <summary>
     /// Текстовые файлы формулировки (problem.tex, input.tex, example.01 и т.д.)
