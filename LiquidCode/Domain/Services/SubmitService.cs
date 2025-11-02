@@ -2,11 +2,13 @@ using System;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
-using LiquidCode.Domain.Interfaces.Repositories;
-using LiquidCode.Infrastructure.Database.Entities;
 using LiquidCode.Api.Submits.Dto;
-using Microsoft.Extensions.Logging;
+using LiquidCode.Domain.Interfaces.Repositories;
 using LiquidCode.Domain.Interfaces.Services;
+using LiquidCode.Infrastructure.Database.Entities;
+using LiquidCode.Infrastructure.External.S3;
+using LiquidCode.Infrastructure.External.TestingModule;
+using Microsoft.Extensions.Logging;
 
 namespace LiquidCode.Domain.Services.Submits;
 
@@ -20,19 +22,27 @@ public class SubmitService : ISubmitService
     private readonly IUserRepository _userRepository;
     private readonly IContestRepository _contestRepository;
     private readonly ILogger<SubmitService> _logger;
+    private readonly IS3BucketClient _s3Client;
+    private readonly TestingHttpClient _testingClient;
+
+    private static readonly TimeSpan PackageLinkLifetime = TimeSpan.FromHours(1);
 
     public SubmitService(
         ISubmitRepository submitRepository,
         IMissionRepository missionRepository,
         IUserRepository userRepository,
         IContestRepository contestRepository,
-        ILogger<SubmitService> logger)
+        ILogger<SubmitService> logger,
+        IS3BucketClient s3Client,
+        TestingHttpClient testingClient)
     {
         _submitRepository = submitRepository;
         _missionRepository = missionRepository;
         _userRepository = userRepository;
         _contestRepository = contestRepository;
         _logger = logger;
+        _s3Client = s3Client;
+        _testingClient = testingClient;
     }
 
     public async Task<DbSolution?> SubmitSolutionAsync(
@@ -245,6 +255,55 @@ public class SubmitService : ISubmitService
         {
             _logger.LogError(ex, "Error getting mission submissions: {MissionId}", missionId);
             return Enumerable.Empty<DbUserSubmission>();
+        }
+    }
+
+    public async Task<SubmitDispatchResult> DispatchSolutionAsync(DbSolution solution, string callbackUrl, CancellationToken cancellationToken = default)
+    {
+        if (solution == null)
+            throw new ArgumentNullException(nameof(solution));
+
+        if (string.IsNullOrWhiteSpace(callbackUrl))
+        {
+            _logger.LogWarning("Callback URL is missing for solution {SolutionId}", solution.Id);
+            return SubmitDispatchResult.Failed("Callback URL is not configured.");
+        }
+
+        var mission = solution.Mission;
+        if (mission == null)
+        {
+            _logger.LogError("Solution {SolutionId} does not contain mission details", solution.Id);
+            return SubmitDispatchResult.Failed("Mission data is not available for solution.");
+        }
+
+        if (string.IsNullOrWhiteSpace(mission.S3Key))
+        {
+            _logger.LogError("Mission {MissionId} has no S3 key for solution {SolutionId}", mission.Id, solution.Id);
+            return SubmitDispatchResult.Failed("Mission package key is not configured.");
+        }
+
+        try
+        {
+            var packageUrl = await _s3Client.GenerateDownloadLinkAsync(mission.S3Key, PackageLinkLifetime);
+
+            var payload = new SubmitForTesterModel(
+                solution.Id,
+                mission.Id,
+                solution.Language,
+                solution.LanguageVersion,
+                solution.SourceCode,
+                packageUrl,
+                callbackUrl);
+
+            await _testingClient.SubmitAsync(payload, cancellationToken);
+
+            _logger.LogInformation("Solution {SolutionId} dispatched to testing module", solution.Id);
+            return SubmitDispatchResult.Ok();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to dispatch solution {SolutionId} to testing module", solution.Id);
+            return SubmitDispatchResult.Failed("Failed to dispatch solution to testing module.");
         }
     }
 
