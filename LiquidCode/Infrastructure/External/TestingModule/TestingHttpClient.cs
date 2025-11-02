@@ -37,7 +37,7 @@ public class TestingHttpClient
             serializedPayload = "<serialization_failed>";
         }
 
-        _logger.LogDebug("Tester payload body: {PayloadBody}", serializedPayload);
+        _logger.LogInformation("Tester payload body: {PayloadBody}", serializedPayload);
 
         var response = await _client.PostAsJsonAsync("api/submit", payload, cancellationToken);
 

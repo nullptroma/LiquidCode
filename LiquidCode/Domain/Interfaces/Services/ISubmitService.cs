@@ -53,6 +53,14 @@ public interface ISubmitService
     Task<IEnumerable<DbUserSubmission>> GetMissionSubmissionsAsync(int missionId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Отправляет решение в тестирующий модуль.
+    /// </summary>
+    /// <param name="solution">Решение, подготовленное к тестированию.</param>
+    /// <param name="callbackUrl">URL обратного вызова.</param>
+    /// <param name="cancellationToken">Токен отмены</param>
+    Task<SubmitDispatchResult> DispatchSolutionAsync(DbSolution solution, string callbackUrl, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Применяет обновление статуса решения от тестирующего модуля
     /// </summary>
     /// <param name="solutionId">Идентификатор решения</param>
@@ -93,3 +101,13 @@ public enum TesterCallbackUpdateStatus
 public readonly record struct TesterCallbackUpdateResult(
     TesterCallbackUpdateStatus Status,
     DbSolution? Solution);
+
+/// <summary>
+/// Результат отправки решения во внешний тестирующий модуль.
+/// </summary>
+public readonly record struct SubmitDispatchResult(bool Success, string? ErrorMessage)
+{
+    public static SubmitDispatchResult Ok() => new(true, null);
+
+    public static SubmitDispatchResult Failed(string? error) => new(false, error);
+}

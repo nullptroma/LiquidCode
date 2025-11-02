@@ -3,15 +3,10 @@ using System.Linq;
 using LiquidCode.Api.Submits.Requests;
 using LiquidCode.Api.Submits.Responses;
 using LiquidCode.Domain.Interfaces.Services;
-using LiquidCode.Domain.Services.Contests;
-using LiquidCode.Infrastructure.Database.Entities;
-using LiquidCode.Infrastructure.External.TestingModule;
-using LiquidCode.Shared.Constants;
 using LiquidCode.Shared.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
 namespace LiquidCode.Api.Submits;
@@ -23,14 +18,10 @@ namespace LiquidCode.Api.Submits;
 [ApiController]
 public class SubmitController(
     ISubmitService submitService,
-    TestingHttpClient testingClient,
-    IConfiguration configuration,
     ILogger<SubmitController> logger) : ControllerBase
 {
     private const string CallbackRouteName = "SubmitTesterCallback";
     private readonly ISubmitService _submitService = submitService;
-    private readonly TestingHttpClient _testingClient = testingClient;
-    private readonly IConfiguration _configuration = configuration;
     private readonly ILogger<SubmitController> _logger = logger;
 
     /// <summary>
@@ -65,20 +56,11 @@ public class SubmitController(
             if (string.IsNullOrWhiteSpace(callbackToken))
                 throw new InvalidOperationException("Callback token is not generated.");
 
-            var missionKey = solution.Mission?.S3Key;
-            if (string.IsNullOrWhiteSpace(missionKey))
-                throw new InvalidOperationException("Mission package key is missing.");
+            var callbackUrl = BuildCallbackUrl(callbackToken);
 
-            var testerPayload = new SubmitForTesterModel(
-                solution.Id,
-                request.MissionId,
-                request.Language,
-                request.LanguageVersion,
-                request.SourceCode,
-                BuildPackageUrl(missionKey!),
-                BuildCallbackUrl(callbackToken));
-
-            await _testingClient.SubmitAsync(testerPayload, cancellationToken);
+            var dispatchResult = await _submitService.DispatchSolutionAsync(solution, callbackUrl, cancellationToken);
+            if (!dispatchResult.Success)
+                return StatusCode(StatusCodes.Status502BadGateway, dispatchResult.ErrorMessage ?? "Failed to dispatch solution to testing module.");
         }
         catch (Exception ex)
         {
@@ -178,24 +160,6 @@ public class SubmitController(
             _ => StatusCode(StatusCodes.Status500InternalServerError, "Unexpected tester callback processing result.")
         };
     }
-
-    private string BuildPackageUrl(string s3Key)
-    {
-        if (string.IsNullOrWhiteSpace(s3Key))
-            throw new InvalidOperationException("Mission package key is not configured.");
-
-        var endpoint = _configuration[ConfigurationKeys.S3Endpoint] ??
-                       throw new InvalidOperationException($"Configuration key '{ConfigurationKeys.S3Endpoint}' is not configured.");
-        var bucket = _configuration[ConfigurationKeys.S3PrivateBucket] ??
-                     throw new InvalidOperationException($"Configuration key '{ConfigurationKeys.S3PrivateBucket}' is not configured.");
-
-        var encodedKey = string.Join('/', s3Key
-            .Split('/', StringSplitOptions.RemoveEmptyEntries)
-            .Select(Uri.EscapeDataString));
-
-        return $"{endpoint.TrimEnd('/')}/{bucket}/{encodedKey}";
-    }
-
     private string BuildCallbackUrl(string token)
     {
         if (string.IsNullOrWhiteSpace(token))

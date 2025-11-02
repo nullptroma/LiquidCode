@@ -1,4 +1,8 @@
+using System;
+using System.Collections.Generic;
 using System.Configuration;
+using System.IO;
+using System.Linq;
 using Amazon.Runtime;
 using Amazon.S3;
 using Amazon.S3.Model;
@@ -65,5 +69,30 @@ public class S3BucketClient : IS3BucketClient
 
         var response = await Client.PutObjectAsync(request);
         return response.HttpStatusCode == System.Net.HttpStatusCode.OK ? key : "";
+    }
+
+    public Task<string> GenerateDownloadLinkAsync(string key, TimeSpan lifetime)
+    {
+        if (string.IsNullOrWhiteSpace(key))
+            throw new ArgumentException("Object key must be provided.", nameof(key));
+
+        if (lifetime <= TimeSpan.Zero)
+            throw new ArgumentOutOfRangeException(nameof(lifetime), "Lifetime must be greater than zero.");
+
+        var expiresAt = DateTime.UtcNow.Add(lifetime);
+
+        var request = new GetPreSignedUrlRequest
+        {
+            BucketName = BucketInfo.Name,
+            Key = key,
+            Verb = HttpVerb.GET,
+            Expires = expiresAt
+        };
+
+        var url = Client.GetPreSignedURL(request);
+        if (string.IsNullOrWhiteSpace(url))
+            throw new InvalidOperationException($"Failed to generate download link for key '{key}'.");
+
+        return Task.FromResult(url);
     }
 }
