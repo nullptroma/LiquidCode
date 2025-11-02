@@ -28,7 +28,7 @@ public class DbSolution : ITimestamped
     [Required] 
     public string SourceCode { get; init; } = null!;
     
-    [StringLength(32)] 
+    [StringLength(256)] 
     [Required] 
     public string Status { get; set; } = null!;
 
