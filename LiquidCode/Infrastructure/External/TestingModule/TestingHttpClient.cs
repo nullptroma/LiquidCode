@@ -9,15 +9,14 @@ public class TestingHttpClient
     private readonly HttpClient _client;
     private readonly ILogger<TestingHttpClient> _logger;
     private readonly string _endpointUrl;
+    private readonly Uri _endpointUri;
 
     public TestingHttpClient(string endpointUrl, ILogger<TestingHttpClient> logger)
     {
         _endpointUrl = endpointUrl;
         _logger = logger;
-        _client = new HttpClient
-        {
-            BaseAddress = new Uri(endpointUrl),
-        };
+        _endpointUri = new Uri(endpointUrl);
+        _client = new HttpClient();
 
         _logger.LogInformation("Initialized testing HTTP client for endpoint {Endpoint}", endpointUrl);
     }
@@ -39,7 +38,7 @@ public class TestingHttpClient
 
         _logger.LogInformation("Tester payload body: {PayloadBody}", serializedPayload);
 
-        var response = await _client.PostAsJsonAsync("api/submit", payload, cancellationToken);
+    var response = await _client.PostAsJsonAsync(_endpointUri, payload, cancellationToken);
 
         if (!response.IsSuccessStatusCode)
         {
