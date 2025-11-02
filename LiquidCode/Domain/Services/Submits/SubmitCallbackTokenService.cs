@@ -69,14 +69,15 @@ public sealed class SubmitCallbackTokenService : ISubmitCallbackTokenService
 
         if (solution.Id <= 0)
             throw new InvalidOperationException("Solution identifier must be assigned before generating token.");
+
+        if (solution.CreatedAt == default)
+            throw new InvalidOperationException("Solution creation timestamp must be assigned before generating token.");
     }
 
     private static string BuildPayload(DbSolution solution)
     {
-        var timestamp = solution.Time.Kind == DateTimeKind.Utc
-            ? solution.Time
-            : solution.Time.ToUniversalTime();
-        return $"{solution.Id}:{timestamp:O}";
+        var normalized = NormalizeTimestamp(solution.CreatedAt);
+        return $"{solution.Id}:{normalized:O}";
     }
 
     private static string Base64UrlEncode(byte[] data)
@@ -88,4 +89,12 @@ public sealed class SubmitCallbackTokenService : ISubmitCallbackTokenService
     }
 
     private static string NormalizeToken(string token) => token.Trim();
+
+    private static DateTime NormalizeTimestamp(DateTime timestamp)
+    {
+        var utc = timestamp.Kind == DateTimeKind.Utc ? timestamp : timestamp.ToUniversalTime();
+        const long ticksPerMicrosecond = TimeSpan.TicksPerMillisecond / 1000;
+        var truncatedTicks = utc.Ticks - (utc.Ticks % ticksPerMicrosecond);
+        return new DateTime(truncatedTicks, DateTimeKind.Utc);
+    }
 }
