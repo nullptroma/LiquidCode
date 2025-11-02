@@ -328,7 +328,7 @@ public class SubmitService : ISubmitService
 
             if (string.IsNullOrWhiteSpace(solution.CallbackToken) || !IsTokenMatch(solution.CallbackToken, callbackToken))
             {
-                _logger.LogWarning("Callback token mismatch for solution {SolutionId}", solutionId);
+                _logger.LogWarning("Callback token mismatch for solution {SolutionId}: {solution.CallbackToken} and {callbackToken}", solutionId, solution.CallbackToken, callbackToken);
                 return new TesterCallbackUpdateResult(TesterCallbackUpdateStatus.TokenMismatch, null);
             }
 
