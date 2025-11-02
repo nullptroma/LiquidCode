@@ -43,9 +43,6 @@ public class DbSolution : ITimestamped
 
     public int AmountOfTests { get; set; }
 
-    [StringLength(128)]
-    public string? CallbackToken { get; set; }
-    
     public DateTime Time { get; init; }
     
     // Timestamps

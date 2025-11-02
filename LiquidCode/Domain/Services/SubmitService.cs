@@ -1,7 +1,5 @@
 using System;
 using System.Linq;
-using System.Security.Cryptography;
-using System.Text;
 using LiquidCode.Api.Submits.Dto;
 using LiquidCode.Domain.Interfaces.Repositories;
 using LiquidCode.Domain.Interfaces.Services;
@@ -24,6 +22,7 @@ public class SubmitService : ISubmitService
     private readonly ILogger<SubmitService> _logger;
     private readonly IS3BucketClient _s3Client;
     private readonly TestingHttpClient _testingClient;
+    private readonly ISubmitCallbackTokenService _callbackTokenService;
 
     private static readonly TimeSpan PackageLinkLifetime = TimeSpan.FromHours(1);
 
@@ -34,7 +33,8 @@ public class SubmitService : ISubmitService
         IContestRepository contestRepository,
         ILogger<SubmitService> logger,
         IS3BucketClient s3Client,
-        TestingHttpClient testingClient)
+        TestingHttpClient testingClient,
+        ISubmitCallbackTokenService callbackTokenService)
     {
         _submitRepository = submitRepository;
         _missionRepository = missionRepository;
@@ -43,6 +43,7 @@ public class SubmitService : ISubmitService
         _logger = logger;
         _s3Client = s3Client;
         _testingClient = testingClient;
+        _callbackTokenService = callbackTokenService;
     }
 
     public async Task<DbSolution?> SubmitSolutionAsync(
@@ -193,7 +194,6 @@ public class SubmitService : ISubmitService
                 TestingMessage = null,
                 CurrentTest = 0,
                 AmountOfTests = 0,
-                CallbackToken = GenerateCallbackToken(),
                 Time = DateTime.UtcNow
             };
 
@@ -326,9 +326,9 @@ public class SubmitService : ISubmitService
                 return new TesterCallbackUpdateResult(TesterCallbackUpdateStatus.NotFound, null);
             }
 
-            if (string.IsNullOrWhiteSpace(solution.CallbackToken) || !IsTokenMatch(solution.CallbackToken, callbackToken))
+            if (!_callbackTokenService.ValidateToken(solution, callbackToken))
             {
-                _logger.LogWarning("Callback token mismatch for solution {SolutionId}: {solution.CallbackToken} and {callbackToken}", solutionId, solution.CallbackToken, callbackToken);
+                _logger.LogWarning("Callback token mismatch for solution {SolutionId}", solutionId);
                 return new TesterCallbackUpdateResult(TesterCallbackUpdateStatus.TokenMismatch, null);
             }
 
@@ -342,7 +342,6 @@ public class SubmitService : ISubmitService
             solution.CurrentTest = normalizedCurrent;
             solution.AmountOfTests = normalizedAmount;
             solution.Status = ComposeStatus(state, errorCode, trimmedMessage, normalizedCurrent, normalizedAmount);
-            solution.CallbackToken = null;
 
             await _submitRepository.SaveChangesAsync(cancellationToken);
 
@@ -392,26 +391,5 @@ public class SubmitService : ISubmitService
         return string.IsNullOrWhiteSpace(message)
             ? baseStatus
             : $"{baseStatus}: {message}";
-    }
-
-    private static string GenerateCallbackToken()
-    {
-        Span<byte> buffer = stackalloc byte[32];
-        RandomNumberGenerator.Fill(buffer);
-        return Convert.ToHexString(buffer).ToLowerInvariant();
-    }
-
-    private static bool IsTokenMatch(string storedToken, string providedToken)
-    {
-        if (string.IsNullOrWhiteSpace(storedToken) || string.IsNullOrWhiteSpace(providedToken))
-            return false;
-
-    var storedBytes = Encoding.UTF8.GetBytes(storedToken.Trim().ToLowerInvariant());
-    var providedBytes = Encoding.UTF8.GetBytes(providedToken.Trim().ToLowerInvariant());
-
-        if (storedBytes.Length != providedBytes.Length)
-            return false;
-
-        return CryptographicOperations.FixedTimeEquals(storedBytes, providedBytes);
     }
 }

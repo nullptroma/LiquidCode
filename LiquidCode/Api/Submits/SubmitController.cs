@@ -23,13 +23,15 @@ public class SubmitController(
     ISubmitService submitService,
     ILogger<SubmitController> logger,
     LinkGenerator linkGenerator,
-    IConfiguration configuration) : ControllerBase
+    IConfiguration configuration,
+    ISubmitCallbackTokenService callbackTokenService) : ControllerBase
 {
     private const string CallbackRouteName = "SubmitTesterCallback";
     private readonly ISubmitService _submitService = submitService;
     private readonly ILogger<SubmitController> _logger = logger;
     private readonly LinkGenerator _linkGenerator = linkGenerator;
     private readonly Uri _serviceBaseUri = ParseServiceBaseUri(configuration);
+    private readonly ISubmitCallbackTokenService _callbackTokenService = callbackTokenService;
 
     /// <summary>
     /// Отправляет решение для миссии
@@ -59,9 +61,7 @@ public class SubmitController(
 
         try
         {
-            var callbackToken = solution.CallbackToken;
-            if (string.IsNullOrWhiteSpace(callbackToken))
-                throw new InvalidOperationException("Callback token is not generated.");
+            var callbackToken = _callbackTokenService.GenerateToken(solution);
 
             var callbackUrl = BuildCallbackUrl(callbackToken);
 

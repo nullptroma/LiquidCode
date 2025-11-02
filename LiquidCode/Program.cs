@@ -17,6 +17,7 @@ using LiquidCode.Infrastructure.Database;
 using LiquidCode.Infrastructure.Database.Repositories;
 using LiquidCode.Infrastructure.External.TestingModule;
 using LiquidCode.Shared.Constants;
+using LiquidCode.Shared.Options;
 using LiquidCode.Shared.Extensions;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -98,6 +99,15 @@ builder.Services.AddSingleton(provider =>
     var logger = provider.GetRequiredService<ILogger<TestingHttpClient>>();
     return new TestingHttpClient(endpoint, logger);
 });
+
+builder.Services.AddOptions<SubmitCallbackTokenOptions>()
+    .Configure(options =>
+    {
+        options.Secret = builder.Configuration[ConfigurationKeys.SubmitCallbackSecret] ??
+            throw new InvalidOperationException($"Configuration value '{ConfigurationKeys.SubmitCallbackSecret}' is not provided.");
+    });
+
+builder.Services.AddSingleton<ISubmitCallbackTokenService, SubmitCallbackTokenService>();
 
 // Добавить репозитории
 builder.Services.AddScoped<IUserRepository, UserRepository>();
