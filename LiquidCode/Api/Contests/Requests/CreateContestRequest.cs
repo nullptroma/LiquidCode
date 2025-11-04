@@ -13,8 +13,6 @@ public record CreateContestRequest(
     ContestVisibility Visibility,
     DateTime? StartsAt,
     DateTime? EndsAt,
-    DateTime? AvailableFrom,
-    DateTime? AvailableUntil,
     int? AttemptDurationMinutes,
     int? MaxAttempts,
     bool? AllowEarlyFinish,

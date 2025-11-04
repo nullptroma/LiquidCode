@@ -44,8 +44,6 @@ public class ContestService : IContestService
                 request.ScheduleType,
                 request.StartsAt,
                 request.EndsAt,
-                request.AvailableFrom,
-                request.AvailableUntil,
                 request.AttemptDurationMinutes,
                 out var schedule,
                 out var validationError))
@@ -88,8 +86,6 @@ public class ContestService : IContestService
             Visibility = visibility,
             StartsAt = schedule.StartsAt,
             EndsAt = schedule.EndsAt,
-            AvailableFrom = schedule.AvailableFrom,
-            AvailableUntil = schedule.AvailableUntil,
             AttemptDurationMinutes = schedule.AttemptDurationMinutes,
             MaxAttempts = NormalizeMaxAttempts(request.MaxAttempts) ?? 1,
             AllowEarlyFinish = request.AllowEarlyFinish ?? true,
@@ -153,16 +149,12 @@ public class ContestService : IContestService
         var targetScheduleType = request.ScheduleType ?? contest.ScheduleType;
         var candidateStartsAt = request.StartsAt ?? contest.StartsAt;
         var candidateEndsAt = request.EndsAt ?? contest.EndsAt;
-        var candidateAvailableFrom = request.AvailableFrom ?? contest.AvailableFrom;
-        var candidateAvailableUntil = request.AvailableUntil ?? contest.AvailableUntil;
         var candidateAttemptDuration = request.AttemptDurationMinutes ?? contest.AttemptDurationMinutes;
 
         if (!TryBuildSchedule(
                 targetScheduleType,
                 candidateStartsAt,
-                candidateEndsAt,
-                candidateAvailableFrom,
-                candidateAvailableUntil,
+        candidateEndsAt,
                 candidateAttemptDuration,
                 out var schedule,
                 out var validationError))
@@ -180,8 +172,6 @@ public class ContestService : IContestService
         contest.ScheduleType = schedule.ScheduleType;
         contest.StartsAt = schedule.StartsAt;
         contest.EndsAt = schedule.EndsAt;
-        contest.AvailableFrom = schedule.AvailableFrom;
-        contest.AvailableUntil = schedule.AvailableUntil;
         contest.AttemptDurationMinutes = schedule.AttemptDurationMinutes;
         contest.Visibility = newVisibility;
         contest.GroupId = newGroupId;
@@ -528,8 +518,6 @@ public class ContestService : IContestService
         ContestScheduleType scheduleType,
         DateTime? startsAt,
         DateTime? endsAt,
-        DateTime? availableFrom,
-        DateTime? availableUntil,
         int? attemptDurationMinutes,
         out ContestScheduleData schedule,
         out string? error)
@@ -546,7 +534,13 @@ public class ContestService : IContestService
                     return false;
                 }
 
-                schedule = new ContestScheduleData(scheduleType, null, null, null, null, attemptDurationMinutes.Value);
+                if (startsAt.HasValue && endsAt.HasValue && startsAt.Value >= endsAt.Value)
+                {
+                    error = "If provided, contest start must be before end.";
+                    return false;
+                }
+
+                schedule = new ContestScheduleData(scheduleType, startsAt, endsAt, attemptDurationMinutes.Value);
                 return true;
 
             case ContestScheduleType.FixedWindow:
@@ -562,13 +556,25 @@ public class ContestService : IContestService
                     return false;
                 }
 
-                schedule = new ContestScheduleData(scheduleType, startsAt.Value, endsAt.Value, null, null, attemptDurationMinutes);
+                if (attemptDurationMinutes.HasValue && attemptDurationMinutes.Value <= 0)
+                {
+                    error = "Attempt duration must be positive if provided.";
+                    return false;
+                }
+
+                schedule = new ContestScheduleData(scheduleType, startsAt.Value, endsAt.Value, attemptDurationMinutes);
                 return true;
 
             case ContestScheduleType.RollingWindow:
-                if (!availableFrom.HasValue || !availableUntil.HasValue)
+                if (!startsAt.HasValue || !endsAt.HasValue)
                 {
                     error = "RollingWindow contests require availability window.";
+                    return false;
+                }
+
+                if (startsAt.Value >= endsAt.Value)
+                {
+                    error = "Availability window start must be before end.";
                     return false;
                 }
 
@@ -578,20 +584,14 @@ public class ContestService : IContestService
                     return false;
                 }
 
-                if (availableFrom.Value >= availableUntil.Value)
-                {
-                    error = "Availability window start must be before end.";
-                    return false;
-                }
-
-                var totalWindowMinutes = (int)(availableUntil.Value - availableFrom.Value).TotalMinutes;
+                var totalWindowMinutes = (int)(endsAt.Value - startsAt.Value).TotalMinutes;
                 if (attemptDurationMinutes.Value > totalWindowMinutes)
                 {
                     error = "Attempt duration cannot exceed availability window.";
                     return false;
                 }
 
-                schedule = new ContestScheduleData(scheduleType, null, null, availableFrom.Value, availableUntil.Value, attemptDurationMinutes.Value);
+                schedule = new ContestScheduleData(scheduleType, startsAt.Value, endsAt.Value, attemptDurationMinutes.Value);
                 return true;
 
             default:
@@ -628,15 +628,22 @@ public class ContestService : IContestService
         switch (contest.ScheduleType)
         {
             case ContestScheduleType.AlwaysOpen:
+                if (!isOrganizer)
+                {
+                    if (contest.StartsAt.HasValue && now < contest.StartsAt.Value)
+                        return false;
+                    if (contest.EndsAt.HasValue && now > contest.EndsAt.Value)
+                        return false;
+                }
                 return true;
             case ContestScheduleType.FixedWindow:
                 if (!contest.StartsAt.HasValue || !contest.EndsAt.HasValue)
                     return false;
                 return isOrganizer || (now >= contest.StartsAt.Value && now <= contest.EndsAt.Value);
             case ContestScheduleType.RollingWindow:
-                if (!contest.AvailableFrom.HasValue || !contest.AvailableUntil.HasValue)
+                if (!contest.StartsAt.HasValue || !contest.EndsAt.HasValue)
                     return false;
-                return isOrganizer || (now >= contest.AvailableFrom.Value && now <= contest.AvailableUntil.Value);
+                return isOrganizer || (now >= contest.StartsAt.Value && now <= contest.EndsAt.Value);
             default:
                 return false;
         }
@@ -653,11 +660,11 @@ public class ContestService : IContestService
             case ContestScheduleType.FixedWindow:
                 return contest.EndsAt;
             case ContestScheduleType.RollingWindow:
-                if (!contest.AttemptDurationMinutes.HasValue || !contest.AvailableUntil.HasValue)
+                if (!contest.AttemptDurationMinutes.HasValue || !contest.EndsAt.HasValue)
                     return null;
 
                 var desired = start.AddMinutes(contest.AttemptDurationMinutes.Value);
-                return desired <= contest.AvailableUntil.Value ? desired : contest.AvailableUntil.Value;
+                return desired <= contest.EndsAt.Value ? desired : contest.EndsAt.Value;
             default:
                 return null;
         }
@@ -681,8 +688,6 @@ public class ContestService : IContestService
         ContestScheduleType ScheduleType,
         DateTime? StartsAt,
         DateTime? EndsAt,
-        DateTime? AvailableFrom,
-        DateTime? AvailableUntil,
         int? AttemptDurationMinutes
     );
 }

@@ -10,8 +10,6 @@ namespace LiquidCode.Infrastructure.Database.Entities;
 /// </summary>
 [Index(nameof(StartsAt))]
 [Index(nameof(EndsAt))]
-[Index(nameof(AvailableFrom))]
-[Index(nameof(AvailableUntil))]
 [Index(nameof(Visibility))]
 [Index(nameof(IsDeleted))]
 public class DbContest : ISoftDeletable, ITimestamped
@@ -30,9 +28,6 @@ public class DbContest : ISoftDeletable, ITimestamped
 
     public DateTime? StartsAt { get; set; }
     public DateTime? EndsAt { get; set; }
-
-    public DateTime? AvailableFrom { get; set; }
-    public DateTime? AvailableUntil { get; set; }
 
     public int? AttemptDurationMinutes { get; set; }
 

@@ -40,7 +40,7 @@ public record GroupResponse(
 
         var contests = entity.Contests
             .Where(c => !c.IsDeleted)
-            .OrderByDescending(c => c.ScheduleType == ContestScheduleType.FixedWindow ? c.StartsAt : c.AvailableFrom)
+            .OrderByDescending(c => c.ScheduleType == ContestScheduleType.FixedWindow ? c.StartsAt : c.StartsAt ?? c.CreatedAt)
             .ThenByDescending(c => c.Id)
             .Select(c => new GroupContestSummary(
                 c.Id,
@@ -49,8 +49,6 @@ public record GroupResponse(
                 c.Visibility,
                 c.StartsAt,
                 c.EndsAt,
-                c.AvailableFrom,
-                c.AvailableUntil,
                 c.AttemptDurationMinutes,
                 c.MaxAttempts,
                 c.AllowEarlyFinish))
@@ -102,8 +100,6 @@ public record GroupContestSummary(
     ContestVisibility Visibility,
     DateTime? StartsAt,
     DateTime? EndsAt,
-    DateTime? AvailableFrom,
-    DateTime? AvailableUntil,
     int? AttemptDurationMinutes,
     int? MaxAttempts,
     bool AllowEarlyFinish

@@ -83,13 +83,13 @@ public class ContestRepository : IContestRepository
             .Where(c => !c.IsDeleted &&
                         c.Visibility == ContestVisibility.Public &&
                         ((c.ScheduleType == ContestScheduleType.FixedWindow && c.EndsAt >= startPoint) ||
-                         (c.ScheduleType == ContestScheduleType.RollingWindow && c.AvailableUntil >= startPoint) ||
+                         (c.ScheduleType == ContestScheduleType.RollingWindow && c.EndsAt >= startPoint) ||
                          c.ScheduleType == ContestScheduleType.AlwaysOpen))
             .OrderBy(c => c.ScheduleType)
             .ThenBy(c => c.ScheduleType == ContestScheduleType.FixedWindow
                 ? c.StartsAt
                 : c.ScheduleType == ContestScheduleType.RollingWindow
-                    ? c.AvailableFrom
+                    ? c.StartsAt
                     : c.CreatedAt);
 
         var totalCount = await query.CountAsync(cancellationToken);
@@ -119,7 +119,7 @@ public class ContestRepository : IContestRepository
             .Include(c => c.Missions).ThenInclude(cm => cm.Mission)
             .Include(c => c.Articles).ThenInclude(ca => ca.Article)
             .Where(c => c.GroupId == groupId && !c.IsDeleted)
-            .OrderByDescending(c => c.ScheduleType == ContestScheduleType.FixedWindow ? c.StartsAt : c.AvailableFrom ?? c.CreatedAt)
+            .OrderByDescending(c => c.ScheduleType == ContestScheduleType.FixedWindow ? c.StartsAt : c.StartsAt ?? c.CreatedAt)
             .ThenByDescending(c => c.Id);
 
         var totalCount = await query.CountAsync(cancellationToken);

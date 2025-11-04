@@ -155,7 +155,7 @@ public class SubmitService : ISubmitService
                         break;
 
                     case ContestScheduleType.RollingWindow:
-                        if (!contest.AvailableFrom.HasValue || !contest.AvailableUntil.HasValue || !contest.AttemptDurationMinutes.HasValue)
+                        if (!contest.StartsAt.HasValue || !contest.EndsAt.HasValue || !contest.AttemptDurationMinutes.HasValue)
                         {
                             _logger.LogWarning("Contest {ContestId} has inconsistent rolling window configuration", contestId);
                             return null;
@@ -163,7 +163,7 @@ public class SubmitService : ISubmitService
 
                         if (!isOrganizer)
                         {
-                            if (now < contest.AvailableFrom.Value || now > contest.AvailableUntil.Value)
+                            if (now < contest.StartsAt.Value || now > contest.EndsAt.Value)
                             {
                                 _logger.LogWarning("Contest {ContestId} is not available for user {UserId}", contestId, userId);
                                 return null;
@@ -189,6 +189,18 @@ public class SubmitService : ISubmitService
 
                         if (!isOrganizer)
                         {
+                            if (contest.StartsAt.HasValue && now < contest.StartsAt.Value)
+                            {
+                                _logger.LogWarning("Contest {ContestId} has not started yet for user {UserId}", contestId, userId);
+                                return null;
+                            }
+
+                            if (contest.EndsAt.HasValue && now > contest.EndsAt.Value)
+                            {
+                                _logger.LogWarning("Contest {ContestId} is already finished for user {UserId}", contestId, userId);
+                                return null;
+                            }
+
                             if (activeAttempt == null || activeAttempt.Status != ContestAttemptStatus.Active)
                             {
                                 _logger.LogWarning("User {UserId} must maintain an active attempt in contest {ContestId}", userId, contestId);
