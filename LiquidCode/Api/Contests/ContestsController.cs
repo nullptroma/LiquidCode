@@ -1,5 +1,6 @@
 using LiquidCode.Api.Contests.Requests;
 using LiquidCode.Domain.Interfaces.Services;
+using LiquidCode.Infrastructure.Database.Entities;
 using LiquidCode.Shared.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -80,7 +81,10 @@ public class ContestsController(IContestService contestService) : ControllerBase
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
-        var success = await contestService.UpsertMemberAsync(id, userId, request.UserId, request.Role, cancellationToken);
+        var targetUserId = request?.UserId ?? userId;
+        var requestedRole = request?.Role ?? ContestMembershipRole.Participant;
+
+        var success = await contestService.UpsertMemberAsync(id, userId, targetUserId, requestedRole, cancellationToken);
         if (!success)
             return NotFound("Contest not found or access denied.");
 

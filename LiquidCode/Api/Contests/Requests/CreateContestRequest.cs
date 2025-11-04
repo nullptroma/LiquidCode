@@ -20,7 +20,5 @@ public record CreateContestRequest(
     bool? AllowEarlyFinish,
     int? GroupId,
     IEnumerable<int>? MissionIds,
-    IEnumerable<int>? ArticleIds,
-    IEnumerable<int>? ParticipantIds,
-    IEnumerable<int>? OrganizerIds
+    IEnumerable<int>? ArticleIds
 );

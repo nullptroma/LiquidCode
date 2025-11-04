@@ -107,14 +107,7 @@ public class ContestService : IContestService
             new ContestMembershipOptions(JoinedAt: now),
             cancellationToken);
 
-        if (visibility == ContestVisibility.GroupPrivate && group != null)
-        {
-            await AutoEnrollGroupAsync(contest.Id, group, now, cancellationToken);
-        }
-
         await SyncLineupAsync(contest, request.MissionIds, request.ArticleIds, cancellationToken);
-        await SyncMembersAsync(contest.Id, request.ParticipantIds, ContestMembershipRole.Participant, cancellationToken, skipUserId: creatorId);
-        await SyncMembersAsync(contest.Id, request.OrganizerIds, ContestMembershipRole.Organizer, cancellationToken, skipUserId: creatorId);
 
         var full = await _contestRepository.FindWithDetailsAsync(contest.Id, cancellationToken);
         return full == null ? null : ContestResponse.FromEntity(full);
@@ -201,11 +194,6 @@ public class ContestService : IContestService
 
         await _contestRepository.UpdateAsync(contest, cancellationToken);
 
-        if (newVisibility == ContestVisibility.GroupPrivate && targetGroup != null)
-        {
-            await AutoEnrollGroupAsync(contest.Id, targetGroup, now, cancellationToken);
-        }
-
         await SyncLineupAsync(contest, request.MissionIds, request.ArticleIds, cancellationToken);
 
         var updated = await _contestRepository.FindWithDetailsAsync(contest.Id, cancellationToken);
@@ -258,24 +246,89 @@ public class ContestService : IContestService
     public async Task<bool> UpsertMemberAsync(int contestId, int requesterId, int targetUserId, ContestMembershipRole role, CancellationToken cancellationToken = default)
     {
         var contest = await _contestRepository.FindWithDetailsAsync(contestId, cancellationToken);
-        if (contest == null)
+        if (contest == null || contest.IsDeleted)
             return false;
+
+        var existingMembership = contest.Memberships.FirstOrDefault(m => m.UserId == targetUserId);
+
+        if (requesterId == targetUserId)
+        {
+            if (existingMembership != null)
+            {
+                if (!existingMembership.Role.HasFlag(ContestMembershipRole.Participant))
+                {
+                    await _contestRepository.UpsertMembershipAsync(
+                        contestId,
+                        targetUserId,
+                        existingMembership.Role | ContestMembershipRole.Participant,
+                        new ContestMembershipOptions(
+                            JoinedAt: existingMembership.JoinedAt,
+                            IsAutoJoined: existingMembership.IsAutoJoined,
+                            InvitationId: existingMembership.InvitationId),
+                        cancellationToken);
+                }
+
+                return true;
+            }
+
+            if (!await CanUserSelfRegisterAsync(contest, requesterId, cancellationToken))
+            {
+                _logger.LogWarning("User {UserId} is not eligible to join contest {ContestId}", requesterId, contestId);
+                return false;
+            }
+
+            if (await _userRepository.FindByIdAsync(targetUserId, cancellationToken) == null)
+            {
+                _logger.LogWarning("User {UserId} not found while joining contest {ContestId}", targetUserId, contestId);
+                return false;
+            }
+
+            var joinedAt = DateTime.UtcNow;
+            await _contestRepository.UpsertMembershipAsync(
+                contestId,
+                targetUserId,
+                ContestMembershipRole.Participant,
+                new ContestMembershipOptions(JoinedAt: joinedAt),
+                cancellationToken);
+
+            return true;
+        }
 
         if (!IsOrganizer(contest, requesterId))
             return false;
 
-        if (await _userRepository.FindByIdAsync(targetUserId, cancellationToken) == null)
+        if (existingMembership == null)
         {
-            _logger.LogWarning("User {UserId} not found while adding to contest {ContestId}", targetUserId, contestId);
+            _logger.LogWarning(
+                "Organizer {RequesterId} attempted to add user {UserId} to contest {ContestId} without consent",
+                requesterId,
+                targetUserId,
+                contestId);
             return false;
         }
 
-        var now = DateTime.UtcNow;
+        var normalizedRole = NormalizeContestRole(role);
+        if (!normalizedRole.HasFlag(ContestMembershipRole.Participant))
+        {
+            normalizedRole |= ContestMembershipRole.Participant;
+        }
+
+        if (existingMembership.Role.HasFlag(ContestMembershipRole.Organizer) &&
+            !normalizedRole.HasFlag(ContestMembershipRole.Organizer) &&
+            contest.Memberships.Count(m => m.Role.HasFlag(ContestMembershipRole.Organizer)) <= 1)
+        {
+            _logger.LogWarning("Cannot demote the last organizer from contest {ContestId}", contestId);
+            return false;
+        }
+
         await _contestRepository.UpsertMembershipAsync(
             contestId,
             targetUserId,
-            role,
-            new ContestMembershipOptions(JoinedAt: now),
+            normalizedRole,
+            new ContestMembershipOptions(
+                JoinedAt: existingMembership.JoinedAt,
+                IsAutoJoined: existingMembership.IsAutoJoined,
+                InvitationId: existingMembership.InvitationId),
             cancellationToken);
 
         return true;
@@ -318,9 +371,9 @@ public class ContestService : IContestService
 
         if (membership == null)
         {
-            if (contest.Visibility != ContestVisibility.Public)
+            if (!await CanUserSelfRegisterAsync(contest, userId, cancellationToken))
             {
-                _logger.LogWarning("User {UserId} is not allowed to join contest {ContestId}", userId, contestId);
+                _logger.LogWarning("User {UserId} is not eligible to start contest {ContestId}", userId, contestId);
                 return null;
             }
 
@@ -328,17 +381,14 @@ public class ContestService : IContestService
                 contestId,
                 userId,
                 ContestMembershipRole.Participant,
-                new ContestMembershipOptions(IsAutoJoined: true, JoinedAt: now),
+                new ContestMembershipOptions(JoinedAt: now),
                 cancellationToken);
 
             contest = await _contestRepository.FindWithDetailsAsync(contestId, cancellationToken);
             membership = contest?.Memberships.FirstOrDefault(m => m.UserId == userId);
-            if (membership == null)
+            if (contest == null || membership == null)
                 return null;
         }
-
-        if (contest == null)
-            return null;
 
         var isOrganizer = membership.Role.HasFlag(ContestMembershipRole.Organizer);
 
@@ -411,23 +461,6 @@ public class ContestService : IContestService
         return ToAttemptResponse(attempt, contest.ScheduleType);
     }
 
-    private async Task AutoEnrollGroupAsync(int contestId, DbGroup group, DateTime joinedAt, CancellationToken cancellationToken)
-    {
-        foreach (var member in group.Memberships)
-        {
-            var role = member.Role.HasFlag(GroupMembershipRole.Administrator)
-                ? ContestMembershipRole.Organizer
-                : ContestMembershipRole.Participant;
-
-            await _contestRepository.UpsertMembershipAsync(
-                contestId,
-                member.UserId,
-                role,
-                new ContestMembershipOptions(IsAutoJoined: true, JoinedAt: member.JoinedAt <= DateTime.MinValue ? joinedAt : member.JoinedAt),
-                cancellationToken);
-        }
-    }
-
     private async Task SyncLineupAsync(DbContest contest, IEnumerable<int>? missionIds, IEnumerable<int>? articleIds, CancellationToken cancellationToken)
     {
         if (missionIds != null)
@@ -477,30 +510,6 @@ public class ContestService : IContestService
         }
 
         return result;
-    }
-
-    private async Task SyncMembersAsync(int contestId, IEnumerable<int>? userIds, ContestMembershipRole role, CancellationToken cancellationToken, int? skipUserId = null)
-    {
-        if (userIds == null)
-            return;
-
-        var now = DateTime.UtcNow;
-        foreach (var userId in userIds.Where(id => id != skipUserId).Distinct())
-        {
-            if (await _userRepository.FindByIdAsync(userId, cancellationToken) != null)
-            {
-                await _contestRepository.UpsertMembershipAsync(
-                    contestId,
-                    userId,
-                    role,
-                    new ContestMembershipOptions(JoinedAt: now),
-                    cancellationToken);
-            }
-            else
-            {
-                _logger.LogWarning("User {UserId} not found while syncing contest members", userId);
-            }
-        }
     }
 
     private static bool IsOrganizer(DbContest contest, int userId)
@@ -593,6 +602,26 @@ public class ContestService : IContestService
 
     private static int? NormalizeMaxAttempts(int? maxAttempts) =>
         maxAttempts.HasValue && maxAttempts.Value > 0 ? maxAttempts : null;
+
+    private static ContestMembershipRole NormalizeContestRole(ContestMembershipRole role) =>
+        role == ContestMembershipRole.None ? ContestMembershipRole.Participant : role;
+
+    private async Task<bool> CanUserSelfRegisterAsync(DbContest contest, int userId, CancellationToken cancellationToken)
+    {
+        switch (contest.Visibility)
+        {
+            case ContestVisibility.Public:
+                return true;
+            case ContestVisibility.GroupPrivate:
+                if (!contest.GroupId.HasValue)
+                    return false;
+
+                var membership = await _groupRepository.GetMembershipAsync(contest.GroupId.Value, userId, cancellationToken);
+                return membership != null;
+            default:
+                return false;
+        }
+    }
 
     private static bool IsContestAccessibleForStart(DbContest contest, DateTime now, bool isOrganizer)
     {

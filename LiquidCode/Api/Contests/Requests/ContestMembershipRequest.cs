@@ -1,4 +1,3 @@
-using System.ComponentModel.DataAnnotations;
 using LiquidCode.Infrastructure.Database.Entities;
 
 namespace LiquidCode.Api.Contests.Requests;
@@ -7,6 +6,6 @@ namespace LiquidCode.Api.Contests.Requests;
 /// Запрос на управление участниками контеста
 /// </summary>
 public record ContestMembershipRequest(
-    [Required] int UserId,
-    ContestMembershipRole Role
+    int? UserId,
+    ContestMembershipRole? Role
 );
