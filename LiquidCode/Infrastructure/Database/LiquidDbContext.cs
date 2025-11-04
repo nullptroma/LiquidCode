@@ -25,8 +25,12 @@ public class LiquidDbContext : DbContext
     public DbSet<DbContestMission> ContestMissions { get; set; } = null!;
     public DbSet<DbContestArticle> ContestArticles { get; set; } = null!;
     public DbSet<DbContestMembership> ContestMemberships { get; set; } = null!;
+    public DbSet<DbContestAttempt> ContestAttempts { get; set; } = null!;
+    public DbSet<DbContestAttemptMissionResult> ContestAttemptMissionResults { get; set; } = null!;
     public DbSet<DbGroup> Groups { get; set; } = null!;
     public DbSet<DbGroupMembership> GroupMemberships { get; set; } = null!;
+    public DbSet<DbGroupInvitation> GroupInvitations { get; set; } = null!;
+    public DbSet<DbGroupJoinToken> GroupJoinTokens { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -51,6 +55,48 @@ public class LiquidDbContext : DbContext
         property.HasConversion(dictionaryConverter);
         property.Metadata.SetValueComparer(dictionaryComparer);
         property.HasColumnName("StatementTextsJson");
+
+        modelBuilder.Entity<DbContestAttempt>()
+            .HasOne(a => a.Membership)
+            .WithMany(m => m.Attempts)
+            .HasForeignKey(a => new { a.ContestId, a.UserId })
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<DbContestMembership>()
+            .HasOne(m => m.ActiveAttempt)
+            .WithMany()
+            .HasForeignKey(m => m.ActiveAttemptId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<DbContestAttemptMissionResult>()
+            .HasOne(r => r.BestSubmission)
+            .WithMany()
+            .HasForeignKey(r => r.BestSubmissionId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<DbUserSubmission>()
+            .HasOne(s => s.ContestAttempt)
+            .WithMany(a => a.Submissions)
+            .HasForeignKey(s => s.ContestAttemptId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<DbGroupMembership>()
+            .HasOne(m => m.InvitedBy)
+            .WithMany()
+            .HasForeignKey(m => m.InvitedById)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<DbGroupMembership>()
+            .HasOne(m => m.Invitation)
+            .WithMany()
+            .HasForeignKey(m => m.InvitationId)
+            .OnDelete(DeleteBehavior.SetNull);
+
+        modelBuilder.Entity<DbGroupJoinToken>()
+            .HasOne(t => t.CreatedBy)
+            .WithMany()
+            .HasForeignKey(t => t.CreatedById)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 
     public override int SaveChanges()

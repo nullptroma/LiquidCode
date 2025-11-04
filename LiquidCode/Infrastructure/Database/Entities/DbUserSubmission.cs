@@ -8,6 +8,7 @@ namespace LiquidCode.Infrastructure.Database.Entities;
 /// </summary>
 [Index(nameof(CreatedAt))]
 [Index(nameof(IsDeleted))]
+[Index(nameof(ContestAttemptId))]
 public class DbUserSubmission : ISoftDeletable, ITimestamped
 {
     public int Id { get; set; }
@@ -17,6 +18,9 @@ public class DbUserSubmission : ISoftDeletable, ITimestamped
     
     public int? ContestId { get; set; }
     public DbContest? Contest { get; set; }
+
+    public int? ContestAttemptId { get; set; }
+    public DbContestAttempt? ContestAttempt { get; set; }
     
     public SubmissionSourceType SourceType { get; set; } = SubmissionSourceType.Direct;
     

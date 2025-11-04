@@ -20,6 +20,8 @@ public class DbGroup : ISoftDeletable, ITimestamped
     
     public ICollection<DbGroupMembership> Memberships { get; init; } = new HashSet<DbGroupMembership>();
     public ICollection<DbContest> Contests { get; init; } = new HashSet<DbContest>();
+    public ICollection<DbGroupInvitation> Invitations { get; init; } = new HashSet<DbGroupInvitation>();
+    public ICollection<DbGroupJoinToken> JoinTokens { get; init; } = new HashSet<DbGroupJoinToken>();
     
     public bool IsDeleted { get; set; }
     public DateTime? DeletedAt { get; set; }

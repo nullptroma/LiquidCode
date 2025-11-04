@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,20 +20,19 @@ public class DbContestMembership : ITimestamped
     
     public ContestMembershipRole Role { get; set; } = ContestMembershipRole.Participant;
 
-    /// <summary>
-    /// Временные метки активной попытки для гибкого окна
-    /// </summary>
-    public DateTime? ActiveAttemptStartedAt { get; set; }
+    public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
 
-    /// <summary>
-    /// Время завершения активной попытки, если задано
-    /// </summary>
-    public DateTime? ActiveAttemptExpiresAt { get; set; }
+    public bool IsAutoJoined { get; set; }
 
-    /// <summary>
-    /// Количество запущенных попыток
-    /// </summary>
-    public int AttemptCount { get; set; }
+    public int? InvitationId { get; set; }
+    public DbGroupInvitation? Invitation { get; set; }
+
+    public int? ActiveAttemptId { get; set; }
+    public DbContestAttempt? ActiveAttempt { get; set; }
+
+    public DateTime? LastAttemptStartedAt { get; set; }
+
+    public ICollection<DbContestAttempt> Attempts { get; init; } = new HashSet<DbContestAttempt>();
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

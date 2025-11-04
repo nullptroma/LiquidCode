@@ -12,6 +12,7 @@ namespace LiquidCode.Infrastructure.Database.Entities;
 [Index(nameof(EndsAt))]
 [Index(nameof(AvailableFrom))]
 [Index(nameof(AvailableUntil))]
+[Index(nameof(Visibility))]
 [Index(nameof(IsDeleted))]
 public class DbContest : ISoftDeletable, ITimestamped
 {
@@ -25,6 +26,8 @@ public class DbContest : ISoftDeletable, ITimestamped
     
     public ContestScheduleType ScheduleType { get; set; } = ContestScheduleType.FixedWindow;
 
+    public ContestVisibility Visibility { get; set; } = ContestVisibility.Public;
+
     public DateTime? StartsAt { get; set; }
     public DateTime? EndsAt { get; set; }
 
@@ -32,6 +35,10 @@ public class DbContest : ISoftDeletable, ITimestamped
     public DateTime? AvailableUntil { get; set; }
 
     public int? AttemptDurationMinutes { get; set; }
+
+    public int? MaxAttempts { get; set; } = 1;
+
+    public bool AllowEarlyFinish { get; set; } = true;
     
     public int? GroupId { get; set; }
     public DbGroup? Group { get; set; }
@@ -51,6 +58,13 @@ public class DbContest : ISoftDeletable, ITimestamped
 /// </summary>
 public enum ContestScheduleType
 {
-    FixedWindow = 0,
-    FlexibleWindow = 1
+    AlwaysOpen = 0,
+    FixedWindow = 1,
+    RollingWindow = 2
+}
+
+public enum ContestVisibility
+{
+    Public = 0,
+    GroupPrivate = 1
 }

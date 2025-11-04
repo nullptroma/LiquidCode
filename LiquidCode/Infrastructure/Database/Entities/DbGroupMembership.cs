@@ -1,3 +1,4 @@
+using System;
 using System.ComponentModel.DataAnnotations;
 using Microsoft.EntityFrameworkCore;
 
@@ -17,6 +18,16 @@ public class DbGroupMembership : ITimestamped
     public DbUser User { get; init; } = null!;
     
     public GroupMembershipRole Role { get; set; } = GroupMembershipRole.Member;
+
+    public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
+
+    public int? InvitedById { get; set; }
+    public DbUser? InvitedBy { get; set; }
+
+    public int? InvitationId { get; set; }
+    public DbGroupInvitation? Invitation { get; set; }
+
+    public bool IsAutoJoined { get; set; }
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
@@ -27,5 +38,6 @@ public enum GroupMembershipRole
 {
     None = 0,
     Member = 1,
-    Administrator = 2
+    Administrator = 2,
+    Creator = 4
 }
