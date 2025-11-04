@@ -17,13 +17,24 @@ public record ArticleResponse(
     DateTime UpdatedAt
 )
 {
-    public static ArticleResponse FromEntity(DbArticle entity) => new(
-        entity.Id,
-        entity.Author.Id,
-        entity.Name,
-    entity.Content,
-        entity.ArticleTags.Select(at => at.Tag.Name).Distinct().OrderBy(name => name).ToList(),
-        entity.CreatedAt,
-        entity.UpdatedAt
-    );
+    public static ArticleResponse FromEntity(DbArticle entity)
+    {
+        var authorId = entity.Author?.Id ?? entity.AuthorId;
+        var tags = entity.ArticleTags
+            .Where(at => !string.IsNullOrWhiteSpace(at.Tag?.Name))
+            .Select(at => at.Tag!.Name)
+            .Distinct()
+            .OrderBy(name => name)
+            .ToList();
+
+        return new ArticleResponse(
+            entity.Id,
+            authorId,
+            entity.Name,
+            entity.Content,
+            tags,
+            entity.CreatedAt,
+            entity.UpdatedAt
+        );
+    }
 }
