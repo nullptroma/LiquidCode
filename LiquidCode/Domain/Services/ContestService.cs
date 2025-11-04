@@ -525,6 +525,9 @@ public class ContestService : IContestService
         schedule = default!;
         error = null;
 
+        var startUtc = NormalizeContestInstant(startsAt);
+        var endUtc = NormalizeContestInstant(endsAt);
+
         switch (scheduleType)
         {
             case ContestScheduleType.AlwaysOpen:
@@ -534,23 +537,23 @@ public class ContestService : IContestService
                     return false;
                 }
 
-                if (startsAt.HasValue && endsAt.HasValue && startsAt.Value >= endsAt.Value)
+                if (startUtc.HasValue && endUtc.HasValue && startUtc.Value >= endUtc.Value)
                 {
                     error = "If provided, contest start must be before end.";
                     return false;
                 }
 
-                schedule = new ContestScheduleData(scheduleType, startsAt, endsAt, attemptDurationMinutes.Value);
+                schedule = new ContestScheduleData(scheduleType, startUtc, endUtc, attemptDurationMinutes.Value);
                 return true;
 
             case ContestScheduleType.FixedWindow:
-                if (!startsAt.HasValue || !endsAt.HasValue)
+                if (!startUtc.HasValue || !endUtc.HasValue)
                 {
                     error = "FixedWindow contests require start and end time.";
                     return false;
                 }
 
-                if (startsAt.Value >= endsAt.Value)
+                if (startUtc.Value >= endUtc.Value)
                 {
                     error = "Contest start must be before end.";
                     return false;
@@ -562,17 +565,17 @@ public class ContestService : IContestService
                     return false;
                 }
 
-                schedule = new ContestScheduleData(scheduleType, startsAt.Value, endsAt.Value, attemptDurationMinutes);
+                schedule = new ContestScheduleData(scheduleType, startUtc.Value, endUtc.Value, attemptDurationMinutes);
                 return true;
 
             case ContestScheduleType.RollingWindow:
-                if (!startsAt.HasValue || !endsAt.HasValue)
+                if (!startUtc.HasValue || !endUtc.HasValue)
                 {
                     error = "RollingWindow contests require availability window.";
                     return false;
                 }
 
-                if (startsAt.Value >= endsAt.Value)
+                if (startUtc.Value >= endUtc.Value)
                 {
                     error = "Availability window start must be before end.";
                     return false;
@@ -584,20 +587,33 @@ public class ContestService : IContestService
                     return false;
                 }
 
-                var totalWindowMinutes = (int)(endsAt.Value - startsAt.Value).TotalMinutes;
+                var totalWindowMinutes = (int)(endUtc.Value - startUtc.Value).TotalMinutes;
                 if (attemptDurationMinutes.Value > totalWindowMinutes)
                 {
                     error = "Attempt duration cannot exceed availability window.";
                     return false;
                 }
 
-                schedule = new ContestScheduleData(scheduleType, startsAt.Value, endsAt.Value, attemptDurationMinutes.Value);
+                schedule = new ContestScheduleData(scheduleType, startUtc.Value, endUtc.Value, attemptDurationMinutes.Value);
                 return true;
 
             default:
                 error = $"Unsupported schedule type {scheduleType}";
                 return false;
         }
+    }
+
+    private static DateTime? NormalizeContestInstant(DateTime? value)
+    {
+        if (!value.HasValue)
+            return null;
+
+        return value.Value.Kind switch
+        {
+            DateTimeKind.Utc => value.Value,
+            DateTimeKind.Local => value.Value.ToUniversalTime(),
+            _ => DateTime.SpecifyKind(value.Value, DateTimeKind.Utc)
+        };
     }
 
     private static int? NormalizeMaxAttempts(int? maxAttempts) =>
