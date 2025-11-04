@@ -40,17 +40,17 @@ public class ContestService : IContestService
 
     public async Task<ContestResponse?> CreateAsync(CreateContestRequest request, int creatorId, CancellationToken cancellationToken = default)
     {
-        if (!TryBuildSchedule(
-                request.ScheduleType,
-                request.StartsAt,
-                request.EndsAt,
-                request.AttemptDurationMinutes,
-                out var schedule,
-                out var validationError))
-        {
-            _logger.LogWarning("Invalid contest schedule during creation: {Error}", validationError);
-            return null;
-        }
+    if (!TryBuildSchedule(
+        request.ScheduleType,
+        request.StartsAt,
+        request.EndsAt,
+        request.AttemptDurationMinutes,
+        out var schedule,
+        out var validationError))
+    {
+        _logger.LogWarning("Invalid contest schedule during creation: {Error}", validationError);
+        throw new ContestValidationException(validationError ?? "Invalid contest schedule.");
+    }
 
         var now = DateTime.UtcNow;
 
@@ -61,20 +61,20 @@ public class ContestService : IContestService
             if (!request.GroupId.HasValue)
             {
                 _logger.LogWarning("GroupPrivate contest requires group id");
-                return null;
+                throw new ContestValidationException("GroupPrivate contest requires group id.");
             }
 
             group = await _groupRepository.FindWithDetailsAsync(request.GroupId.Value, cancellationToken);
             if (group == null)
             {
                 _logger.LogWarning("Group not found: {GroupId}", request.GroupId);
-                return null;
+                throw new ContestValidationException($"Group not found: {request.GroupId}.");
             }
 
             if (!IsGroupAdmin(group, creatorId))
             {
                 _logger.LogWarning("User {UserId} is not admin in group {GroupId}", creatorId, request.GroupId.Value);
-                return null;
+                throw new ContestValidationException("Only group administrators can create a private contest.");
             }
         }
 
@@ -106,7 +106,13 @@ public class ContestService : IContestService
         await SyncLineupAsync(contest, request.MissionIds, request.ArticleIds, cancellationToken);
 
         var full = await _contestRepository.FindWithDetailsAsync(contest.Id, cancellationToken);
-        return full == null ? null : ContestResponse.FromEntity(full);
+        if (full == null)
+        {
+            _logger.LogError("Contest {ContestId} could not be reloaded after creation", contest.Id);
+            throw new ContestValidationException("Contest could not be loaded after creation.");
+        }
+
+        return ContestResponse.FromEntity(full);
     }
 
     public async Task<ContestResponse?> UpdateAsync(int contestId, UpdateContestRequest request, int requesterId, CancellationToken cancellationToken = default)
@@ -151,17 +157,17 @@ public class ContestService : IContestService
         var candidateEndsAt = request.EndsAt ?? contest.EndsAt;
         var candidateAttemptDuration = request.AttemptDurationMinutes ?? contest.AttemptDurationMinutes;
 
-        if (!TryBuildSchedule(
-                targetScheduleType,
-                candidateStartsAt,
+    if (!TryBuildSchedule(
+        targetScheduleType,
+        candidateStartsAt,
         candidateEndsAt,
-                candidateAttemptDuration,
-                out var schedule,
-                out var validationError))
-        {
-            _logger.LogWarning("Invalid contest schedule update for contest {ContestId}: {Error}", contestId, validationError);
-            return null;
-        }
+        candidateAttemptDuration,
+        out var schedule,
+        out var validationError))
+    {
+        _logger.LogWarning("Invalid contest schedule update for contest {ContestId}: {Error}", contestId, validationError);
+        throw new ContestValidationException(validationError ?? "Invalid contest schedule.");
+    }
 
         if (!string.IsNullOrWhiteSpace(request.Name))
             contest.Name = request.Name.Trim();
@@ -187,7 +193,13 @@ public class ContestService : IContestService
         await SyncLineupAsync(contest, request.MissionIds, request.ArticleIds, cancellationToken);
 
         var updated = await _contestRepository.FindWithDetailsAsync(contest.Id, cancellationToken);
-        return updated == null ? null : ContestResponse.FromEntity(updated);
+        if (updated == null)
+        {
+            _logger.LogError("Contest {ContestId} could not be reloaded after update", contest.Id);
+            throw new ContestValidationException("Contest could not be loaded after update.");
+        }
+
+        return ContestResponse.FromEntity(updated);
     }
 
     public async Task<bool> DeleteAsync(int contestId, int requesterId, CancellationToken cancellationToken = default)
@@ -466,10 +478,16 @@ public class ContestService : IContestService
         }
     }
 
-    private async Task<IEnumerable<int>> FilterExistingMissionIdsAsync(IEnumerable<int> missionIds, CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<int>> FilterExistingMissionIdsAsync(IEnumerable<int> missionIds, CancellationToken cancellationToken)
     {
-        var result = new List<int>();
-        foreach (var missionId in missionIds.Distinct())
+        var requested = missionIds.Distinct().ToList();
+        if (requested.Count == 0)
+            return requested;
+
+        var result = new List<int>(requested.Count);
+        var missing = new List<int>();
+
+        foreach (var missionId in requested)
         {
             if (await _missionRepository.FindByIdAsync(missionId, cancellationToken) != null)
             {
@@ -477,17 +495,29 @@ public class ContestService : IContestService
             }
             else
             {
+                missing.Add(missionId);
                 _logger.LogWarning("Mission {MissionId} not found while syncing contest lineup", missionId);
             }
+        }
+
+        if (missing.Count > 0)
+        {
+            throw new ContestValidationException($"Missions not found: {string.Join(", ", missing)}.");
         }
 
         return result;
     }
 
-    private async Task<IEnumerable<int>> FilterExistingArticleIdsAsync(IEnumerable<int> articleIds, CancellationToken cancellationToken)
+    private async Task<IReadOnlyList<int>> FilterExistingArticleIdsAsync(IEnumerable<int> articleIds, CancellationToken cancellationToken)
     {
-        var result = new List<int>();
-        foreach (var articleId in articleIds.Distinct())
+        var requested = articleIds.Distinct().ToList();
+        if (requested.Count == 0)
+            return requested;
+
+        var result = new List<int>(requested.Count);
+        var missing = new List<int>();
+
+        foreach (var articleId in requested)
         {
             if (await _articleRepository.FindByIdAsync(articleId, cancellationToken) != null)
             {
@@ -495,8 +525,14 @@ public class ContestService : IContestService
             }
             else
             {
+                missing.Add(articleId);
                 _logger.LogWarning("Article {ArticleId} not found while syncing contest lineup", articleId);
             }
+        }
+
+        if (missing.Count > 0)
+        {
+            throw new ContestValidationException($"Articles not found: {string.Join(", ", missing)}.");
         }
 
         return result;

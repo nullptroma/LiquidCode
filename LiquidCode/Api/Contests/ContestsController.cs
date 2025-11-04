@@ -1,5 +1,6 @@
 using LiquidCode.Api.Contests.Requests;
 using LiquidCode.Domain.Interfaces.Services;
+using LiquidCode.Domain.Services.Contests;
 using LiquidCode.Infrastructure.Database.Entities;
 using LiquidCode.Shared.Extensions;
 using Microsoft.AspNetCore.Authorization;
@@ -27,11 +28,18 @@ public class ContestsController(IContestService contestService) : ControllerBase
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
-        var result = await contestService.CreateAsync(request, userId, cancellationToken);
-        if (result == null)
-            return BadRequest("Unable to create contest.");
+        try
+        {
+            var result = await contestService.CreateAsync(request, userId, cancellationToken);
+            if (result == null)
+                return StatusCode(500, "Contest was created but could not be loaded.");
 
-        return Ok(result);
+            return CreatedAtAction(nameof(Get), new { id = result.Id }, result);
+        }
+        catch (ContestValidationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     /// <summary>
@@ -44,11 +52,18 @@ public class ContestsController(IContestService contestService) : ControllerBase
         if (!User.TryGetUserId(out var userId))
             return Unauthorized("User ID not found in claims.");
 
-        var result = await contestService.UpdateAsync(id, request, userId, cancellationToken);
-        if (result == null)
-            return NotFound("Contest not found or access denied.");
+        try
+        {
+            var result = await contestService.UpdateAsync(id, request, userId, cancellationToken);
+            if (result == null)
+                return NotFound("Contest not found or access denied.");
 
-        return Ok(result);
+            return Ok(result);
+        }
+        catch (ContestValidationException ex)
+        {
+            return BadRequest(ex.Message);
+        }
     }
 
     /// <summary>
