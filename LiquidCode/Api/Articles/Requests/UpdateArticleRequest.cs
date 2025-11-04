@@ -1,5 +1,3 @@
-using Microsoft.AspNetCore.Http;
-
 namespace LiquidCode.Api.Articles.Requests;
 
 /// <summary>
@@ -8,5 +6,5 @@ namespace LiquidCode.Api.Articles.Requests;
 public record UpdateArticleRequest(
     string? Name,
     IEnumerable<string>? Tags,
-    IFormFile? ContentArchive
+    string? Content
 );

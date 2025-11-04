@@ -11,7 +11,7 @@ public record ArticleResponse(
     int Id,
     int AuthorId,
     string Name,
-    string S3ContentKey,
+    string Content,
     IReadOnlyList<string> Tags,
     DateTime CreatedAt,
     DateTime UpdatedAt
@@ -21,7 +21,7 @@ public record ArticleResponse(
         entity.Id,
         entity.Author.Id,
         entity.Name,
-        entity.S3Key,
+    entity.Content,
         entity.ArticleTags.Select(at => at.Tag.Name).Distinct().OrderBy(name => name).ToList(),
         entity.CreatedAt,
         entity.UpdatedAt

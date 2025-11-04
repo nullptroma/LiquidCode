@@ -1,13 +1,10 @@
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using LiquidCode.Api.Articles.Requests;
 using LiquidCode.Api.Articles.Responses;
 using LiquidCode.Domain.Interfaces.Repositories;
 using LiquidCode.Domain.Interfaces.Services;
 using LiquidCode.Infrastructure.Database.Entities;
-using LiquidCode.Infrastructure.External.S3;
-using LiquidCode.Shared.Constants;
 using Microsoft.Extensions.Logging;
 
 namespace LiquidCode.Domain.Services.Articles;
@@ -20,28 +17,25 @@ public class ArticleService : IArticleService
     private readonly IArticleRepository _articleRepository;
     private readonly IUserRepository _userRepository;
     private readonly ITagRepository _tagRepository;
-    private readonly IS3BucketClient _s3Client;
     private readonly ILogger<ArticleService> _logger;
 
     public ArticleService(
         IArticleRepository articleRepository,
         IUserRepository userRepository,
         ITagRepository tagRepository,
-        IS3BucketClient s3Client,
         ILogger<ArticleService> logger)
     {
         _articleRepository = articleRepository;
         _userRepository = userRepository;
         _tagRepository = tagRepository;
-        _s3Client = s3Client;
         _logger = logger;
     }
 
     public async Task<ArticleResponse?> CreateAsync(CreateArticleRequest request, int authorId, CancellationToken cancellationToken = default)
     {
-        if (request.ContentArchive == null || request.ContentArchive.Length == 0)
+        if (string.IsNullOrWhiteSpace(request.Content))
         {
-            _logger.LogWarning("Content archive is empty");
+            _logger.LogWarning("Article content is empty");
             return null;
         }
 
@@ -52,38 +46,22 @@ public class ArticleService : IArticleService
             return null;
         }
 
-        var tempFile = Path.GetTempFileName();
-        try
+        var now = DateTime.UtcNow;
+        var article = new DbArticle
         {
-            await using (var stream = File.OpenWrite(tempFile))
-            {
-                await request.ContentArchive.CopyToAsync(stream, cancellationToken);
-            }
+            AuthorId = user.Id,
+            Author = user,
+            Name = string.IsNullOrWhiteSpace(request.Name) ? "Untitled article" : request.Name.Trim(),
+            Content = request.Content,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
 
-            var contentKey = await _s3Client.UploadFileWithRandomKey(S3BucketKeys.PublicContent, tempFile);
+        await _articleRepository.CreateAsync(article, cancellationToken);
+        await SyncTagsAsync(article, request.Tags, cancellationToken);
 
-            var article = new DbArticle
-            {
-                Author = user,
-                Name = request.Name,
-                S3Key = contentKey,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
-            };
-
-            await _articleRepository.CreateAsync(article, cancellationToken);
-            await SyncTagsAsync(article, request.Tags, cancellationToken);
-
-            var full = await _articleRepository.FindWithDetailsAsync(article.Id, cancellationToken);
-            return ArticleResponse.FromEntity(full ?? article);
-        }
-        finally
-        {
-            if (File.Exists(tempFile))
-            {
-                File.Delete(tempFile);
-            }
-        }
+        var full = await _articleRepository.FindWithDetailsAsync(article.Id, cancellationToken);
+        return ArticleResponse.FromEntity(full ?? article);
     }
 
     public async Task<ArticleResponse?> UpdateAsync(int articleId, UpdateArticleRequest request, int userId, CancellationToken cancellationToken = default)
@@ -106,26 +84,15 @@ public class ArticleService : IArticleService
             article.Name = request.Name.Trim();
         }
 
-        if (request.ContentArchive != null && request.ContentArchive.Length > 0)
+        if (request.Content != null)
         {
-            var tempFile = Path.GetTempFileName();
-            try
+            if (string.IsNullOrWhiteSpace(request.Content))
             {
-                await using (var stream = File.OpenWrite(tempFile))
-                {
-                    await request.ContentArchive.CopyToAsync(stream, cancellationToken);
-                }
+                _logger.LogWarning("Updated content is empty for article {ArticleId}", articleId);
+                return null;
+            }
 
-                var contentKey = await _s3Client.UploadFileWithRandomKey(S3BucketKeys.PublicContent, tempFile);
-                article.S3Key = contentKey;
-            }
-            finally
-            {
-                if (File.Exists(tempFile))
-                {
-                    File.Delete(tempFile);
-                }
-            }
+            article.Content = request.Content;
         }
 
         article.UpdatedAt = DateTime.UtcNow;

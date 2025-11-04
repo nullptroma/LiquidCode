@@ -15,11 +15,11 @@ namespace LiquidCode.Api.Articles;
 public class ArticlesController(IArticleService articleService) : ControllerBase
 {
     /// <summary>
-    /// Создает новую статью и загружает архив контента
+    /// Создает новую статью с Markdown-контентом
     /// </summary>
     [Authorize]
     [HttpPost]
-    public async Task<IActionResult> Create([FromForm] CreateArticleRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Create([FromBody] CreateArticleRequest request, CancellationToken cancellationToken)
     {
         if (!User.TryGetUserId(out var userId))
             return Unauthorized("User ID not found in claims.");
@@ -39,7 +39,7 @@ public class ArticlesController(IArticleService articleService) : ControllerBase
     /// </summary>
     [Authorize]
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> Update([FromRoute] int id, [FromForm] UpdateArticleRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> Update([FromRoute] int id, [FromBody] UpdateArticleRequest request, CancellationToken cancellationToken)
     {
         if (!User.TryGetUserId(out var userId))
             return Unauthorized("User ID not found in claims.");
