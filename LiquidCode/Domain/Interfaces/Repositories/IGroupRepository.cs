@@ -1,3 +1,4 @@
+using System;
 using LiquidCode.Infrastructure.Database.Entities;
 
 namespace LiquidCode.Domain.Interfaces.Repositories;
@@ -8,6 +9,7 @@ namespace LiquidCode.Domain.Interfaces.Repositories;
 public interface IGroupRepository : IRepository<DbGroup>
 {
     Task<DbGroup?> FindWithDetailsAsync(int id, CancellationToken cancellationToken = default);
+    Task<DbGroup?> FindWithDetailsAsync(int id, bool includeSoftDeleted, CancellationToken cancellationToken = default);
 
     Task<(IEnumerable<DbGroup> Items, bool HasNextPage)> GetForUserAsync(
         int userId,
@@ -15,6 +17,22 @@ public interface IGroupRepository : IRepository<DbGroup>
         int pageNumber,
         CancellationToken cancellationToken = default);
 
-    Task UpsertMembershipAsync(int groupId, int userId, GroupMembershipRole role, CancellationToken cancellationToken = default);
+    Task<DbGroupMembership?> GetMembershipAsync(int groupId, int userId, CancellationToken cancellationToken = default);
+    Task UpsertMembershipAsync(int groupId, int userId, GroupMembershipRole role, GroupMembershipOptions? options, CancellationToken cancellationToken = default);
     Task RemoveMembershipAsync(int groupId, int userId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<DbGroupInvitation>> GetActiveInvitationsAsync(int groupId, CancellationToken cancellationToken = default);
+    Task<DbGroupInvitation?> GetInvitationByIdAsync(int groupId, int invitationId, CancellationToken cancellationToken = default);
+    Task<DbGroupInvitation?> GetInvitationByTokenAsync(string token, CancellationToken cancellationToken = default);
+    Task<DbGroupInvitation> AddInvitationAsync(DbGroupInvitation invitation, CancellationToken cancellationToken = default);
+    Task SaveInvitationAsync(DbGroupInvitation invitation, CancellationToken cancellationToken = default);
+    Task<DbGroupJoinToken?> GetActiveJoinTokenAsync(int groupId, CancellationToken cancellationToken = default);
+    Task<DbGroupJoinToken?> GetJoinTokenByValueAsync(string token, CancellationToken cancellationToken = default);
+    Task<DbGroupJoinToken> RotateJoinTokenAsync(int groupId, int createdById, TimeSpan ttl, CancellationToken cancellationToken = default);
 }
+
+public record GroupMembershipOptions(
+    int? InvitedById = null,
+    int? InvitationId = null,
+    bool IsAutoJoined = false,
+    DateTime? JoinedAt = null
+);

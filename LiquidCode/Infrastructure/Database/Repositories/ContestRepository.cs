@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using LiquidCode.Domain.Interfaces.Repositories;
 using LiquidCode.Infrastructure.Database;
 using LiquidCode.Infrastructure.Database.Entities;
@@ -56,6 +59,10 @@ public class ContestRepository : IContestRepository
                         .ThenInclude(at => at.Tag)
             .Include(c => c.Memberships)
                 .ThenInclude(cm => cm.User)
+            .Include(c => c.Memberships)
+                .ThenInclude(cm => cm.Attempts)
+            .Include(c => c.Memberships)
+                .ThenInclude(cm => cm.ActiveAttempt)
             .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
 
     public async Task<(IEnumerable<DbContest> Items, bool HasNextPage)> GetUpcomingAsync(
@@ -74,10 +81,16 @@ public class ContestRepository : IContestRepository
             .Include(c => c.Missions).ThenInclude(cm => cm.Mission)
             .Include(c => c.Articles).ThenInclude(ca => ca.Article)
             .Where(c => !c.IsDeleted &&
+                        c.Visibility == ContestVisibility.Public &&
                         ((c.ScheduleType == ContestScheduleType.FixedWindow && c.EndsAt >= startPoint) ||
-                         (c.ScheduleType == ContestScheduleType.FlexibleWindow && c.AvailableUntil >= startPoint)))
+                         (c.ScheduleType == ContestScheduleType.RollingWindow && c.AvailableUntil >= startPoint) ||
+                         c.ScheduleType == ContestScheduleType.AlwaysOpen))
             .OrderBy(c => c.ScheduleType)
-            .ThenBy(c => c.ScheduleType == ContestScheduleType.FixedWindow ? c.StartsAt : c.AvailableFrom);
+            .ThenBy(c => c.ScheduleType == ContestScheduleType.FixedWindow
+                ? c.StartsAt
+                : c.ScheduleType == ContestScheduleType.RollingWindow
+                    ? c.AvailableFrom
+                    : c.CreatedAt);
 
         var totalCount = await query.CountAsync(cancellationToken);
         var hasNextPage = totalCount > pageSize * (pageNumber + 1);
@@ -102,10 +115,11 @@ public class ContestRepository : IContestRepository
         var query = _dbContext.Contests
             .Include(c => c.Group)
             .Include(c => c.Memberships).ThenInclude(m => m.User)
+            .Include(c => c.Memberships).ThenInclude(m => m.ActiveAttempt)
             .Include(c => c.Missions).ThenInclude(cm => cm.Mission)
             .Include(c => c.Articles).ThenInclude(ca => ca.Article)
             .Where(c => c.GroupId == groupId && !c.IsDeleted)
-            .OrderByDescending(c => c.ScheduleType == ContestScheduleType.FixedWindow ? c.StartsAt : c.AvailableFrom)
+            .OrderByDescending(c => c.ScheduleType == ContestScheduleType.FixedWindow ? c.StartsAt : c.AvailableFrom ?? c.CreatedAt)
             .ThenByDescending(c => c.Id);
 
         var totalCount = await query.CountAsync(cancellationToken);
@@ -205,7 +219,7 @@ public class ContestRepository : IContestRepository
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task UpsertMembershipAsync(int contestId, int userId, ContestMembershipRole role, CancellationToken cancellationToken = default)
+    public async Task UpsertMembershipAsync(int contestId, int userId, ContestMembershipRole role, ContestMembershipOptions? options, CancellationToken cancellationToken = default)
     {
         var membership = await _dbContext.ContestMemberships
             .FirstOrDefaultAsync(m => m.ContestId == contestId && m.UserId == userId, cancellationToken);
@@ -216,13 +230,22 @@ public class ContestRepository : IContestRepository
             {
                 ContestId = contestId,
                 UserId = userId,
-                Role = role
+                Role = role,
+                JoinedAt = options?.JoinedAt ?? DateTime.UtcNow,
+                IsAutoJoined = options?.IsAutoJoined ?? false,
+                InvitationId = options?.InvitationId
             };
             await _dbContext.ContestMemberships.AddAsync(membership, cancellationToken);
         }
         else
         {
             membership.Role = role;
+            membership.IsAutoJoined = options?.IsAutoJoined ?? membership.IsAutoJoined;
+            membership.InvitationId = options?.InvitationId ?? membership.InvitationId;
+            if (options?.JoinedAt != null)
+            {
+                membership.JoinedAt = options.JoinedAt.Value;
+            }
             _dbContext.ContestMemberships.Update(membership);
         }
 
@@ -243,5 +266,31 @@ public class ContestRepository : IContestRepository
 
     public Task<DbContestMembership?> GetMembershipAsync(int contestId, int userId, CancellationToken cancellationToken = default) =>
         _dbContext.ContestMemberships
+            .Include(m => m.Attempts)
+            .ThenInclude(a => a.MissionResults)
+            .Include(m => m.ActiveAttempt)
             .FirstOrDefaultAsync(m => m.ContestId == contestId && m.UserId == userId, cancellationToken);
+
+    public Task<DbContestAttempt?> FindActiveAttemptAsync(int contestId, int userId, CancellationToken cancellationToken = default) =>
+        _dbContext.ContestAttempts
+            .Include(a => a.MissionResults)
+            .FirstOrDefaultAsync(a => a.ContestId == contestId && a.UserId == userId && a.Status == ContestAttemptStatus.Active, cancellationToken);
+
+    public async Task AddAttemptAsync(DbContestAttempt attempt, CancellationToken cancellationToken = default)
+    {
+        await _dbContext.ContestAttempts.AddAsync(attempt, cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task UpdateAttemptAsync(DbContestAttempt attempt, CancellationToken cancellationToken = default)
+    {
+        _dbContext.ContestAttempts.Update(attempt);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<DbContestAttemptMissionResult>> GetAttemptResultsAsync(int attemptId, CancellationToken cancellationToken = default) =>
+        await _dbContext.ContestAttemptMissionResults
+            .Include(r => r.Mission)
+            .Where(r => r.ContestAttemptId == attemptId)
+            .ToListAsync(cancellationToken);
 }

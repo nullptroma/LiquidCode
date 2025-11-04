@@ -46,6 +46,9 @@ public class UserRepository : IUserRepository
     public async Task<DbUser?> FindByUsernameAsync(string username, CancellationToken cancellationToken = default) =>
         await _dbContext.Users.FirstOrDefaultAsync(u => u.Username == username, cancellationToken);
 
+    public async Task<DbUser?> FindByEmailAsync(string email, CancellationToken cancellationToken = default) =>
+        await _dbContext.Users.FirstOrDefaultAsync(u => u.Email == email, cancellationToken);
+
     public async Task<bool> UserExistsAsync(string username, CancellationToken cancellationToken = default) =>
         await _dbContext.Users.AnyAsync(u => u.Username == username, cancellationToken);
 

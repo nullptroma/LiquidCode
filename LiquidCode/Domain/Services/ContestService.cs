@@ -54,13 +54,18 @@ public class ContestService : IContestService
             return null;
         }
 
-        var creator = await _userRepository.FindByIdAsync(creatorId, cancellationToken);
-        if (creator == null)
-            return null;
+        var now = DateTime.UtcNow;
 
+        var visibility = request.Visibility;
         DbGroup? group = null;
-        if (request.GroupId.HasValue)
+        if (visibility == ContestVisibility.GroupPrivate)
         {
+            if (!request.GroupId.HasValue)
+            {
+                _logger.LogWarning("GroupPrivate contest requires group id");
+                return null;
+            }
+
             group = await _groupRepository.FindWithDetailsAsync(request.GroupId.Value, cancellationToken);
             if (group == null)
             {
@@ -68,10 +73,9 @@ public class ContestService : IContestService
                 return null;
             }
 
-            var membership = group.Memberships.FirstOrDefault(m => m.UserId == creatorId);
-            if (membership == null || !membership.Role.HasFlag(GroupMembershipRole.Administrator))
+            if (!IsGroupAdmin(group, creatorId))
             {
-                _logger.LogWarning("User {UserId} is not admin in group {GroupId}", creatorId, group.Id);
+                _logger.LogWarning("User {UserId} is not admin in group {GroupId}", creatorId, request.GroupId.Value);
                 return null;
             }
         }
@@ -81,21 +85,35 @@ public class ContestService : IContestService
             Name = request.Name.Trim(),
             Description = request.Description?.Trim(),
             ScheduleType = schedule.ScheduleType,
+            Visibility = visibility,
             StartsAt = schedule.StartsAt,
             EndsAt = schedule.EndsAt,
             AvailableFrom = schedule.AvailableFrom,
             AvailableUntil = schedule.AvailableUntil,
             AttemptDurationMinutes = schedule.AttemptDurationMinutes,
-            GroupId = request.GroupId,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            MaxAttempts = NormalizeMaxAttempts(request.MaxAttempts) ?? 1,
+            AllowEarlyFinish = request.AllowEarlyFinish ?? true,
+            GroupId = visibility == ContestVisibility.GroupPrivate ? request.GroupId : null,
+            CreatedAt = now,
+            UpdatedAt = now
         };
 
         await _contestRepository.CreateAsync(contest, cancellationToken);
-        await _contestRepository.UpsertMembershipAsync(contest.Id, creatorId, ContestMembershipRole.Organizer, cancellationToken);
+
+        await _contestRepository.UpsertMembershipAsync(
+            contest.Id,
+            creatorId,
+            ContestMembershipRole.Organizer,
+            new ContestMembershipOptions(JoinedAt: now),
+            cancellationToken);
+
+        if (visibility == ContestVisibility.GroupPrivate && group != null)
+        {
+            await AutoEnrollGroupAsync(contest.Id, group, now, cancellationToken);
+        }
 
         await SyncLineupAsync(contest, request.MissionIds, request.ArticleIds, cancellationToken);
-        await SyncMembersAsync(contest.Id, request.ParticipantIds, ContestMembershipRole.Participant, cancellationToken);
+        await SyncMembersAsync(contest.Id, request.ParticipantIds, ContestMembershipRole.Participant, cancellationToken, skipUserId: creatorId);
         await SyncMembersAsync(contest.Id, request.OrganizerIds, ContestMembershipRole.Organizer, cancellationToken, skipUserId: creatorId);
 
         var full = await _contestRepository.FindWithDetailsAsync(contest.Id, cancellationToken);
@@ -111,11 +129,33 @@ public class ContestService : IContestService
         if (!IsOrganizer(contest, requesterId))
             return null;
 
-        if (!string.IsNullOrWhiteSpace(request.Name))
-            contest.Name = request.Name.Trim();
+        var newVisibility = request.Visibility ?? contest.Visibility;
+        var now = DateTime.UtcNow;
+        DbGroup? targetGroup = null;
+        int? newGroupId = contest.GroupId;
 
-        if (request.Description != null)
-            contest.Description = request.Description.Trim();
+        if (newVisibility == ContestVisibility.GroupPrivate)
+        {
+            var groupId = request.GroupId ?? contest.GroupId;
+            if (!groupId.HasValue)
+            {
+                _logger.LogWarning("GroupPrivate contest requires group id on update");
+                return null;
+            }
+
+            targetGroup = await _groupRepository.FindWithDetailsAsync(groupId.Value, cancellationToken);
+            if (targetGroup == null)
+                return null;
+
+            if (!IsGroupAdmin(targetGroup, requesterId))
+                return null;
+
+            newGroupId = groupId;
+        }
+        else
+        {
+            newGroupId = null;
+        }
 
         var targetScheduleType = request.ScheduleType ?? contest.ScheduleType;
         var candidateStartsAt = request.StartsAt ?? contest.StartsAt;
@@ -138,10 +178,11 @@ public class ContestService : IContestService
             return null;
         }
 
-        var previousScheduleType = contest.ScheduleType;
-        var previousAvailableFrom = contest.AvailableFrom;
-        var previousAvailableUntil = contest.AvailableUntil;
-        var previousAttemptDuration = contest.AttemptDurationMinutes;
+        if (!string.IsNullOrWhiteSpace(request.Name))
+            contest.Name = request.Name.Trim();
+
+        if (request.Description != null)
+            contest.Description = request.Description.Trim();
 
         contest.ScheduleType = schedule.ScheduleType;
         contest.StartsAt = schedule.StartsAt;
@@ -149,19 +190,21 @@ public class ContestService : IContestService
         contest.AvailableFrom = schedule.AvailableFrom;
         contest.AvailableUntil = schedule.AvailableUntil;
         contest.AttemptDurationMinutes = schedule.AttemptDurationMinutes;
-
-        if (previousScheduleType != schedule.ScheduleType ||
-            (schedule.ScheduleType == ContestScheduleType.FlexibleWindow &&
-             (previousAvailableFrom != schedule.AvailableFrom ||
-              previousAvailableUntil != schedule.AvailableUntil ||
-              previousAttemptDuration != schedule.AttemptDurationMinutes)))
+        contest.Visibility = newVisibility;
+        contest.GroupId = newGroupId;
+        if (request.MaxAttempts.HasValue)
         {
-            ResetFlexibleAttempts(contest);
+            contest.MaxAttempts = NormalizeMaxAttempts(request.MaxAttempts);
         }
-
-        contest.UpdatedAt = DateTime.UtcNow;
+        contest.AllowEarlyFinish = request.AllowEarlyFinish ?? contest.AllowEarlyFinish;
+        contest.UpdatedAt = now;
 
         await _contestRepository.UpdateAsync(contest, cancellationToken);
+
+        if (newVisibility == ContestVisibility.GroupPrivate && targetGroup != null)
+        {
+            await AutoEnrollGroupAsync(contest.Id, targetGroup, now, cancellationToken);
+        }
 
         await SyncLineupAsync(contest, request.MissionIds, request.ArticleIds, cancellationToken);
 
@@ -194,7 +237,12 @@ public class ContestService : IContestService
             return null;
 
         var (contests, hasNext) = await _contestRepository.GetUpcomingAsync(pageSize, pageNumber, DateTime.UtcNow, cancellationToken);
-        return new ContestsPageResponse(hasNext, contests.Select(ContestResponse.FromEntity));
+        var filtered = contests
+            .Where(c => c.Visibility == ContestVisibility.Public)
+            .Select(ContestResponse.FromEntity)
+            .ToList();
+
+        return new ContestsPageResponse(hasNext, filtered);
     }
 
     public async Task<ContestsPageResponse?> GetForGroupAsync(int groupId, int pageSize, int pageNumber, CancellationToken cancellationToken = default)
@@ -203,7 +251,8 @@ public class ContestService : IContestService
             return null;
 
         var (contests, hasNext) = await _contestRepository.GetByGroupAsync(groupId, pageSize, pageNumber, cancellationToken);
-        return new ContestsPageResponse(hasNext, contests.Select(ContestResponse.FromEntity));
+        var responses = contests.Select(ContestResponse.FromEntity).ToList();
+        return new ContestsPageResponse(hasNext, responses);
     }
 
     public async Task<bool> UpsertMemberAsync(int contestId, int requesterId, int targetUserId, ContestMembershipRole role, CancellationToken cancellationToken = default)
@@ -215,7 +264,20 @@ public class ContestService : IContestService
         if (!IsOrganizer(contest, requesterId))
             return false;
 
-        await _contestRepository.UpsertMembershipAsync(contestId, targetUserId, role, cancellationToken);
+        if (await _userRepository.FindByIdAsync(targetUserId, cancellationToken) == null)
+        {
+            _logger.LogWarning("User {UserId} not found while adding to contest {ContestId}", targetUserId, contestId);
+            return false;
+        }
+
+        var now = DateTime.UtcNow;
+        await _contestRepository.UpsertMembershipAsync(
+            contestId,
+            targetUserId,
+            role,
+            new ContestMembershipOptions(JoinedAt: now),
+            cancellationToken);
+
         return true;
     }
 
@@ -228,6 +290,19 @@ public class ContestService : IContestService
         if (!IsOrganizer(contest, requesterId))
             return false;
 
+        var membership = contest.Memberships.FirstOrDefault(m => m.UserId == targetUserId);
+        if (membership == null)
+            return false;
+
+        if (membership.Role.HasFlag(ContestMembershipRole.Organizer) && targetUserId == requesterId)
+        {
+            if (contest.Memberships.Count(m => m.Role.HasFlag(ContestMembershipRole.Organizer)) <= 1)
+            {
+                _logger.LogWarning("Cannot remove the last organizer from contest {ContestId}", contestId);
+                return false;
+            }
+        }
+
         await _contestRepository.RemoveMembershipAsync(contestId, targetUserId, cancellationToken);
         return true;
     }
@@ -238,154 +313,118 @@ public class ContestService : IContestService
         if (contest == null || contest.IsDeleted)
             return null;
 
-        if (contest.ScheduleType != ContestScheduleType.FlexibleWindow)
-        {
-            _logger.LogWarning("Attempt start requested for contest {ContestId} with schedule type {ScheduleType}", contestId, contest.ScheduleType);
-            return null;
-        }
-
-        if (!contest.AvailableFrom.HasValue || !contest.AvailableUntil.HasValue || !contest.AttemptDurationMinutes.HasValue)
-        {
-            _logger.LogWarning("Contest {ContestId} has inconsistent flexible schedule configuration", contestId);
-            return null;
-        }
-
+        var now = DateTime.UtcNow;
         var membership = contest.Memberships.FirstOrDefault(m => m.UserId == userId);
+
         if (membership == null)
         {
-            _logger.LogWarning("User {UserId} is not enrolled in contest {ContestId}", userId, contestId);
-            return null;
+            if (contest.Visibility != ContestVisibility.Public)
+            {
+                _logger.LogWarning("User {UserId} is not allowed to join contest {ContestId}", userId, contestId);
+                return null;
+            }
+
+            await _contestRepository.UpsertMembershipAsync(
+                contestId,
+                userId,
+                ContestMembershipRole.Participant,
+                new ContestMembershipOptions(IsAutoJoined: true, JoinedAt: now),
+                cancellationToken);
+
+            contest = await _contestRepository.FindWithDetailsAsync(contestId, cancellationToken);
+            membership = contest?.Memberships.FirstOrDefault(m => m.UserId == userId);
+            if (membership == null)
+                return null;
         }
 
-        var now = DateTime.UtcNow;
+        if (contest == null)
+            return null;
+
         var isOrganizer = membership.Role.HasFlag(ContestMembershipRole.Organizer);
 
-        if (!isOrganizer && (now < contest.AvailableFrom.Value || now > contest.AvailableUntil.Value))
+        var missions = contest.Missions;
+        if (missions == null || missions.Count == 0)
         {
-            _logger.LogWarning("Contest {ContestId} is not available for starting attempt by user {UserId}", contestId, userId);
+            _logger.LogWarning("Contest {ContestId} has no missions configured", contestId);
             return null;
         }
 
-        if (membership.ActiveAttemptStartedAt.HasValue &&
-            membership.ActiveAttemptExpiresAt.HasValue &&
-            now <= membership.ActiveAttemptExpiresAt.Value)
+        membership = contest.Memberships.First(m => m.UserId == userId);
+
+        var activeAttempt = membership.ActiveAttempt;
+        if (activeAttempt != null && activeAttempt.Status == ContestAttemptStatus.Active)
         {
-            return new ContestAttemptResponse(
-                contest.Id,
-                userId,
-                contest.ScheduleType,
-                membership.ActiveAttemptStartedAt.Value,
-                membership.ActiveAttemptExpiresAt.Value,
-                membership.AttemptCount);
+            if (activeAttempt.ExpiresAt.HasValue && now > activeAttempt.ExpiresAt.Value)
+            {
+                activeAttempt.Status = ContestAttemptStatus.Expired;
+                activeAttempt.FinishedAt = activeAttempt.ExpiresAt;
+                activeAttempt.FinishedBy = ContestAttemptFinishReason.Timer;
+                membership.ActiveAttemptId = null;
+                membership.ActiveAttempt = null;
+                await _contestRepository.UpdateAttemptAsync(activeAttempt, cancellationToken);
+                await _contestRepository.SaveChangesAsync(cancellationToken);
+            }
+            else
+            {
+                return ToAttemptResponse(activeAttempt, contest.ScheduleType);
+            }
         }
 
-        var expireAt = now.AddMinutes(contest.AttemptDurationMinutes.Value);
-        if (contest.AvailableUntil.Value < expireAt)
+        if (contest.MaxAttempts.HasValue)
         {
-            expireAt = contest.AvailableUntil.Value;
+            var attemptsCount = membership.Attempts.Count;
+            if (attemptsCount >= contest.MaxAttempts.Value)
+            {
+                _logger.LogWarning("User {UserId} reached max attempts for contest {ContestId}", userId, contestId);
+                return null;
+            }
         }
 
-        if (expireAt <= now)
-        {
-            _logger.LogWarning("Calculated attempt window is invalid for contest {ContestId} and user {UserId}", contestId, userId);
+        if (!IsContestAccessibleForStart(contest, now, isOrganizer))
             return null;
-        }
 
-        membership.ActiveAttemptStartedAt = now;
-        membership.ActiveAttemptExpiresAt = expireAt;
-        membership.AttemptCount += 1;
-        membership.UpdatedAt = DateTime.UtcNow;
+        var expireAt = CalculateAttemptExpiration(contest, now);
+        if (expireAt != null && expireAt <= now)
+            return null;
+
+        var attemptIndex = membership.Attempts.Count + 1;
+        var attempt = new DbContestAttempt
+        {
+            ContestId = contest.Id,
+            UserId = userId,
+            AttemptIndex = attemptIndex,
+            Status = ContestAttemptStatus.Active,
+            StartedAt = now,
+            ExpiresAt = expireAt,
+            Membership = membership
+        };
+
+        await _contestRepository.AddAttemptAsync(attempt, cancellationToken);
+
+        membership.ActiveAttemptId = attempt.Id;
+        membership.ActiveAttempt = attempt;
+        membership.LastAttemptStartedAt = now;
+        membership.Attempts.Add(attempt);
 
         await _contestRepository.SaveChangesAsync(cancellationToken);
 
-        return new ContestAttemptResponse(
-            contest.Id,
-            userId,
-            contest.ScheduleType,
-            membership.ActiveAttemptStartedAt.Value,
-            membership.ActiveAttemptExpiresAt.Value,
-            membership.AttemptCount);
+        return ToAttemptResponse(attempt, contest.ScheduleType);
     }
 
-    private static void ResetFlexibleAttempts(DbContest contest)
+    private async Task AutoEnrollGroupAsync(int contestId, DbGroup group, DateTime joinedAt, CancellationToken cancellationToken)
     {
-        foreach (var membership in contest.Memberships)
+        foreach (var member in group.Memberships)
         {
-            membership.ActiveAttemptStartedAt = null;
-            membership.ActiveAttemptExpiresAt = null;
-            membership.UpdatedAt = DateTime.UtcNow;
-        }
-    }
+            var role = member.Role.HasFlag(GroupMembershipRole.Administrator)
+                ? ContestMembershipRole.Organizer
+                : ContestMembershipRole.Participant;
 
-    private static bool TryBuildSchedule(
-        ContestScheduleType scheduleType,
-        DateTime? startsAt,
-        DateTime? endsAt,
-        DateTime? availableFrom,
-        DateTime? availableUntil,
-        int? attemptDurationMinutes,
-        out ContestScheduleData schedule,
-        out string? error)
-    {
-        schedule = default!;
-        error = null;
-
-        switch (scheduleType)
-        {
-            case ContestScheduleType.FixedWindow when !startsAt.HasValue || !endsAt.HasValue:
-                error = "Для фиксированного контеста необходимо указать время начала и окончания.";
-                return false;
-            case ContestScheduleType.FixedWindow when startsAt!.Value >= endsAt!.Value:
-                error = "Время начала должно быть раньше времени окончания.";
-                return false;
-            case ContestScheduleType.FixedWindow:
-                schedule = new ContestScheduleData(
-                    scheduleType,
-                    startsAt.Value,
-                    endsAt.Value,
-                    null,
-                    null,
-                    null);
-                return true;
-
-            case ContestScheduleType.FlexibleWindow when !availableFrom.HasValue || !availableUntil.HasValue:
-                error = "Для гибкого контеста необходимо указать окно доступности.";
-                return false;
-            case ContestScheduleType.FlexibleWindow when !attemptDurationMinutes.HasValue:
-                error = "Не указана длительность попытки.";
-                return false;
-            case ContestScheduleType.FlexibleWindow when availableFrom!.Value >= availableUntil!.Value:
-                error = "Начало окна должно быть раньше окончания.";
-                return false;
-            case ContestScheduleType.FlexibleWindow when attemptDurationMinutes!.Value <= 0:
-                error = "Длительность попытки должна быть положительной.";
-                return false;
-            case ContestScheduleType.FlexibleWindow:
-                var totalWindowMinutes = (int)(availableUntil.Value - availableFrom.Value).TotalMinutes;
-                if (totalWindowMinutes <= 0)
-                {
-                    error = "Окно доступности слишком короткое.";
-                    return false;
-                }
-
-                if (attemptDurationMinutes.Value > totalWindowMinutes)
-                {
-                    error = "Длительность попытки не может превышать окно доступности.";
-                    return false;
-                }
-
-                schedule = new ContestScheduleData(
-                    scheduleType,
-                    null,
-                    null,
-                    availableFrom.Value,
-                    availableUntil.Value,
-                    attemptDurationMinutes.Value);
-                return true;
-
-            default:
-                error = $"Неизвестный тип расписания: {scheduleType}";
-                return false;
+            await _contestRepository.UpsertMembershipAsync(
+                contestId,
+                member.UserId,
+                role,
+                new ContestMembershipOptions(IsAutoJoined: true, JoinedAt: member.JoinedAt <= DateTime.MinValue ? joinedAt : member.JoinedAt),
+                cancellationToken);
         }
     }
 
@@ -445,14 +484,22 @@ public class ContestService : IContestService
         if (userIds == null)
             return;
 
-        var distinct = userIds
-            .Where(id => id != skipUserId)
-            .Distinct()
-            .ToList();
-
-        foreach (var userId in distinct)
+        var now = DateTime.UtcNow;
+        foreach (var userId in userIds.Where(id => id != skipUserId).Distinct())
         {
-            await _contestRepository.UpsertMembershipAsync(contestId, userId, role, cancellationToken);
+            if (await _userRepository.FindByIdAsync(userId, cancellationToken) != null)
+            {
+                await _contestRepository.UpsertMembershipAsync(
+                    contestId,
+                    userId,
+                    role,
+                    new ContestMembershipOptions(JoinedAt: now),
+                    cancellationToken);
+            }
+            else
+            {
+                _logger.LogWarning("User {UserId} not found while syncing contest members", userId);
+            }
         }
     }
 
@@ -461,6 +508,145 @@ public class ContestService : IContestService
         var membership = contest.Memberships.FirstOrDefault(m => m.UserId == userId);
         return membership != null && membership.Role.HasFlag(ContestMembershipRole.Organizer);
     }
+
+    private static bool IsGroupAdmin(DbGroup group, int userId)
+    {
+        var membership = group.Memberships.FirstOrDefault(m => m.UserId == userId);
+        return membership != null && membership.Role.HasFlag(GroupMembershipRole.Administrator);
+    }
+
+    private static bool TryBuildSchedule(
+        ContestScheduleType scheduleType,
+        DateTime? startsAt,
+        DateTime? endsAt,
+        DateTime? availableFrom,
+        DateTime? availableUntil,
+        int? attemptDurationMinutes,
+        out ContestScheduleData schedule,
+        out string? error)
+    {
+        schedule = default!;
+        error = null;
+
+        switch (scheduleType)
+        {
+            case ContestScheduleType.AlwaysOpen:
+                if (!attemptDurationMinutes.HasValue || attemptDurationMinutes.Value <= 0)
+                {
+                    error = "AlwaysOpen contests require positive attempt duration.";
+                    return false;
+                }
+
+                schedule = new ContestScheduleData(scheduleType, null, null, null, null, attemptDurationMinutes.Value);
+                return true;
+
+            case ContestScheduleType.FixedWindow:
+                if (!startsAt.HasValue || !endsAt.HasValue)
+                {
+                    error = "FixedWindow contests require start and end time.";
+                    return false;
+                }
+
+                if (startsAt.Value >= endsAt.Value)
+                {
+                    error = "Contest start must be before end.";
+                    return false;
+                }
+
+                schedule = new ContestScheduleData(scheduleType, startsAt.Value, endsAt.Value, null, null, attemptDurationMinutes);
+                return true;
+
+            case ContestScheduleType.RollingWindow:
+                if (!availableFrom.HasValue || !availableUntil.HasValue)
+                {
+                    error = "RollingWindow contests require availability window.";
+                    return false;
+                }
+
+                if (!attemptDurationMinutes.HasValue || attemptDurationMinutes.Value <= 0)
+                {
+                    error = "RollingWindow contests require positive attempt duration.";
+                    return false;
+                }
+
+                if (availableFrom.Value >= availableUntil.Value)
+                {
+                    error = "Availability window start must be before end.";
+                    return false;
+                }
+
+                var totalWindowMinutes = (int)(availableUntil.Value - availableFrom.Value).TotalMinutes;
+                if (attemptDurationMinutes.Value > totalWindowMinutes)
+                {
+                    error = "Attempt duration cannot exceed availability window.";
+                    return false;
+                }
+
+                schedule = new ContestScheduleData(scheduleType, null, null, availableFrom.Value, availableUntil.Value, attemptDurationMinutes.Value);
+                return true;
+
+            default:
+                error = $"Unsupported schedule type {scheduleType}";
+                return false;
+        }
+    }
+
+    private static int? NormalizeMaxAttempts(int? maxAttempts) =>
+        maxAttempts.HasValue && maxAttempts.Value > 0 ? maxAttempts : null;
+
+    private static bool IsContestAccessibleForStart(DbContest contest, DateTime now, bool isOrganizer)
+    {
+        switch (contest.ScheduleType)
+        {
+            case ContestScheduleType.AlwaysOpen:
+                return true;
+            case ContestScheduleType.FixedWindow:
+                if (!contest.StartsAt.HasValue || !contest.EndsAt.HasValue)
+                    return false;
+                return isOrganizer || (now >= contest.StartsAt.Value && now <= contest.EndsAt.Value);
+            case ContestScheduleType.RollingWindow:
+                if (!contest.AvailableFrom.HasValue || !contest.AvailableUntil.HasValue)
+                    return false;
+                return isOrganizer || (now >= contest.AvailableFrom.Value && now <= contest.AvailableUntil.Value);
+            default:
+                return false;
+        }
+    }
+
+    private static DateTime? CalculateAttemptExpiration(DbContest contest, DateTime start)
+    {
+        switch (contest.ScheduleType)
+        {
+            case ContestScheduleType.AlwaysOpen:
+                return contest.AttemptDurationMinutes.HasValue
+                    ? start.AddMinutes(contest.AttemptDurationMinutes.Value)
+                    : null;
+            case ContestScheduleType.FixedWindow:
+                return contest.EndsAt;
+            case ContestScheduleType.RollingWindow:
+                if (!contest.AttemptDurationMinutes.HasValue || !contest.AvailableUntil.HasValue)
+                    return null;
+
+                var desired = start.AddMinutes(contest.AttemptDurationMinutes.Value);
+                return desired <= contest.AvailableUntil.Value ? desired : contest.AvailableUntil.Value;
+            default:
+                return null;
+        }
+    }
+
+    private static ContestAttemptResponse ToAttemptResponse(DbContestAttempt attempt, ContestScheduleType scheduleType) =>
+        new(
+            attempt.Id,
+            attempt.ContestId,
+            attempt.UserId,
+            attempt.AttemptIndex,
+            attempt.Status,
+            scheduleType,
+            attempt.StartedAt,
+            attempt.ExpiresAt,
+            attempt.FinishedAt,
+            attempt.TotalScore,
+            attempt.SolvedCount);
 
     private sealed record ContestScheduleData(
         ContestScheduleType ScheduleType,

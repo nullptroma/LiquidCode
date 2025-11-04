@@ -73,7 +73,8 @@ public class GroupsController(IGroupService groupService) : ControllerBase
     [HttpGet("{id:int}")]
     public async Task<IActionResult> Get([FromRoute] int id, CancellationToken cancellationToken)
     {
-        var result = await groupService.GetAsync(id, cancellationToken);
+        var requesterId = User.TryGetUserId(out var userId) ? userId : (int?)null;
+        var result = await groupService.GetAsync(id, requesterId, cancellationToken);
         if (result == null)
             return NotFound("Group not found.");
 
@@ -105,7 +106,7 @@ public class GroupsController(IGroupService groupService) : ControllerBase
     /// </summary>
     [Authorize]
     [HttpPost("{id:int}/members")]
-    public async Task<IActionResult> UpsertMember([FromRoute] int id, [FromBody] GroupMembershipRequest request, CancellationToken cancellationToken)
+    public async Task<IActionResult> UpdateMemberRole([FromRoute] int id, [FromBody] GroupMembershipRequest request, CancellationToken cancellationToken)
     {
         if (!User.TryGetUserId(out var userId))
             return Unauthorized("User ID not found in claims.");
@@ -113,7 +114,7 @@ public class GroupsController(IGroupService groupService) : ControllerBase
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
-        var success = await groupService.UpsertMemberAsync(id, userId, request.UserId, request.Role, cancellationToken);
+        var success = await groupService.UpdateMemberRoleAsync(id, userId, request.UserId, request.Role, cancellationToken);
         if (!success)
             return NotFound("Group not found or access denied.");
 
@@ -135,5 +136,110 @@ public class GroupsController(IGroupService groupService) : ControllerBase
             return NotFound("Group not found or access denied.");
 
         return NoContent();
+    }
+
+    /// <summary>
+    /// Обновляет токен присоединения к группе
+    /// </summary>
+    [Authorize]
+    [HttpPost("{id:int}/join-token/rotate")]
+    public async Task<IActionResult> RotateJoinToken([FromRoute] int id, CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out var userId))
+            return Unauthorized("User ID not found in claims.");
+
+        var result = await groupService.RotateJoinLinkAsync(id, userId, cancellationToken);
+        if (result == null)
+            return NotFound("Group not found or access denied.");
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Создает приглашение в группу
+    /// </summary>
+    [Authorize]
+    [HttpPost("{id:int}/invitations")]
+    public async Task<IActionResult> CreateInvitation([FromRoute] int id, [FromBody] CreateGroupInvitationRequest request, CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out var userId))
+            return Unauthorized("User ID not found in claims.");
+
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var result = await groupService.CreateInvitationAsync(id, userId, request, cancellationToken);
+        if (result == null)
+            return NotFound("Group not found, access denied or user already invited.");
+
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Получает список активных приглашений в группе
+    /// </summary>
+    [Authorize]
+    [HttpGet("{id:int}/invitations")]
+    public async Task<IActionResult> GetInvitations([FromRoute] int id, CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out var userId))
+            return Unauthorized("User ID not found in claims.");
+
+        var invitations = await groupService.GetPendingInvitationsAsync(id, userId, cancellationToken);
+        return Ok(invitations);
+    }
+
+    /// <summary>
+    /// Отменяет приглашение в группу
+    /// </summary>
+    [Authorize]
+    [HttpDelete("{id:int}/invitations/{invitationId:int}")]
+    public async Task<IActionResult> CancelInvitation([FromRoute] int id, [FromRoute] int invitationId, CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out var userId))
+            return Unauthorized("User ID not found in claims.");
+
+        var success = await groupService.CancelInvitationAsync(id, userId, invitationId, cancellationToken);
+        if (!success)
+            return NotFound("Invitation not found or access denied.");
+
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Пользователь отвечает на приглашение по токену
+    /// </summary>
+    [Authorize]
+    [HttpPost("invitations/{token}/respond")]
+    public async Task<IActionResult> RespondInvitation([FromRoute] string token, [FromBody] RespondGroupInvitationRequest request, CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out var userId))
+            return Unauthorized("User ID not found in claims.");
+
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var success = await groupService.RespondToInvitationAsync(token, userId, request.Accept, cancellationToken);
+        if (!success)
+            return BadRequest("Invitation cannot be processed.");
+
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Присоединение к группе по приглашению-ссылке
+    /// </summary>
+    [Authorize]
+    [HttpPost("join/{token}")]
+    public async Task<IActionResult> JoinByToken([FromRoute] string token, CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out var userId))
+            return Unauthorized("User ID not found in claims.");
+
+        var response = await groupService.JoinByTokenAsync(token, userId, cancellationToken);
+        if (response == null)
+            return BadRequest("Join token is invalid or expired.");
+
+        return Ok(response);
     }
 }

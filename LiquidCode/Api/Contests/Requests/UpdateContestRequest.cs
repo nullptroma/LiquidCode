@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using LiquidCode.Infrastructure.Database.Entities;
 
 namespace LiquidCode.Api.Contests.Requests;
@@ -9,11 +10,17 @@ public record UpdateContestRequest(
     string? Name,
     string? Description,
     ContestScheduleType? ScheduleType,
+    ContestVisibility? Visibility,
     DateTime? StartsAt,
     DateTime? EndsAt,
     DateTime? AvailableFrom,
     DateTime? AvailableUntil,
     int? AttemptDurationMinutes,
+    int? MaxAttempts,
+    bool? AllowEarlyFinish,
+    int? GroupId,
     IEnumerable<int>? MissionIds,
-    IEnumerable<int>? ArticleIds
+    IEnumerable<int>? ArticleIds,
+    IEnumerable<int>? ParticipantIds,
+    IEnumerable<int>? OrganizerIds
 );

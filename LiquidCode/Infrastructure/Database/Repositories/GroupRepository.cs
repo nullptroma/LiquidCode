@@ -1,3 +1,5 @@
+using System;
+using System.Linq;
 using LiquidCode.Domain.Interfaces.Repositories;
 using LiquidCode.Infrastructure.Database;
 using LiquidCode.Infrastructure.Database.Entities;
@@ -43,12 +45,27 @@ public class GroupRepository : IGroupRepository
     public Task SaveChangesAsync(CancellationToken cancellationToken = default) =>
         _crud.SaveChangesAsync(cancellationToken);
 
-    public async Task<DbGroup?> FindWithDetailsAsync(int id, CancellationToken cancellationToken = default) =>
-        await _dbContext.Groups
+    public Task<DbGroup?> FindWithDetailsAsync(int id, CancellationToken cancellationToken = default) =>
+        FindWithDetailsAsync(id, includeSoftDeleted: false, cancellationToken);
+
+    public async Task<DbGroup?> FindWithDetailsAsync(int id, bool includeSoftDeleted, CancellationToken cancellationToken = default)
+    {
+        var query = _dbContext.Groups
             .Include(g => g.Memberships)
                 .ThenInclude(m => m.User)
             .Include(g => g.Contests)
-            .FirstOrDefaultAsync(g => g.Id == id, cancellationToken);
+            .Include(g => g.Invitations)
+                .ThenInclude(i => i.Invitee)
+            .Include(g => g.JoinTokens)
+            .AsQueryable();
+
+        if (!includeSoftDeleted)
+        {
+            query = query.Where(g => !g.IsDeleted);
+        }
+
+        return await query.FirstOrDefaultAsync(g => g.Id == id, cancellationToken);
+    }
 
     public async Task<(IEnumerable<DbGroup> Items, bool HasNextPage)> GetForUserAsync(
         int userId,
@@ -76,7 +93,12 @@ public class GroupRepository : IGroupRepository
         return (items, hasNextPage);
     }
 
-    public async Task UpsertMembershipAsync(int groupId, int userId, GroupMembershipRole role, CancellationToken cancellationToken = default)
+    public Task<DbGroupMembership?> GetMembershipAsync(int groupId, int userId, CancellationToken cancellationToken = default) =>
+        _dbContext.GroupMemberships
+            .Include(m => m.User)
+            .FirstOrDefaultAsync(m => m.GroupId == groupId && m.UserId == userId, cancellationToken);
+
+    public async Task UpsertMembershipAsync(int groupId, int userId, GroupMembershipRole role, GroupMembershipOptions? options, CancellationToken cancellationToken = default)
     {
         var membership = await _dbContext.GroupMemberships
             .FirstOrDefaultAsync(m => m.GroupId == groupId && m.UserId == userId, cancellationToken);
@@ -87,13 +109,24 @@ public class GroupRepository : IGroupRepository
             {
                 GroupId = groupId,
                 UserId = userId,
-                Role = role
+                Role = role,
+                JoinedAt = options?.JoinedAt ?? DateTime.UtcNow,
+                InvitedById = options?.InvitedById,
+                InvitationId = options?.InvitationId,
+                IsAutoJoined = options?.IsAutoJoined ?? false
             };
             await _dbContext.GroupMemberships.AddAsync(membership, cancellationToken);
         }
         else
         {
             membership.Role = role;
+            membership.InvitedById = options?.InvitedById ?? membership.InvitedById;
+            membership.InvitationId = options?.InvitationId ?? membership.InvitationId;
+            membership.IsAutoJoined = options?.IsAutoJoined ?? membership.IsAutoJoined;
+            if (options?.JoinedAt != null)
+            {
+                membership.JoinedAt = options.JoinedAt.Value;
+            }
             _dbContext.GroupMemberships.Update(membership);
         }
 
@@ -110,5 +143,87 @@ public class GroupRepository : IGroupRepository
             _dbContext.GroupMemberships.Remove(membership);
             await _dbContext.SaveChangesAsync(cancellationToken);
         }
+    }
+
+    public async Task<IReadOnlyList<DbGroupInvitation>> GetActiveInvitationsAsync(int groupId, CancellationToken cancellationToken = default)
+    {
+        var now = DateTime.UtcNow;
+        return await _dbContext.GroupInvitations
+            .Include(i => i.Invitee)
+            .Where(i => i.GroupId == groupId && i.Status == GroupInvitationStatus.Pending && i.ExpiresAt > now && i.RevokedAt == null)
+            .OrderByDescending(i => i.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
+    public Task<DbGroupInvitation?> GetInvitationByIdAsync(int groupId, int invitationId, CancellationToken cancellationToken = default) =>
+        _dbContext.GroupInvitations
+            .Include(i => i.Invitee)
+            .FirstOrDefaultAsync(i => i.GroupId == groupId && i.Id == invitationId, cancellationToken);
+
+    public Task<DbGroupInvitation?> GetInvitationByTokenAsync(string token, CancellationToken cancellationToken = default) =>
+        _dbContext.GroupInvitations
+            .Include(i => i.Group)
+                .ThenInclude(g => g.Memberships)
+            .Include(i => i.Invitee)
+            .FirstOrDefaultAsync(i => i.Token == token, cancellationToken);
+
+    public async Task<DbGroupInvitation> AddInvitationAsync(DbGroupInvitation invitation, CancellationToken cancellationToken = default)
+    {
+        await _dbContext.GroupInvitations.AddAsync(invitation, cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        return invitation;
+    }
+
+    public async Task SaveInvitationAsync(DbGroupInvitation invitation, CancellationToken cancellationToken = default)
+    {
+        _dbContext.GroupInvitations.Update(invitation);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public Task<DbGroupJoinToken?> GetActiveJoinTokenAsync(int groupId, CancellationToken cancellationToken = default)
+    {
+        var now = DateTime.UtcNow;
+        return _dbContext.GroupJoinTokens
+            .Where(t => t.GroupId == groupId && t.RevokedAt == null && t.ExpiresAt > now)
+            .OrderByDescending(t => t.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
+
+    public Task<DbGroupJoinToken?> GetJoinTokenByValueAsync(string token, CancellationToken cancellationToken = default) =>
+        _dbContext.GroupJoinTokens
+            .Include(t => t.Group)
+                .ThenInclude(g => g.Memberships)
+            .FirstOrDefaultAsync(t => t.Token == token, cancellationToken);
+
+    public async Task<DbGroupJoinToken> RotateJoinTokenAsync(int groupId, int createdById, TimeSpan ttl, CancellationToken cancellationToken = default)
+    {
+        var now = DateTime.UtcNow;
+
+        var activeTokens = await _dbContext.GroupJoinTokens
+            .Where(t => t.GroupId == groupId && t.RevokedAt == null && t.ExpiresAt > now)
+            .ToListAsync(cancellationToken);
+
+        foreach (var token in activeTokens)
+        {
+            token.RevokedAt = now;
+            token.UpdatedAt = now;
+        }
+
+        var joinToken = new DbGroupJoinToken
+        {
+            GroupId = groupId,
+            CreatedById = createdById,
+            Token = Guid.NewGuid().ToString("N"),
+            ExpiresAt = now.Add(ttl),
+            LastRefreshedAt = now,
+            UsageCount = 0,
+            CreatedAt = now,
+            UpdatedAt = now
+        };
+
+        await _dbContext.GroupJoinTokens.AddAsync(joinToken, cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return joinToken;
     }
 }

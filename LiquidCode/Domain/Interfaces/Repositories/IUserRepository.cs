@@ -13,6 +13,11 @@ public interface IUserRepository : IRepository<DbUser>
     Task<DbUser?> FindByUsernameAsync(string username, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Находит пользователя по адресу электронной почты
+    /// </summary>
+    Task<DbUser?> FindByEmailAsync(string email, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Проверяет, существует ли пользователь с данным именем пользователя
     /// </summary>
     Task<bool> UserExistsAsync(string username, CancellationToken cancellationToken = default);

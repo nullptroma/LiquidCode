@@ -81,6 +81,7 @@ public class SubmitService : ISubmitService
             }
 
             DbContest? contest = null;
+            int? contestAttemptId = null;
 
             var finalSourceType = SubmissionSourceType.Direct;
             if (contestId.HasValue)
@@ -99,7 +100,6 @@ public class SubmitService : ISubmitService
                 }
 
                 var membership = contest.Memberships.FirstOrDefault(m => m.UserId == userId);
-                var isOrganizer = membership != null && membership.Role.HasFlag(ContestMembershipRole.Organizer);
                 if (membership == null)
                 {
                     _logger.LogWarning("User {UserId} is not enrolled in contest {ContestId}", userId, contestId);
@@ -112,7 +112,25 @@ public class SubmitService : ISubmitService
                     return null;
                 }
 
+                var isOrganizer = membership.Role.HasFlag(ContestMembershipRole.Organizer);
                 var now = DateTime.UtcNow;
+                var activeAttempt = membership.ActiveAttempt;
+
+                if (activeAttempt != null &&
+                    activeAttempt.Status == ContestAttemptStatus.Active &&
+                    activeAttempt.ExpiresAt.HasValue &&
+                    now > activeAttempt.ExpiresAt.Value)
+                {
+                    _logger.LogInformation(
+                        "Active attempt expired before submission: ContestId={ContestId}, UserId={UserId}, AttemptId={AttemptId}",
+                        contestId,
+                        userId,
+                        activeAttempt.Id);
+
+                    await MarkAttemptExpiredAsync(membership, activeAttempt, cancellationToken);
+                    activeAttempt = null;
+                }
+
                 switch (contest.ScheduleType)
                 {
                     case ContestScheduleType.FixedWindow:
@@ -128,17 +146,18 @@ public class SubmitService : ISubmitService
                             return null;
                         }
 
-                        if (finalSourceType == SubmissionSourceType.Direct)
+                        if (activeAttempt != null && activeAttempt.Status == ContestAttemptStatus.Active)
                         {
-                            finalSourceType = SubmissionSourceType.Contest;
+                            contestAttemptId = activeAttempt.Id;
                         }
 
+                        finalSourceType = SubmissionSourceType.Contest;
                         break;
 
-                    case ContestScheduleType.FlexibleWindow:
+                    case ContestScheduleType.RollingWindow:
                         if (!contest.AvailableFrom.HasValue || !contest.AvailableUntil.HasValue || !contest.AttemptDurationMinutes.HasValue)
                         {
-                            _logger.LogWarning("Contest {ContestId} has inconsistent flexible window configuration", contestId);
+                            _logger.LogWarning("Contest {ContestId} has inconsistent rolling window configuration", contestId);
                             return null;
                         }
 
@@ -150,24 +169,35 @@ public class SubmitService : ISubmitService
                                 return null;
                             }
 
-                            if (membership.ActiveAttemptStartedAt == null || membership.ActiveAttemptExpiresAt == null)
+                            if (activeAttempt == null || activeAttempt.Status != ContestAttemptStatus.Active)
                             {
-                                _logger.LogWarning("User {UserId} did not start an attempt in contest {ContestId}", userId, contestId);
-                                return null;
-                            }
-
-                            if (now > membership.ActiveAttemptExpiresAt.Value)
-                            {
-                                _logger.LogWarning("Attempt for user {UserId} in contest {ContestId} has expired", userId, contestId);
+                                _logger.LogWarning("User {UserId} must start an attempt before submitting in contest {ContestId}", userId, contestId);
                                 return null;
                             }
                         }
 
-                        if (finalSourceType == SubmissionSourceType.Direct)
+                        contestAttemptId = activeAttempt?.Id;
+                        finalSourceType = SubmissionSourceType.ContestFlexibleWindow;
+                        break;
+
+                    case ContestScheduleType.AlwaysOpen:
+                        if (!contest.AttemptDurationMinutes.HasValue)
                         {
-                            finalSourceType = SubmissionSourceType.ContestFlexibleWindow;
+                            _logger.LogWarning("Contest {ContestId} has inconsistent always-open configuration", contestId);
+                            return null;
                         }
 
+                        if (!isOrganizer)
+                        {
+                            if (activeAttempt == null || activeAttempt.Status != ContestAttemptStatus.Active)
+                            {
+                                _logger.LogWarning("User {UserId} must maintain an active attempt in contest {ContestId}", userId, contestId);
+                                return null;
+                            }
+                        }
+
+                        contestAttemptId = activeAttempt?.Id;
+                        finalSourceType = SubmissionSourceType.ContestFlexibleWindow;
                         break;
 
                     default:
@@ -204,6 +234,7 @@ public class SubmitService : ISubmitService
                 Solution = solution,
                 Contest = contest,
                 ContestId = contest?.Id,
+                ContestAttemptId = contestAttemptId,
                 SourceType = finalSourceType
             };
 
@@ -359,6 +390,18 @@ public class SubmitService : ISubmitService
             _logger.LogError(ex, "Error updating tester status: {SolutionId}", solutionId);
             return new TesterCallbackUpdateResult(TesterCallbackUpdateStatus.Error, null);
         }
+    }
+
+    private async Task MarkAttemptExpiredAsync(DbContestMembership membership, DbContestAttempt attempt, CancellationToken cancellationToken)
+    {
+        attempt.Status = ContestAttemptStatus.Expired;
+        attempt.FinishedBy = ContestAttemptFinishReason.Timer;
+        attempt.FinishedAt = attempt.ExpiresAt ?? DateTime.UtcNow;
+        membership.ActiveAttemptId = null;
+        membership.ActiveAttempt = null;
+        membership.UpdatedAt = DateTime.UtcNow;
+
+        await _contestRepository.UpdateAttemptAsync(attempt, cancellationToken);
     }
 
     private static string ComposeStatus(
