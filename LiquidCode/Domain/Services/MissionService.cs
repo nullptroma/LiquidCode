@@ -80,6 +80,8 @@ public class MissionService : IMissionService
             _logger.LogInformation("Uploading mission files to S3");
             var privateKey = await _s3Client.UploadFileWithRandomKey(S3BucketKeys.PrivateProblems, packageZipPath);
 
+            var executionLimits = _archiveProcessor.ExtractExecutionLimits(packageZipPath);
+
             // Создать миссию в базе данных
             var dbMission = new DbMission
             {
@@ -87,6 +89,8 @@ public class MissionService : IMissionService
                 Name = form.Name,
                 S3Key = privateKey,
                 Difficulty = form.Difficulty,
+                TimeLimitMilliseconds = executionLimits.TimeLimitMilliseconds,
+                MemoryLimitBytes = executionLimits.MemoryLimitBytes,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
             };

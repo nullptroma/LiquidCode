@@ -1,5 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
+using LiquidCode.Api.Articles.Responses;
+using LiquidCode.Api.Missions.Responses;
 using LiquidCode.Infrastructure.Database.Entities;
 
 namespace LiquidCode.Api.Contests.Responses;
@@ -20,8 +22,8 @@ public record ContestResponse(
     bool AllowEarlyFinish,
     int? GroupId,
     string? GroupName,
-    IReadOnlyList<ContestMissionResponse> Missions,
-    IReadOnlyList<ContestArticleResponse> Articles,
+    IReadOnlyList<MissionResponse> Missions,
+    IReadOnlyList<ArticleResponse> Articles,
     IReadOnlyList<ContestMemberResponse> Members
 )
 {
@@ -40,27 +42,17 @@ public record ContestResponse(
         entity.Group?.Name,
         entity.Missions
             .OrderBy(m => m.SortOrder)
-            .Select(m => new ContestMissionResponse(m.MissionId, m.Mission.Name, m.SortOrder))
+            .Select(m => MissionResponse.FromEntity(m.Mission, includeStatements: false))
             .ToList(),
         entity.Articles
             .OrderBy(a => a.SortOrder)
-            .Select(a => new ContestArticleResponse(a.ArticleId, a.Article.Name, a.SortOrder))
+            .Select(a => ArticleResponse.FromEntity(a.Article))
             .ToList(),
         entity.Memberships
             .Select(m => new ContestMemberResponse(m.UserId, m.User.Username, m.Role))
             .ToList()
     );
 }
-
-/// <summary>
-/// Короткое описание миссии внутри контеста
-/// </summary>
-public record ContestMissionResponse(int MissionId, string Name, int SortOrder);
-
-/// <summary>
-/// Короткое описание статьи внутри контеста
-/// </summary>
-public record ContestArticleResponse(int ArticleId, string Name, int SortOrder);
 
 /// <summary>
 /// Описание участника или организатора контеста

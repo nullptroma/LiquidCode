@@ -14,6 +14,8 @@ public record MissionResponse(
     IReadOnlyList<string> Tags,
     DateTime CreatedAt,
     DateTime UpdatedAt,
+    int? TimeLimitMilliseconds,
+    int? MemoryLimitBytes,
     // Дополнительные данные (могут быть null при получении списков)
     IReadOnlyList<MissionStatementResponse>? Statements = null
 )
@@ -29,6 +31,8 @@ public record MissionResponse(
         entity.MissionTags.Select(mt => mt.Tag.Name).Distinct().OrderBy(name => name).ToList(),
         entity.CreatedAt,
         entity.UpdatedAt,
+        entity.TimeLimitMilliseconds,
+        entity.MemoryLimitBytes,
         includeStatements 
             ? entity.Statements?.Select(s => MissionStatementResponse.FromEntity(s)).ToList()
             : null

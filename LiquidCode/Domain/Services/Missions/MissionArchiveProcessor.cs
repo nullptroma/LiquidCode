@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Xml.Linq;
 using LiquidCode.Domain.Enums;
 using LiquidCode.Domain.Interfaces.Services;
 using Microsoft.Extensions.Logging;
@@ -101,6 +102,50 @@ public class MissionArchiveProcessor
         }
 
         return statements;
+    }
+
+    public MissionExecutionLimits ExtractExecutionLimits(string zipFilePath)
+    {
+        try
+        {
+            using var zipArchive = ZipFile.OpenRead(zipFilePath);
+            var problemEntry = zipArchive.Entries
+                .FirstOrDefault(e => string.Equals(e.Name, "problem.xml", StringComparison.OrdinalIgnoreCase));
+
+            if (problemEntry == null)
+            {
+                _logger.LogWarning("problem.xml not found in archive {ZipFile}", Path.GetFileName(zipFilePath));
+                return MissionExecutionLimits.Empty;
+            }
+
+            using var stream = problemEntry.Open();
+            var document = XDocument.Load(stream);
+
+            var timeLimitValue = document
+                .Descendants("time-limit")
+                .Select(x => ParseToNullableInt(x.Value))
+                .FirstOrDefault(v => v.HasValue);
+
+            var memoryLimitValue = document
+                .Descendants("memory-limit")
+                .Select(x => ParseToNullableInt(x.Value))
+                .FirstOrDefault(v => v.HasValue);
+
+            return new MissionExecutionLimits(timeLimitValue, memoryLimitValue);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to extract execution limits from problem.xml");
+            return MissionExecutionLimits.Empty;
+        }
+    }
+
+    private static int? ParseToNullableInt(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return null;
+
+        return int.TryParse(value.Trim(), out var parsed) ? parsed : null;
     }
 
     private StatementDirectory? ExtractLanguageAndPath(string fullPath)
@@ -235,6 +280,11 @@ public class MissionArchiveProcessor
             return string.Empty;
         }
     }
+}
+
+public sealed record MissionExecutionLimits(int? TimeLimitMilliseconds, int? MemoryLimitBytes)
+{
+    public static MissionExecutionLimits Empty { get; } = new(null, null);
 }
 
 /// <summary>

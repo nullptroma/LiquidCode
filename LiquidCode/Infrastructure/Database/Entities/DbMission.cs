@@ -23,6 +23,10 @@ public class DbMission : ISoftDeletable, ITimestamped
     public string S3Key { get; init; } = "";
     
     public int Difficulty { get; init; }
+
+    public int? TimeLimitMilliseconds { get; set; }
+
+    public int? MemoryLimitBytes { get; set; }
     
     public ICollection<DbMissionTag> MissionTags { get; init; } = new HashSet<DbMissionTag>();
     public ICollection<DbContestMission> ContestEntries { get; init; } = new HashSet<DbContestMission>();
