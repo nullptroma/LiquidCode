@@ -60,7 +60,7 @@ public class AuthenticationService : IAuthenticationService
             _logger.LogInformation("User registered successfully: {Username}", request.Username);
 
             // Автоматически войти пользователю
-            return GenerateTokens(newUser.Username, newUser.Id);
+            return GenerateTokens(newUser.Username, newUser.Id, newUser.Email);
         }
         catch (Exception ex)
         {
@@ -90,7 +90,7 @@ public class AuthenticationService : IAuthenticationService
             }
 
             // Создать токены и сохранить токен обновления
-            var tokens = GenerateTokens(user.Username, user.Id);
+            var tokens = GenerateTokens(user.Username, user.Id, user.Email);
             await SaveRefreshTokenAsync(user, tokens.RefreshToken, userAgent, ipAddress, cancellationToken);
 
             _logger.LogInformation("User logged in successfully: {Username}", request.Username);
@@ -129,7 +129,7 @@ public class AuthenticationService : IAuthenticationService
             await _userRepository.RemoveRefreshTokenAsync(request.RefreshToken, cancellationToken);
 
             // Создать новые токены
-            var newTokens = GenerateTokens(refreshToken.DbUser.Username, refreshToken.DbUser.Id);
+            var newTokens = GenerateTokens(refreshToken.DbUser.Username, refreshToken.DbUser.Id, refreshToken.DbUser.Email);
             await SaveRefreshTokenAsync(refreshToken.DbUser, newTokens.RefreshToken, userAgent, ipAddress, cancellationToken);
 
             _logger.LogInformation("Tokens refreshed for user: {UserId}", refreshToken.DbUser.Id);
@@ -156,12 +156,13 @@ public class AuthenticationService : IAuthenticationService
         }
     }
 
-    private AuthTokensResponse GenerateTokens(string username, int userId)
+    private AuthTokensResponse GenerateTokens(string username, int userId, string email)
     {
         var claims = new List<Claim>
         {
             new(ClaimTypes.Name, username),
-            new(ClaimTypes.NameIdentifier, userId.ToString())
+            new(ClaimTypes.NameIdentifier, userId.ToString()),
+            new(ClaimTypes.Email, email)
         };
 
         var key = new SymmetricSecurityKey(

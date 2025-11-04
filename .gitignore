@@ -24,3 +24,5 @@ appsettings.*.json
 
 # Docker volumes
 docker-compose.override.yml
+
+exam-queue-17/
