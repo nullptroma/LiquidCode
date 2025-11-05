@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using LiquidCode.Api.Missions.Requests;
 using LiquidCode.Api.Missions.Responses;
 using LiquidCode.Infrastructure.Database.Entities;
@@ -36,4 +37,9 @@ public interface IMissionService
     /// Получает подробную информацию о миссии с текстами и медиа
     /// </summary>
     Task<MissionResponse?> GetMissionAsync(int missionId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Возвращает миссии, загруженные текущим пользователем
+    /// </summary>
+    Task<IReadOnlyList<MissionResponse>> GetMyMissionsAsync(int userId, CancellationToken cancellationToken = default);
 }

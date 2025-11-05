@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
@@ -174,6 +175,20 @@ public class MissionService : IMissionService
         {
             _logger.LogError(ex, "Error getting mission details: {MissionId}", missionId);
             return null;
+        }
+    }
+
+    public async Task<IReadOnlyList<MissionResponse>> GetMyMissionsAsync(int userId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var missions = await _missionRepository.GetMissionsByAuthorAsync(userId, cancellationToken);
+            return missions.Select(m => MissionResponse.FromEntity(m, includeStatements: false)).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting missions for author {UserId}", userId);
+            return Array.Empty<MissionResponse>();
         }
     }
 

@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using LiquidCode.Domain.Interfaces.Repositories;
 using LiquidCode.Infrastructure.Database;
 using LiquidCode.Infrastructure.Database.Entities;
@@ -86,6 +88,15 @@ public class ArticleRepository : IArticleRepository
 
         return (items, hasNextPage);
     }
+
+    public async Task<IReadOnlyList<DbArticle>> GetByAuthorAsync(int authorId, CancellationToken cancellationToken = default) =>
+        await _dbContext.Articles
+            .Include(a => a.Author)
+            .Include(a => a.ArticleTags)
+                .ThenInclude(at => at.Tag)
+            .Where(a => !a.IsDeleted && a.AuthorId == authorId)
+            .OrderByDescending(a => a.CreatedAt)
+            .ToListAsync(cancellationToken);
 
     public async Task SyncTagsAsync(DbArticle article, IEnumerable<int> tagIds, CancellationToken cancellationToken = default)
     {

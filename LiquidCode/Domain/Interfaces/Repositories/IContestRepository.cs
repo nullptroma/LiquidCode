@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using LiquidCode.Infrastructure.Database.Entities;
 
 namespace LiquidCode.Domain.Interfaces.Repositories;
@@ -20,6 +21,10 @@ public interface IContestRepository : IRepository<DbContest>
         int groupId,
         int pageSize,
         int pageNumber,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<DbContest>> GetByMemberAsync(
+        int userId,
         CancellationToken cancellationToken = default);
 
     Task SyncMissionsAsync(DbContest contest, IEnumerable<int> missionIds, CancellationToken cancellationToken = default);

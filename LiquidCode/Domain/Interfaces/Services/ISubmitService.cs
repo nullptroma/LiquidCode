@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using LiquidCode.Api.Submits.Dto;
 using LiquidCode.Infrastructure.Database.Entities;
 
@@ -53,6 +54,11 @@ public interface ISubmitService
     Task<IEnumerable<DbUserSubmission>> GetMissionSubmissionsAsync(int missionId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Получает отправки пользователя в рамках конкретного контеста
+    /// </summary>
+    Task<ContestSubmissionsResult> GetUserContestSubmissionsAsync(int userId, int contestId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Отправляет решение в тестирующий модуль.
     /// </summary>
     /// <param name="solution">Решение, подготовленное к тестированию.</param>
@@ -83,6 +89,24 @@ public interface ISubmitService
         CancellationToken cancellationToken = default);
 
 }
+
+/// <summary>
+/// Статус запроса отправок пользователя в рамках контеста
+/// </summary>
+public enum ContestSubmissionQueryStatus
+{
+    Success,
+    ContestNotFound,
+    AccessDenied,
+    Error
+}
+
+/// <summary>
+/// Результат запроса отправок пользователя в контесте
+/// </summary>
+public readonly record struct ContestSubmissionsResult(
+    ContestSubmissionQueryStatus Status,
+    IEnumerable<DbUserSubmission> Submissions);
 
 /// <summary>
 /// Возможный исход применения обратного вызова тестирующего модуля

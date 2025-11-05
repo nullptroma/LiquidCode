@@ -86,6 +86,20 @@ public class ArticlesController(IArticleService articleService) : ControllerBase
     }
 
     /// <summary>
+    /// Возвращает список статей текущего пользователя
+    /// </summary>
+    [Authorize]
+    [HttpGet("my")]
+    public async Task<IActionResult> ListMyArticles(CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out var userId))
+            return Unauthorized("User ID not found in claims.");
+
+        var result = await articleService.GetMyArticlesAsync(userId, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Возвращает подробную информацию о статье
     /// </summary>
     [HttpGet("{id:int}")]

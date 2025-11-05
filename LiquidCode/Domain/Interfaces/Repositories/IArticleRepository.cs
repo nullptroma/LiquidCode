@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using LiquidCode.Infrastructure.Database.Entities;
 
 namespace LiquidCode.Domain.Interfaces.Repositories;
@@ -20,6 +21,11 @@ public interface IArticleRepository : IRepository<DbArticle>
         int pageNumber,
         IEnumerable<int>? tagIds,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Возвращает статьи, созданные указанным автором
+    /// </summary>
+    Task<IReadOnlyList<DbArticle>> GetByAuthorAsync(int authorId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Обновляет связи статьи с тегами

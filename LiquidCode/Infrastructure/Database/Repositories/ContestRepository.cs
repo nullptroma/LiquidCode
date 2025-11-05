@@ -133,6 +133,30 @@ public class ContestRepository : IContestRepository
         return (items, hasNextPage);
     }
 
+    public async Task<IReadOnlyList<DbContest>> GetByMemberAsync(
+        int userId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.Contests
+            .Include(c => c.Group)
+            .Include(c => c.Missions)
+                .ThenInclude(cm => cm.Mission)
+                    .ThenInclude(m => m.MissionTags)
+                        .ThenInclude(mt => mt.Tag)
+            .Include(c => c.Articles)
+                .ThenInclude(ca => ca.Article)
+                    .ThenInclude(a => a.ArticleTags)
+                        .ThenInclude(at => at.Tag)
+            .Include(c => c.Memberships)
+                .ThenInclude(cm => cm.User)
+            .Include(c => c.Memberships)
+                .ThenInclude(cm => cm.ActiveAttempt)
+            .Where(c => !c.IsDeleted && c.Memberships.Any(m => m.UserId == userId))
+            .OrderByDescending(c => c.StartsAt ?? c.CreatedAt)
+            .ThenByDescending(c => c.Id)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task SyncMissionsAsync(DbContest contest, IEnumerable<int> missionIds, CancellationToken cancellationToken = default)
     {
         var targetList = missionIds?.ToList() ?? new List<int>();

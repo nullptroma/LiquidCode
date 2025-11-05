@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using LiquidCode.Api.Submits.Dto;
 using LiquidCode.Domain.Interfaces.Repositories;
@@ -298,6 +299,31 @@ public class SubmitService : ISubmitService
         {
             _logger.LogError(ex, "Error getting mission submissions: {MissionId}", missionId);
             return Enumerable.Empty<DbUserSubmission>();
+        }
+    }
+
+    public async Task<ContestSubmissionsResult> GetUserContestSubmissionsAsync(int userId, int contestId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var contest = await _contestRepository.FindWithDetailsAsync(contestId, cancellationToken);
+            if (contest == null || contest.IsDeleted)
+            {
+                return new ContestSubmissionsResult(ContestSubmissionQueryStatus.ContestNotFound, Enumerable.Empty<DbUserSubmission>());
+            }
+
+            if (!contest.Memberships.Any(m => m.UserId == userId))
+            {
+                return new ContestSubmissionsResult(ContestSubmissionQueryStatus.AccessDenied, Enumerable.Empty<DbUserSubmission>());
+            }
+
+            var submissions = await _submitRepository.GetSubmissionsByUserAndContestAsync(userId, contestId, cancellationToken);
+            return new ContestSubmissionsResult(ContestSubmissionQueryStatus.Success, submissions);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting submissions for user {UserId} in contest {ContestId}", userId, contestId);
+            return new ContestSubmissionsResult(ContestSubmissionQueryStatus.Error, Enumerable.Empty<DbUserSubmission>());
         }
     }
 

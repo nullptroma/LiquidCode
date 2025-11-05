@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using LiquidCode.Infrastructure.Database.Entities;
 
 namespace LiquidCode.Domain.Interfaces.Repositories;
@@ -16,6 +17,11 @@ public interface ISubmitRepository : IRepository<DbUserSubmission>
     /// Получает отправки по миссии
     /// </summary>
     Task<IEnumerable<DbUserSubmission>> GetSubmissionsByMissionAsync(int missionId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Получает отправки пользователя в рамках конкретного контеста
+    /// </summary>
+    Task<IEnumerable<DbUserSubmission>> GetSubmissionsByUserAndContestAsync(int userId, int contestId, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Получает отправку со всеми связанными данными

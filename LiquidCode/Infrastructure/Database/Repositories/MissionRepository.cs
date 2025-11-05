@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using LiquidCode.Domain.Interfaces.Repositories;
 using LiquidCode.Infrastructure.Database;
 using LiquidCode.Infrastructure.Database.Entities;
@@ -44,8 +46,11 @@ public class MissionRepository : IMissionRepository
 
     // IMissionRepository specific methods
     public async Task<IEnumerable<DbMission>> GetMissionsByAuthorAsync(int authorId, CancellationToken cancellationToken = default) =>
-        await _dbContext.Set<DbMission>()
-            .Where(m => m.Author.Id == authorId)
+        await _dbContext.Missions
+            .Include(m => m.Author)
+            .Include(m => m.MissionTags)
+                .ThenInclude(mt => mt.Tag)
+            .Where(m => !m.IsDeleted && m.Author.Id == authorId)
             .OrderByDescending(m => m.CreatedAt)
             .ToListAsync(cancellationToken);
 

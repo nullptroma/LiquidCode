@@ -245,6 +245,20 @@ public class ContestService : IContestService
         return new ContestsPageResponse(hasNext, responses);
     }
 
+    public async Task<IReadOnlyList<ContestResponse>> GetForUserAsync(int userId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var contests = await _contestRepository.GetByMemberAsync(userId, cancellationToken);
+            return contests.Select(ContestResponse.FromEntity).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting contests for user {UserId}", userId);
+            return Array.Empty<ContestResponse>();
+        }
+    }
+
     public async Task<bool> UpsertMemberAsync(int contestId, int requesterId, int targetUserId, ContestMembershipRole role, CancellationToken cancellationToken = default)
     {
         var contest = await _contestRepository.FindWithDetailsAsync(contestId, cancellationToken);

@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using LiquidCode.Domain.Interfaces.Repositories;
 using LiquidCode.Infrastructure.Database;
 using LiquidCode.Infrastructure.Database.Entities;
@@ -60,6 +62,16 @@ public class SubmitRepository : ISubmitRepository
                 .ThenInclude(sol => sol.Mission)
             .Include(s => s.Contest)
             .Where(s => s.Solution!.Mission.Id == missionId)
+            .OrderByDescending(s => s.Solution!.Time)
+            .ToListAsync(cancellationToken);
+
+    public async Task<IEnumerable<DbUserSubmission>> GetSubmissionsByUserAndContestAsync(int userId, int contestId, CancellationToken cancellationToken = default) =>
+        await _dbContext.Set<DbUserSubmission>()
+            .Include(s => s.User)
+            .Include(s => s.Solution)
+                .ThenInclude(sol => sol.Mission)
+            .Include(s => s.Contest)
+            .Where(s => s.User.Id == userId && s.ContestId == contestId)
             .OrderByDescending(s => s.Solution!.Time)
             .ToListAsync(cancellationToken);
 

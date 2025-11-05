@@ -63,4 +63,18 @@ public class MissionsController(IMissionService missionService) : ControllerBase
 
         return Ok(result);
     }
+
+    /// <summary>
+    /// Возвращает миссии, загруженные текущим пользователем
+    /// </summary>
+    [Authorize]
+    [HttpGet("my")]
+    public async Task<IActionResult> GetMyMissions(CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out var userId))
+            return Unauthorized("User ID not found in claims.");
+
+        var result = await missionService.GetMyMissionsAsync(userId, cancellationToken);
+        return Ok(result);
+    }
 }

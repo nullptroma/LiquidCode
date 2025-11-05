@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using LiquidCode.Api.Articles.Requests;
@@ -145,6 +146,20 @@ public class ArticleService : IArticleService
 
         var (articles, hasNext) = await _articleRepository.GetFilteredPageAsync(pageSize, pageNumber, tagIds, cancellationToken);
         return new ArticlesPageResponse(hasNext, articles.Select(ArticleResponse.FromEntity));
+    }
+
+    public async Task<IReadOnlyList<ArticleResponse>> GetMyArticlesAsync(int authorId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var articles = await _articleRepository.GetByAuthorAsync(authorId, cancellationToken);
+            return articles.Select(ArticleResponse.FromEntity).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting articles for author {AuthorId}", authorId);
+            return Array.Empty<ArticleResponse>();
+        }
     }
 
     private async Task SyncTagsAsync(DbArticle article, IEnumerable<string>? tags, CancellationToken cancellationToken)

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using LiquidCode.Api.Articles.Requests;
 using LiquidCode.Api.Articles.Responses;
 
@@ -13,4 +14,5 @@ public interface IArticleService
     Task<bool> DeleteAsync(int articleId, int userId, CancellationToken cancellationToken = default);
     Task<ArticleResponse?> GetAsync(int articleId, CancellationToken cancellationToken = default);
     Task<ArticlesPageResponse?> GetPageAsync(int pageSize, int pageNumber, IEnumerable<string>? tags, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ArticleResponse>> GetMyArticlesAsync(int authorId, CancellationToken cancellationToken = default);
 }

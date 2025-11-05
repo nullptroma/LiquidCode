@@ -1,4 +1,6 @@
+using System.Linq;
 using LiquidCode.Api.Contests.Requests;
+using LiquidCode.Api.Submits.Responses;
 using LiquidCode.Domain.Interfaces.Services;
 using LiquidCode.Domain.Services.Contests;
 using LiquidCode.Infrastructure.Database.Entities;
@@ -13,7 +15,7 @@ namespace LiquidCode.Api.Contests;
 /// </summary>
 [Route("contests")]
 [ApiController]
-public class ContestsController(IContestService contestService) : ControllerBase
+public class ContestsController(IContestService contestService, ISubmitService submitService) : ControllerBase
 {
     /// <summary>
     /// Создает новый контест
@@ -161,6 +163,20 @@ public class ContestsController(IContestService contestService) : ControllerBase
     }
 
     /// <summary>
+    /// Возвращает список контестов текущего пользователя
+    /// </summary>
+    [Authorize]
+    [HttpGet("my")]
+    public async Task<IActionResult> ListMyContests(CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out var userId))
+            return Unauthorized("User ID not found in claims.");
+
+        var result = await contestService.GetForUserAsync(userId, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
     /// Возвращает подробную информацию о контесте
     /// </summary>
     [HttpGet("{id:int}")]
@@ -171,5 +187,26 @@ public class ContestsController(IContestService contestService) : ControllerBase
             return NotFound("Contest not found.");
 
         return Ok(result);
+    }
+
+    /// <summary>
+    /// Возвращает отправки текущего пользователя в рамках контеста
+    /// </summary>
+    [Authorize]
+    [HttpGet("{contestId:int}/submissions/my")]
+    public async Task<IActionResult> GetMyContestSubmissions([FromRoute] int contestId, CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out var userId))
+            return Unauthorized("User ID not found in claims.");
+
+        var result = await submitService.GetUserContestSubmissionsAsync(userId, contestId, cancellationToken);
+
+        return result.Status switch
+        {
+            ContestSubmissionQueryStatus.Success => Ok(result.Submissions.Select(SubmissionResponse.FromEntity)),
+            ContestSubmissionQueryStatus.ContestNotFound => NotFound("Contest not found."),
+            ContestSubmissionQueryStatus.AccessDenied => Forbid(),
+            _ => StatusCode(500, "Failed to load submissions.")
+        };
     }
 }
