@@ -23,8 +23,7 @@ public record ContestResponse(
     int? GroupId,
     string? GroupName,
     IReadOnlyList<MissionResponse> Missions,
-    IReadOnlyList<ArticleResponse> Articles,
-    IReadOnlyList<ContestMemberResponse> Members
+    IReadOnlyList<ArticleResponse> Articles
 )
 {
     public static ContestResponse FromEntity(DbContest entity) => new(
@@ -32,12 +31,12 @@ public record ContestResponse(
         entity.Name,
         entity.Description,
         entity.ScheduleType,
-    entity.Visibility,
-    entity.StartsAt,
-    entity.EndsAt,
+        entity.Visibility,
+        entity.StartsAt,
+        entity.EndsAt,
         entity.AttemptDurationMinutes,
-    entity.MaxAttempts,
-    entity.AllowEarlyFinish,
+        entity.MaxAttempts,
+        entity.AllowEarlyFinish,
         entity.GroupId,
         entity.Group?.Name,
         entity.Missions
@@ -51,10 +50,6 @@ public record ContestResponse(
             .Select(a => a.Article)
             .Where(a => a != null)
             .Select(a => ArticleResponse.FromEntity(a!))
-            .ToList(),
-        entity.Memberships
-            .Where(m => m.User != null)
-            .Select(m => new ContestMemberResponse(m.UserId, m.User!.Username, m.Role))
             .ToList()
     );
 }

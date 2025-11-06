@@ -40,17 +40,17 @@ public class ContestService : IContestService
 
     public async Task<ContestResponse?> CreateAsync(CreateContestRequest request, int creatorId, CancellationToken cancellationToken = default)
     {
-    if (!TryBuildSchedule(
-        request.ScheduleType,
-        request.StartsAt,
-        request.EndsAt,
-        request.AttemptDurationMinutes,
-        out var schedule,
-        out var validationError))
-    {
-        _logger.LogWarning("Invalid contest schedule during creation: {Error}", validationError);
-        throw new ContestValidationException(validationError ?? "Invalid contest schedule.");
-    }
+        if (!TryBuildSchedule(
+            request.ScheduleType,
+            request.StartsAt,
+            request.EndsAt,
+            request.AttemptDurationMinutes,
+            out var schedule,
+            out var validationError))
+        {
+            _logger.LogWarning("Invalid contest schedule during creation: {Error}", validationError);
+            throw new ContestValidationException(validationError ?? "Invalid contest schedule.");
+        }
 
         var now = DateTime.UtcNow;
 
@@ -157,17 +157,17 @@ public class ContestService : IContestService
         var candidateEndsAt = request.EndsAt ?? contest.EndsAt;
         var candidateAttemptDuration = request.AttemptDurationMinutes ?? contest.AttemptDurationMinutes;
 
-    if (!TryBuildSchedule(
-        targetScheduleType,
-        candidateStartsAt,
-        candidateEndsAt,
-        candidateAttemptDuration,
-        out var schedule,
-        out var validationError))
-    {
-        _logger.LogWarning("Invalid contest schedule update for contest {ContestId}: {Error}", contestId, validationError);
-        throw new ContestValidationException(validationError ?? "Invalid contest schedule.");
-    }
+        if (!TryBuildSchedule(
+            targetScheduleType,
+            candidateStartsAt,
+            candidateEndsAt,
+            candidateAttemptDuration,
+            out var schedule,
+            out var validationError))
+        {
+            _logger.LogWarning("Invalid contest schedule update for contest {ContestId}: {Error}", contestId, validationError);
+            throw new ContestValidationException(validationError ?? "Invalid contest schedule.");
+        }
 
         if (!string.IsNullOrWhiteSpace(request.Name))
             contest.Name = request.Name.Trim();
@@ -249,7 +249,7 @@ public class ContestService : IContestService
     {
         try
         {
-            var contests = await _contestRepository.GetByMemberAsync(userId, cancellationToken);
+            var contests = await _contestRepository.GetOrganizedByUserAsync(userId, cancellationToken);
             if (contests == null || contests.Count == 0)
                 return Array.Empty<ContestResponse>();
 
@@ -257,8 +257,119 @@ public class ContestService : IContestService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting contests for user {UserId}", userId);
+            _logger.LogError(ex, "Error getting contests organized by user {UserId}", userId);
             return Array.Empty<ContestResponse>();
+        }
+    }
+
+    public async Task<ContestsPageResponse?> GetParticipatingAsync(int userId, int pageSize, int pageNumber, CancellationToken cancellationToken = default)
+    {
+        if (pageSize <= 0 || pageNumber < 0)
+            return null;
+
+        try
+        {
+            var (contests, hasNext) = await _contestRepository.GetParticipatingAsync(userId, pageSize, pageNumber, cancellationToken);
+            var responses = contests.Select(ContestResponse.FromEntity).ToList();
+            return new ContestsPageResponse(hasNext, responses);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting participating contests for user {UserId}", userId);
+            return null;
+        }
+    }
+
+    public async Task<ContestMembersResult> GetMembersPageAsync(int contestId, int pageSize, int pageNumber, CancellationToken cancellationToken = default)
+    {
+        if (pageSize <= 0 || pageNumber < 0)
+            return new ContestMembersResult(ContestMembersQueryStatus.InvalidPagination, null);
+
+        try
+        {
+            var contest = await _contestRepository.FindByIdAsync(contestId, cancellationToken);
+            if (contest == null || contest.IsDeleted)
+            {
+                return new ContestMembersResult(ContestMembersQueryStatus.ContestNotFound, null);
+            }
+
+            var (members, hasNext) = await _contestRepository.GetMembersPageAsync(contestId, pageSize, pageNumber, cancellationToken);
+            var memberResponses = members
+                .Where(m => m.User != null)
+                .Select(m => new ContestMemberResponse(m.UserId, m.User!.Username, m.Role))
+                .ToList();
+
+            return new ContestMembersResult(
+                ContestMembersQueryStatus.Success,
+                new ContestMembersPageResponse(hasNext, memberResponses));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting contest members for contest {ContestId}", contestId);
+            return new ContestMembersResult(ContestMembersQueryStatus.Error, null);
+        }
+    }
+
+    public async Task<ContestAttemptsResult> GetUserAttemptsAsync(int contestId, int userId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var contest = await _contestRepository.FindWithDetailsAsync(contestId, cancellationToken);
+            if (contest == null || contest.IsDeleted)
+            {
+                return new ContestAttemptsResult(ContestAttemptQueryStatus.ContestNotFound, Array.Empty<ContestAttemptDetailsResponse>());
+            }
+
+            var membership = contest.Memberships.FirstOrDefault(m => m.UserId == userId);
+            if (membership == null)
+            {
+                return new ContestAttemptsResult(ContestAttemptQueryStatus.AccessDenied, Array.Empty<ContestAttemptDetailsResponse>());
+            }
+
+            var attempts = await _contestRepository.GetUserAttemptsAsync(contestId, userId, cancellationToken);
+            var missionOrder = contest.Missions.ToDictionary(cm => cm.MissionId, cm => cm.SortOrder);
+
+            var attemptResponses = attempts
+                .OrderByDescending(a => a.StartedAt)
+                .Select(attempt =>
+                {
+                    var missionResults = attempt.MissionResults
+                        .OrderBy(result => missionOrder.TryGetValue(result.MissionId, out var sortOrder) ? sortOrder : int.MaxValue)
+                        .ThenBy(result => result.MissionId)
+                        .Select(result => new ContestAttemptMissionResultResponse(
+                            result.MissionId,
+                            result.Mission?.Name ?? $"Mission {result.MissionId}",
+                            result.SolvedAt,
+                            result.FirstAcceptedAt.HasValue,
+                            result.HighestScore,
+                            result.SubmissionCount,
+                            result.Penalty,
+                            result.FirstAcceptedAt,
+                            result.LastSubmissionAt,
+                            result.BestSubmissionId))
+                        .ToList();
+
+                    return new ContestAttemptDetailsResponse(
+                        attempt.Id,
+                        attempt.AttemptIndex,
+                        attempt.Status,
+                        attempt.FinishedBy,
+                        contest.ScheduleType,
+                        attempt.StartedAt,
+                        attempt.ExpiresAt,
+                        attempt.FinishedAt,
+                        attempt.TotalScore,
+                        attempt.SolvedCount,
+                        missionResults);
+                })
+                .ToList();
+
+            return new ContestAttemptsResult(ContestAttemptQueryStatus.Success, attemptResponses);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting contest attempts for contest {ContestId} and user {UserId}", contestId, userId);
+            return new ContestAttemptsResult(ContestAttemptQueryStatus.Error, Array.Empty<ContestAttemptDetailsResponse>());
         }
     }
 

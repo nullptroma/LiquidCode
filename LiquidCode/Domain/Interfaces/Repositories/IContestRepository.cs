@@ -23,8 +23,20 @@ public interface IContestRepository : IRepository<DbContest>
         int pageNumber,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<DbContest>> GetByMemberAsync(
+    Task<IReadOnlyList<DbContest>> GetOrganizedByUserAsync(
         int userId,
+        CancellationToken cancellationToken = default);
+
+    Task<(IEnumerable<DbContest> Items, bool HasNextPage)> GetParticipatingAsync(
+        int userId,
+        int pageSize,
+        int pageNumber,
+        CancellationToken cancellationToken = default);
+
+    Task<(IEnumerable<DbContestMembership> Items, bool HasNextPage)> GetMembersPageAsync(
+        int contestId,
+        int pageSize,
+        int pageNumber,
         CancellationToken cancellationToken = default);
 
     Task SyncMissionsAsync(DbContest contest, IEnumerable<int> missionIds, CancellationToken cancellationToken = default);
@@ -36,6 +48,7 @@ public interface IContestRepository : IRepository<DbContest>
     Task<DbContestAttempt?> FindActiveAttemptAsync(int contestId, int userId, CancellationToken cancellationToken = default);
     Task AddAttemptAsync(DbContestAttempt attempt, CancellationToken cancellationToken = default);
     Task UpdateAttemptAsync(DbContestAttempt attempt, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<DbContestAttempt>> GetUserAttemptsAsync(int contestId, int userId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<DbContestAttemptMissionResult>> GetAttemptResultsAsync(int attemptId, CancellationToken cancellationToken = default);
 }
 

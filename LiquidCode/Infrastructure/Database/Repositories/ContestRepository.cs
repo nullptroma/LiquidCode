@@ -155,7 +155,7 @@ public class ContestRepository : IContestRepository
         return (items, hasNextPage);
     }
 
-    public async Task<IReadOnlyList<DbContest>> GetByMemberAsync(
+    public async Task<IReadOnlyList<DbContest>> GetOrganizedByUserAsync(
         int userId,
         CancellationToken cancellationToken = default)
     {
@@ -175,14 +175,85 @@ public class ContestRepository : IContestRepository
             .Include(c => c.Articles)
                 .ThenInclude(ca => ca.Article)
                     .ThenInclude(a => a.Author)
-            .Include(c => c.Memberships)
-                .ThenInclude(cm => cm.User)
-            .Include(c => c.Memberships)
-                .ThenInclude(cm => cm.ActiveAttempt)
-            .Where(c => !c.IsDeleted && c.Memberships.Any(m => m.UserId == userId))
+            .Where(c => !c.IsDeleted && c.Memberships.Any(m => m.UserId == userId && (m.Role & ContestMembershipRole.Organizer) != 0))
             .OrderByDescending(c => c.StartsAt ?? c.CreatedAt)
             .ThenByDescending(c => c.Id)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<(IEnumerable<DbContest> Items, bool HasNextPage)> GetParticipatingAsync(
+        int userId,
+        int pageSize,
+        int pageNumber,
+        CancellationToken cancellationToken = default)
+    {
+        if (pageSize <= 0 || pageNumber < 0)
+            throw new ArgumentException("Page size must be positive, page number must be non-negative");
+
+        var query = _dbContext.Contests
+            .Include(c => c.Group)
+            .Include(c => c.Missions)
+                .ThenInclude(cm => cm.Mission)
+                    .ThenInclude(m => m.MissionTags)
+                        .ThenInclude(mt => mt.Tag)
+            .Include(c => c.Missions)
+                .ThenInclude(cm => cm.Mission)
+                    .ThenInclude(m => m.Author)
+            .Include(c => c.Articles)
+                .ThenInclude(ca => ca.Article)
+                    .ThenInclude(a => a.ArticleTags)
+                        .ThenInclude(at => at.Tag)
+            .Include(c => c.Articles)
+                .ThenInclude(ca => ca.Article)
+                    .ThenInclude(a => a.Author)
+            .Where(c => !c.IsDeleted && c.Memberships.Any(m =>
+                m.UserId == userId &&
+                (m.Role & ContestMembershipRole.Participant) != 0 &&
+                (m.Role & ContestMembershipRole.Organizer) == 0))
+            .OrderByDescending(c => c.StartsAt ?? c.CreatedAt)
+            .ThenByDescending(c => c.Id);
+
+        var items = await query
+            .Skip(pageSize * pageNumber)
+            .Take(pageSize + 1)
+            .ToListAsync(cancellationToken);
+
+        var hasNext = items.Count > pageSize;
+        if (hasNext)
+        {
+            items.RemoveAt(items.Count - 1);
+        }
+
+        return (items, hasNext);
+    }
+
+    public async Task<(IEnumerable<DbContestMembership> Items, bool HasNextPage)> GetMembersPageAsync(
+        int contestId,
+        int pageSize,
+        int pageNumber,
+        CancellationToken cancellationToken = default)
+    {
+        if (pageSize <= 0 || pageNumber < 0)
+            throw new ArgumentException("Page size must be positive, page number must be non-negative");
+
+        var query = _dbContext.ContestMemberships
+            .Include(m => m.User)
+            .Where(m => m.ContestId == contestId)
+            .OrderByDescending(m => (m.Role & ContestMembershipRole.Organizer) != 0)
+            .ThenBy(m => m.JoinedAt);
+
+        var items = await query
+            .Skip(pageSize * pageNumber)
+            .Take(pageSize + 1)
+            .ToListAsync(cancellationToken);
+
+        var hasNext = items.Count > pageSize;
+        if (hasNext)
+        {
+            items.RemoveAt(items.Count - 1);
+        }
+
+        return (items, hasNext);
     }
 
     public async Task SyncMissionsAsync(DbContest contest, IEnumerable<int> missionIds, CancellationToken cancellationToken = default)
@@ -339,6 +410,14 @@ public class ContestRepository : IContestRepository
         _dbContext.ContestAttempts.Update(attempt);
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<DbContestAttempt>> GetUserAttemptsAsync(int contestId, int userId, CancellationToken cancellationToken = default) =>
+        await _dbContext.ContestAttempts
+            .Include(a => a.MissionResults)
+                .ThenInclude(r => r.Mission)
+            .Where(a => a.ContestId == contestId && a.UserId == userId)
+            .OrderByDescending(a => a.StartedAt)
+            .ToListAsync(cancellationToken);
 
     public async Task<IReadOnlyList<DbContestAttemptMissionResult>> GetAttemptResultsAsync(int attemptId, CancellationToken cancellationToken = default) =>
         await _dbContext.ContestAttemptMissionResults

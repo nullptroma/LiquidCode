@@ -163,7 +163,7 @@ public class ContestsController(IContestService contestService, ISubmitService s
     }
 
     /// <summary>
-    /// Возвращает список контестов текущего пользователя
+    /// Возвращает контесты, где текущий пользователь является организатором
     /// </summary>
     [Authorize]
     [HttpGet("my")]
@@ -173,6 +173,26 @@ public class ContestsController(IContestService contestService, ISubmitService s
             return Unauthorized("User ID not found in claims.");
 
         var result = await contestService.GetForUserAsync(userId, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Возвращает контесты, где текущий пользователь участвует
+    /// </summary>
+    [Authorize]
+    [HttpGet("participating")]
+    public async Task<IActionResult> ListParticipating(
+        [FromQuery] int pageSize = 10,
+        [FromQuery] int page = 0,
+        CancellationToken cancellationToken = default)
+    {
+        if (!User.TryGetUserId(out var userId))
+            return Unauthorized("User ID not found in claims.");
+
+        var result = await contestService.GetParticipatingAsync(userId, pageSize, page, cancellationToken);
+        if (result == null)
+            return BadRequest("Invalid pagination parameters.");
+
         return Ok(result);
     }
 
@@ -207,6 +227,46 @@ public class ContestsController(IContestService contestService, ISubmitService s
             ContestSubmissionQueryStatus.ContestNotFound => NotFound("Contest not found."),
             ContestSubmissionQueryStatus.AccessDenied => Forbid(),
             _ => StatusCode(500, "Failed to load submissions.")
+        };
+    }
+
+    /// <summary>
+    /// Возвращает попытки текущего пользователя в контесте с результатами по задачам
+    /// </summary>
+    [Authorize]
+    [HttpGet("{contestId:int}/attempts/my")]
+    public async Task<IActionResult> GetMyContestAttempts([FromRoute] int contestId, CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out var userId))
+            return Unauthorized("User ID not found in claims.");
+
+        var result = await contestService.GetUserAttemptsAsync(contestId, userId, cancellationToken);
+        return result.Status switch
+        {
+            ContestAttemptQueryStatus.Success => Ok(result.Attempts),
+            ContestAttemptQueryStatus.ContestNotFound => NotFound("Contest not found."),
+            ContestAttemptQueryStatus.AccessDenied => Forbid(),
+            _ => StatusCode(500, "Failed to load attempts.")
+        };
+    }
+
+    /// <summary>
+    /// Возвращает участников контеста с пагинацией
+    /// </summary>
+    [HttpGet("{contestId:int}/members")]
+    public async Task<IActionResult> GetContestMembers(
+        [FromRoute] int contestId,
+        [FromQuery] int pageSize = 25,
+        [FromQuery] int page = 0,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await contestService.GetMembersPageAsync(contestId, pageSize, page, cancellationToken);
+        return result.Status switch
+        {
+            ContestMembersQueryStatus.Success => Ok(result.Page),
+            ContestMembersQueryStatus.ContestNotFound => NotFound("Contest not found."),
+            ContestMembersQueryStatus.InvalidPagination => BadRequest("Invalid pagination parameters."),
+            _ => StatusCode(500, "Failed to load contest members.")
         };
     }
 }
