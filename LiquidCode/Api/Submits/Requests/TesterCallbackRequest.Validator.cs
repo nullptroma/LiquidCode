@@ -25,8 +25,8 @@ public sealed class TesterCallbackRequestValidator : AbstractValidator<TesterCal
             .When(x => x.AmountOfTests > 0);
 
         RuleFor(x => x.Message)
-            .MaximumLength(512)
-            .WithMessage("Message must not exceed 512 characters")
+            .MaximumLength(10_000)
+            .WithMessage("Message must not exceed 10000 characters")
             .When(x => !string.IsNullOrEmpty(x.Message));
     }
 }

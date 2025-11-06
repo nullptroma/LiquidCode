@@ -42,14 +42,19 @@ public record ContestResponse(
         entity.Group?.Name,
         entity.Missions
             .OrderBy(m => m.SortOrder)
-            .Select(m => MissionResponse.FromEntity(m.Mission, includeStatements: false))
+            .Select(m => m.Mission)
+            .Where(m => m != null)
+            .Select(m => MissionResponse.FromEntity(m!, includeStatements: false))
             .ToList(),
         entity.Articles
             .OrderBy(a => a.SortOrder)
-            .Select(a => ArticleResponse.FromEntity(a.Article))
+            .Select(a => a.Article)
+            .Where(a => a != null)
+            .Select(a => ArticleResponse.FromEntity(a!))
             .ToList(),
         entity.Memberships
-            .Select(m => new ContestMemberResponse(m.UserId, m.User.Username, m.Role))
+            .Where(m => m.User != null)
+            .Select(m => new ContestMemberResponse(m.UserId, m.User!.Username, m.Role))
             .ToList()
     );
 }

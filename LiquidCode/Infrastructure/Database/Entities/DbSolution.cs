@@ -36,7 +36,7 @@ public class DbSolution : ITimestamped
 
     public TesterErrorCode TestingErrorCode { get; set; } = TesterErrorCode.None;
 
-    [StringLength(512)]
+    [StringLength(10_000)]
     public string? TestingMessage { get; set; }
 
     public int CurrentTest { get; set; }

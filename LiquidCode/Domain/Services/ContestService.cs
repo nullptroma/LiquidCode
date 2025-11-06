@@ -250,6 +250,9 @@ public class ContestService : IContestService
         try
         {
             var contests = await _contestRepository.GetByMemberAsync(userId, cancellationToken);
+            if (contests == null || contests.Count == 0)
+                return Array.Empty<ContestResponse>();
+
             return contests.Select(ContestResponse.FromEntity).ToList();
         }
         catch (Exception ex)

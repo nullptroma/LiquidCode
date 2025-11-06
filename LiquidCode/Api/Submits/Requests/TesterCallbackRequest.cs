@@ -10,7 +10,7 @@ public sealed record TesterCallbackRequest(
     [property: JsonPropertyName("SubmitId")] long SubmitId,
     [property: JsonPropertyName("State")] TesterState State,
     [property: JsonPropertyName("ErrorCode")] TesterErrorCode ErrorCode,
-    [property: JsonPropertyName("Message")] string? Message,
+    [property: JsonPropertyName("Message"), JsonConverter(typeof(CallbackMessageJsonConverter))] string? Message,
     [property: JsonPropertyName("CurrentTest")] int CurrentTest,
     [property: JsonPropertyName("AmountOfTests")] int AmountOfTests
 );

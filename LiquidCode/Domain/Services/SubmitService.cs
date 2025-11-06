@@ -386,6 +386,7 @@ public class SubmitService : ISubmitService
         int amountOfTests,
         CancellationToken cancellationToken = default)
     {
+        const int MaxTestingMessageLength = 10_000;
         try
         {
             var solution = await _submitRepository.GetSolutionAsync(solutionId, cancellationToken);
@@ -404,6 +405,10 @@ public class SubmitService : ISubmitService
             var normalizedAmount = Math.Max(amountOfTests, 0);
             var normalizedCurrent = Math.Clamp(currentTest, 0, normalizedAmount > 0 ? normalizedAmount : int.MaxValue);
             var trimmedMessage = string.IsNullOrWhiteSpace(message) ? null : message.Trim();
+            if (trimmedMessage != null && trimmedMessage.Length > MaxTestingMessageLength)
+            {
+                trimmedMessage = trimmedMessage[..MaxTestingMessageLength];
+            }
 
             solution.TestingState = state;
             solution.TestingErrorCode = errorCode;
@@ -449,6 +454,7 @@ public class SubmitService : ISubmitService
         int currentTest,
         int amountOfTests)
     {
+        const int MaxStatusLength = 256;
         var baseStatus = state switch
         {
             TesterState.Waiting => "Waiting",
@@ -469,8 +475,12 @@ public class SubmitService : ISubmitService
             _ => "Unknown state"
         };
 
-        return string.IsNullOrWhiteSpace(message)
+        var composed = string.IsNullOrWhiteSpace(message)
             ? baseStatus
             : $"{baseStatus}: {message}";
+
+        return composed.Length <= MaxStatusLength
+            ? composed
+            : composed[..MaxStatusLength];
     }
 }
