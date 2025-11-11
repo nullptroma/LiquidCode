@@ -16,7 +16,7 @@ public class AuthenticationControllerTests
     {
         using var client = _fixture.CreateClient();
 
-        var response = await client.GetAsync("authentication/whoami");
+    var response = await client.GetAsync("authentication/whoami", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }

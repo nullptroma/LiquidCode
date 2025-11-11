@@ -30,7 +30,7 @@ public sealed class IntegrationTestFixture : IAsyncLifetime, IDisposable
 
     public IntegrationTestWebApplicationFactory Factory { get; private set; } = null!;
 
-    public async Task InitializeAsync()
+    public async ValueTask InitializeAsync()
     {
         await _postgresContainer.StartAsync();
 
@@ -44,18 +44,6 @@ public sealed class IntegrationTestFixture : IAsyncLifetime, IDisposable
 
         var configurationOverrides = new Dictionary<string, string?>
         {
-            [ConfigurationKeys.PostgresUri] = _postgresUri,
-            [ConfigurationKeys.JwtIssuer] = "test-issuer",
-            [ConfigurationKeys.JwtAudience] = "test-audience",
-            [ConfigurationKeys.JwtSigningKey] = "test-signing-key-1234567890",
-            [ConfigurationKeys.S3AccessKey] = "access-key",
-            [ConfigurationKeys.S3SecretKey] = "secret-key",
-            [ConfigurationKeys.S3Endpoint] = "http://localhost:9000",
-            [ConfigurationKeys.S3PrivateBucket] = "test-private",
-            [ConfigurationKeys.S3PublicBucket] = "test-public",
-            [ConfigurationKeys.ServiceBaseUrl] = "http://localhost",
-            [ConfigurationKeys.TestingModuleUrl] = "http://localhost/testing",
-            [ConfigurationKeys.SubmitCallbackSecret] = "test-submit-secret"
         };
 
         Factory = new IntegrationTestWebApplicationFactory(_connectionString, configurationOverrides);
@@ -66,7 +54,7 @@ public sealed class IntegrationTestFixture : IAsyncLifetime, IDisposable
 
     public HttpClient CreateClient() => Factory.CreateClient();
 
-    public async Task DisposeAsync()
+    public async ValueTask DisposeAsync()
     {
         if (!_disposed)
         {
