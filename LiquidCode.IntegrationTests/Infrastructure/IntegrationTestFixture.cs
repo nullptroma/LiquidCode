@@ -16,6 +16,7 @@ public sealed class IntegrationTestFixture : IAsyncLifetime, IDisposable
     private bool _disposed;
     private string? _connectionString;
     private string? _postgresUri;
+    private Dictionary<string, string?>? _environmentVariables;
 
     public IntegrationTestFixture()
     {
@@ -82,34 +83,37 @@ public sealed class IntegrationTestFixture : IAsyncLifetime, IDisposable
         if (string.IsNullOrWhiteSpace(_postgresUri))
             throw new InvalidOperationException("Postgres URI has not been initialised.");
 
-        Environment.SetEnvironmentVariable(ConfigurationKeys.PostgresUri, _postgresUri);
-        Environment.SetEnvironmentVariable(ConfigurationKeys.JwtIssuer, "test-issuer");
-        Environment.SetEnvironmentVariable(ConfigurationKeys.JwtAudience, "test-audience");
-        Environment.SetEnvironmentVariable(ConfigurationKeys.JwtSigningKey, "test-signing-key-1234567890");
-        Environment.SetEnvironmentVariable(ConfigurationKeys.S3AccessKey, "access-key");
-        Environment.SetEnvironmentVariable(ConfigurationKeys.S3SecretKey, "secret-key");
-        Environment.SetEnvironmentVariable(ConfigurationKeys.S3Endpoint, "http://localhost:9000");
-        Environment.SetEnvironmentVariable(ConfigurationKeys.S3PrivateBucket, "test-private");
-        Environment.SetEnvironmentVariable(ConfigurationKeys.S3PublicBucket, "test-public");
-        Environment.SetEnvironmentVariable(ConfigurationKeys.ServiceBaseUrl, "http://localhost");
-        Environment.SetEnvironmentVariable(ConfigurationKeys.TestingModuleUrl, "http://localhost/testing");
-        Environment.SetEnvironmentVariable(ConfigurationKeys.SubmitCallbackSecret, "test-submit-secret");
+        _environmentVariables = new Dictionary<string, string?>
+        {
+            [ConfigurationKeys.PostgresUri] = _postgresUri,
+            [ConfigurationKeys.JwtIssuer] = "test-issuer",
+            [ConfigurationKeys.JwtAudience] = "test-audience",
+            [ConfigurationKeys.JwtSigningKey] = "test-signing-key-1234567890",
+            [ConfigurationKeys.S3AccessKey] = "access-key",
+            [ConfigurationKeys.S3SecretKey] = "secret-key",
+            [ConfigurationKeys.S3Endpoint] = "http://localhost:9000",
+            [ConfigurationKeys.S3PrivateBucket] = "test-private",
+            [ConfigurationKeys.S3PublicBucket] = "test-public",
+            [ConfigurationKeys.ServiceBaseUrl] = "http://localhost",
+            [ConfigurationKeys.TestingModuleUrl] = "http://localhost/testing",
+            [ConfigurationKeys.SubmitCallbackSecret] = "test-submit-secret"
+        };
+
+        foreach (var kvp in _environmentVariables)
+        {
+            Environment.SetEnvironmentVariable(kvp.Key, kvp.Value);
+        }
     }
 
     private void ClearEnvironmentVariables()
     {
-        Environment.SetEnvironmentVariable(ConfigurationKeys.PostgresUri, null);
-        Environment.SetEnvironmentVariable(ConfigurationKeys.JwtIssuer, null);
-        Environment.SetEnvironmentVariable(ConfigurationKeys.JwtAudience, null);
-        Environment.SetEnvironmentVariable(ConfigurationKeys.JwtSigningKey, null);
-        Environment.SetEnvironmentVariable(ConfigurationKeys.S3AccessKey, null);
-        Environment.SetEnvironmentVariable(ConfigurationKeys.S3SecretKey, null);
-        Environment.SetEnvironmentVariable(ConfigurationKeys.S3Endpoint, null);
-        Environment.SetEnvironmentVariable(ConfigurationKeys.S3PrivateBucket, null);
-        Environment.SetEnvironmentVariable(ConfigurationKeys.S3PublicBucket, null);
-        Environment.SetEnvironmentVariable(ConfigurationKeys.ServiceBaseUrl, null);
-        Environment.SetEnvironmentVariable(ConfigurationKeys.TestingModuleUrl, null);
-        Environment.SetEnvironmentVariable(ConfigurationKeys.SubmitCallbackSecret, null);
+        if (_environmentVariables != null)
+        {
+            foreach (var key in _environmentVariables.Keys)
+            {
+                Environment.SetEnvironmentVariable(key, null);
+            }
+        }
     }
 
     private Task RunMigrationsAsync()
