@@ -864,6 +864,12 @@ public class ContestService : IContestService
             attempt.TotalScore,
             attempt.SolvedCount);
 
+    public async Task<bool> IsUserRegisteredAsync(int contestId, int userId, CancellationToken cancellationToken = default)
+    {
+        var membership = await _contestRepository.GetMembershipAsync(contestId, userId, cancellationToken);
+        return membership != null;
+    }
+
     private sealed record ContestScheduleData(
         ContestScheduleType ScheduleType,
         DateTime? StartsAt,

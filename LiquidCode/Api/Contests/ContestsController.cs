@@ -269,4 +269,18 @@ public class ContestsController(IContestService contestService, ISubmitService s
             _ => StatusCode(500, "Failed to load contest members.")
         };
     }
+
+    /// <summary>
+    /// Проверяет, зарегистрирован ли текущий пользователь на контесте
+    /// </summary>
+    [Authorize]
+    [HttpGet("{contestId:int}/registered")]
+    public async Task<IActionResult> IsCurrentUserRegistered([FromRoute] int contestId, CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out var userId))
+            return Unauthorized("User ID not found in claims.");
+
+        var isRegistered = await contestService.IsUserRegisteredAsync(contestId, userId, cancellationToken);
+        return Ok(new { isRegistered });
+    }
 }
