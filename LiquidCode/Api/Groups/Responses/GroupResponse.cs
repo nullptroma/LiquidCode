@@ -14,15 +14,13 @@ public record GroupResponse(
     string? Description,
     IReadOnlyList<GroupMemberResponse> Members,
     IReadOnlyList<GroupContestSummary> Contests,
-    GroupJoinLinkResponse? ActiveJoinLink,
-    IReadOnlyList<GroupInvitationResponse> PendingInvitations
+    GroupJoinLinkResponse? ActiveJoinLink
 )
 {
     public static GroupResponse FromEntity(
         DbGroup entity,
         bool includePrivateDetails = false,
-        DbGroupJoinToken? activeJoinToken = null,
-        IEnumerable<DbGroupInvitation>? invitations = null)
+        DbGroupJoinToken? activeJoinToken = null)
     {
         var now = DateTime.UtcNow;
 
@@ -60,28 +58,13 @@ public record GroupResponse(
             joinLink = new GroupJoinLinkResponse(activeJoinToken.Token, activeJoinToken.ExpiresAt);
         }
 
-        var pendingInvitations = includePrivateDetails && invitations != null
-            ? invitations
-                .Where(i => i.Status == GroupInvitationStatus.Pending && i.ExpiresAt > now && i.RevokedAt == null)
-                .Select(i => new GroupInvitationResponse(
-                    i.Id,
-                    i.InviteeId,
-                    i.Invitee.Username,
-                    i.Status,
-                    i.ExpiresAt,
-                    i.CreatedAt))
-                .OrderByDescending(i => i.CreatedAt)
-                .ToList()
-            : new List<GroupInvitationResponse>();
-
         return new GroupResponse(
             entity.Id,
             entity.Name,
             entity.Description,
             members,
             contests,
-            joinLink,
-            pendingInvitations);
+            joinLink);
     }
 }
 
@@ -109,15 +92,3 @@ public record GroupContestSummary(
 /// Активный токен присоединения к группе
 /// </summary>
 public record GroupJoinLinkResponse(string Token, DateTime ExpiresAt);
-
-/// <summary>
-/// Приглашение в группу
-/// </summary>
-public record GroupInvitationResponse(
-    int InvitationId,
-    int InviteeId,
-    string InviteeUsername,
-    GroupInvitationStatus Status,
-    DateTime ExpiresAt,
-    DateTime CreatedAt
-);

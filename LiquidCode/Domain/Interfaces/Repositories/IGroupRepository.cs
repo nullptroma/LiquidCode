@@ -20,11 +20,6 @@ public interface IGroupRepository : IRepository<DbGroup>
     Task<DbGroupMembership?> GetMembershipAsync(int groupId, int userId, CancellationToken cancellationToken = default);
     Task UpsertMembershipAsync(int groupId, int userId, GroupMembershipRole role, GroupMembershipOptions? options, CancellationToken cancellationToken = default);
     Task RemoveMembershipAsync(int groupId, int userId, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<DbGroupInvitation>> GetActiveInvitationsAsync(int groupId, CancellationToken cancellationToken = default);
-    Task<DbGroupInvitation?> GetInvitationByIdAsync(int groupId, int invitationId, CancellationToken cancellationToken = default);
-    Task<DbGroupInvitation?> GetInvitationByTokenAsync(string token, CancellationToken cancellationToken = default);
-    Task<DbGroupInvitation> AddInvitationAsync(DbGroupInvitation invitation, CancellationToken cancellationToken = default);
-    Task SaveInvitationAsync(DbGroupInvitation invitation, CancellationToken cancellationToken = default);
     Task<DbGroupJoinToken?> GetActiveJoinTokenAsync(int groupId, CancellationToken cancellationToken = default);
     Task<DbGroupJoinToken?> GetJoinTokenByValueAsync(string token, CancellationToken cancellationToken = default);
     Task<DbGroupJoinToken> RotateJoinTokenAsync(int groupId, int createdById, TimeSpan ttl, CancellationToken cancellationToken = default);

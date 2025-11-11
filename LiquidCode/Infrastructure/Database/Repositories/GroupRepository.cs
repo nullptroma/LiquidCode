@@ -54,8 +54,6 @@ public class GroupRepository : IGroupRepository
             .Include(g => g.Memberships)
                 .ThenInclude(m => m.User)
             .Include(g => g.Contests)
-            .Include(g => g.Invitations)
-                .ThenInclude(i => i.Invitee)
             .Include(g => g.JoinTokens)
             .AsQueryable();
 
@@ -143,41 +141,6 @@ public class GroupRepository : IGroupRepository
             _dbContext.GroupMemberships.Remove(membership);
             await _dbContext.SaveChangesAsync(cancellationToken);
         }
-    }
-
-    public async Task<IReadOnlyList<DbGroupInvitation>> GetActiveInvitationsAsync(int groupId, CancellationToken cancellationToken = default)
-    {
-        var now = DateTime.UtcNow;
-        return await _dbContext.GroupInvitations
-            .Include(i => i.Invitee)
-            .Where(i => i.GroupId == groupId && i.Status == GroupInvitationStatus.Pending && i.ExpiresAt > now && i.RevokedAt == null)
-            .OrderByDescending(i => i.CreatedAt)
-            .ToListAsync(cancellationToken);
-    }
-
-    public Task<DbGroupInvitation?> GetInvitationByIdAsync(int groupId, int invitationId, CancellationToken cancellationToken = default) =>
-        _dbContext.GroupInvitations
-            .Include(i => i.Invitee)
-            .FirstOrDefaultAsync(i => i.GroupId == groupId && i.Id == invitationId, cancellationToken);
-
-    public Task<DbGroupInvitation?> GetInvitationByTokenAsync(string token, CancellationToken cancellationToken = default) =>
-        _dbContext.GroupInvitations
-            .Include(i => i.Group)
-                .ThenInclude(g => g.Memberships)
-            .Include(i => i.Invitee)
-            .FirstOrDefaultAsync(i => i.Token == token, cancellationToken);
-
-    public async Task<DbGroupInvitation> AddInvitationAsync(DbGroupInvitation invitation, CancellationToken cancellationToken = default)
-    {
-        await _dbContext.GroupInvitations.AddAsync(invitation, cancellationToken);
-        await _dbContext.SaveChangesAsync(cancellationToken);
-        return invitation;
-    }
-
-    public async Task SaveInvitationAsync(DbGroupInvitation invitation, CancellationToken cancellationToken = default)
-    {
-        _dbContext.GroupInvitations.Update(invitation);
-        await _dbContext.SaveChangesAsync(cancellationToken);
     }
 
     public Task<DbGroupJoinToken?> GetActiveJoinTokenAsync(int groupId, CancellationToken cancellationToken = default)
