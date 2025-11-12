@@ -67,28 +67,3 @@ public record GroupResponse(
             joinLink);
     }
 }
-
-/// <summary>
-/// Информация об участнике группы
-/// </summary>
-public record GroupMemberResponse(int UserId, string Username, GroupMembershipRole Role, DateTime JoinedAt, bool IsAutoJoined);
-
-/// <summary>
-/// Краткое описание контеста, созданного в группе
-/// </summary>
-public record GroupContestSummary(
-    int ContestId,
-    string Name,
-    ContestScheduleType ScheduleType,
-    ContestVisibility Visibility,
-    DateTime? StartsAt,
-    DateTime? EndsAt,
-    int? AttemptDurationMinutes,
-    int? MaxAttempts,
-    bool AllowEarlyFinish
-);
-
-/// <summary>
-/// Активный токен присоединения к группе
-/// </summary>
-public record GroupJoinLinkResponse(string Token, DateTime ExpiresAt);

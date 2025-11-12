@@ -53,8 +53,3 @@ public record ContestResponse(
             .ToList()
     );
 }
-
-/// <summary>
-/// Описание участника или организатора контеста
-/// </summary>
-public record ContestMemberResponse(int UserId, string Username, ContestMembershipRole Role);
