@@ -13,7 +13,7 @@ namespace LiquidCode.IntegrationTests.Tests;
 public class AuthenticationControllerTests
 {
     private readonly IntegrationTestFixture _fixture;
-    private static readonly JsonSerializerOptions JsonOptions = TestJson.Default;
+    private static readonly JsonSerializerOptions JsonOptions = TestJsonOptions.Default;
 
     public AuthenticationControllerTests(IntegrationTestFixture fixture) => _fixture = fixture;
 
@@ -79,7 +79,6 @@ public class AuthenticationControllerTests
         var password = TestDataGenerator.ValidPassword();
         var registerRequest = new RegisterRequest(username, TestDataGenerator.EmailFor(username), password);
         var registerResponse = await client.PostAsJsonAsync("authentication/register", registerRequest, TestContext.Current.CancellationToken);
-        var data = await registerResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, registerResponse.StatusCode);
         
         var loginRequest = new LoginRequest(username, $"{password}wrong");
@@ -147,9 +146,9 @@ public class AuthenticationControllerTests
 
         Assert.Equal(HttpStatusCode.OK, whoAmIResponse.StatusCode);
 
-        var body = await whoAmIResponse.Content.ReadFromJsonAsync<WhoAmIResponseDto>(JsonOptions, TestContext.Current.CancellationToken);
+        var body = await whoAmIResponse.Content.ReadFromJsonAsync<WhoAmIResponse>(JsonOptions, TestContext.Current.CancellationToken);
         Assert.NotNull(body);
-        Assert.Equal(username, body!.Username);
+        Assert.Equal(username, body.Username);
     }
 
     [Fact]

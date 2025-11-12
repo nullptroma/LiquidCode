@@ -5,9 +5,7 @@ using LiquidCode.Infrastructure.Database.Entities;
 
 namespace LiquidCode.IntegrationTests.Infrastructure;
 
-internal sealed record WhoAmIResponseDto(string Username);
-
-internal static class TestJson
+internal static class TestJsonOptions
 {
     public static readonly JsonSerializerOptions Default = new(JsonSerializerDefaults.Web)
     {

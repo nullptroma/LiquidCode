@@ -1,4 +1,5 @@
 using LiquidCode.Api.Authentication.Requests;
+using LiquidCode.Api.Authentication.Responses;
 using LiquidCode.Domain.Interfaces.Services;
 using LiquidCode.Shared.Extensions;
 using Microsoft.AspNetCore.Authorization;
@@ -81,6 +82,6 @@ public class AuthenticationController(IAuthenticationService authService) : Cont
         if (username == null)
             return NotFound("User not found.");
 
-        return Ok(new { username });
+        return Ok(new WhoAmIResponse(username));
     }
 }
