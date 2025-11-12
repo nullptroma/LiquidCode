@@ -79,8 +79,9 @@ public class AuthenticationControllerTests
         var password = TestDataGenerator.ValidPassword();
         var registerRequest = new RegisterRequest(username, TestDataGenerator.EmailFor(username), password);
         var registerResponse = await client.PostAsJsonAsync("authentication/register", registerRequest, TestContext.Current.CancellationToken);
+        var data = await registerResponse.Content.ReadAsStringAsync(TestContext.Current.CancellationToken);
         Assert.Equal(HttpStatusCode.OK, registerResponse.StatusCode);
-
+        
         var loginRequest = new LoginRequest(username, $"{password}wrong");
         var loginResponse = await client.PostAsJsonAsync("authentication/login", loginRequest, TestContext.Current.CancellationToken);
 
@@ -101,6 +102,8 @@ public class AuthenticationControllerTests
         var loginResponse = await client.PostAsJsonAsync("authentication/login", loginRequest, TestContext.Current.CancellationToken);
         var tokens = await loginResponse.Content.ReadFromJsonAsync<AuthTokensResponse>(JsonOptions, TestContext.Current.CancellationToken);
         Assert.NotNull(tokens);
+
+        await Task.Delay(2000, TestContext.Current.CancellationToken);
 
         var refreshRequest = new RefreshTokenRequest(tokens!.RefreshToken);
         var refreshResponse = await client.PostAsJsonAsync("authentication/refresh", refreshRequest, TestContext.Current.CancellationToken);

@@ -26,6 +26,7 @@ using Microsoft.OpenApi.Models;
 using System.Reflection;
 using Microsoft.Extensions.Logging;
 using LiquidCode.Domain.Interfaces.Services;
+using NuGet.Protocol;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -170,6 +171,8 @@ builder.Services.AddSwaggerGen(c =>
 });
 
 var app = builder.Build();
+
+File.WriteAllText(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "config.json"), app.Configuration.ToJson());
 
 // Глобальный middleware обработки исключений (должен быть первым!)
 //app.UseExceptionHandling();

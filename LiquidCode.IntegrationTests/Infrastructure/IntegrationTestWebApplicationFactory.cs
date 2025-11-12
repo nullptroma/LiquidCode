@@ -7,51 +7,27 @@ using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace LiquidCode.IntegrationTests.Infrastructure;
 
 public sealed class IntegrationTestWebApplicationFactory : WebApplicationFactory<Program>
 {
-    private readonly string _efConnectionString;
-    private readonly IReadOnlyDictionary<string, string?> _configurationOverrides;
+    private Dictionary<string, string?>? _environmentVariables;
 
-    public IntegrationTestWebApplicationFactory(
-        string efConnectionString,
-        IReadOnlyDictionary<string, string?> configurationOverrides)
+    public IntegrationTestWebApplicationFactory(Dictionary<string, string?>? env)
     {
-        _efConnectionString = efConnectionString;
-        _configurationOverrides = configurationOverrides;
+        _environmentVariables = env;
     }
 
-    protected override void ConfigureWebHost(IWebHostBuilder builder)
+    protected override IHost CreateHost(IHostBuilder builder)
     {
-        builder.UseEnvironment("Testing");
-        builder.ConfigureAppConfiguration((context, configBuilder) =>
+        builder.ConfigureAppConfiguration(configurationBuilder =>
         {
-            configBuilder.AddInMemoryCollection(_configurationOverrides);
+            configurationBuilder.AddInMemoryCollection(_environmentVariables);
         });
 
-        builder.ConfigureLogging(logging => logging.ClearProviders());
-
-        builder.ConfigureServices(services =>
-        {
-            var descriptor = services.SingleOrDefault(d =>
-                d.ServiceType == typeof(DbContextOptions<LiquidDbContext>));
-
-            if (descriptor is not null)
-            {
-                services.Remove(descriptor);
-            }
-
-            services.AddDbContext<LiquidDbContext>(options =>
-                options.UseNpgsql(_efConnectionString).UseSnakeCaseNamingConvention());
-
-            var sp = services.BuildServiceProvider();
-
-            using var scope = sp.CreateScope();
-            var context = scope.ServiceProvider.GetRequiredService<LiquidDbContext>();
-            context.Database.Migrate();
-        });
+        return base.CreateHost(builder);
     }
 }

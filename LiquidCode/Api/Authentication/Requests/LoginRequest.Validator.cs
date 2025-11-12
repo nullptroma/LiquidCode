@@ -15,7 +15,7 @@ public class LoginRequestValidator : AbstractValidator<LoginRequest>
         RuleFor(x => x.Username)
             .NotEmpty()
             .WithMessage("Username is required")
-            .Length(3, 50)
+            .Length(3, 128)
             .WithMessage("Username must be between 3 and 50 characters")
             .Matches(@"^[a-zA-Z0-9_\-\.]+$")
             .WithMessage("Username can only contain letters, numbers, underscore, hyphen, or dot");

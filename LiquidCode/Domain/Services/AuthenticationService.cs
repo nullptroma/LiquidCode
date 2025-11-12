@@ -53,7 +53,6 @@ public class AuthenticationService : IAuthenticationService
                 Username = request.Username,
                 Email = request.Email,
                 PassHash = passwordHash,
-                Salt = "" // BCrypt управляет солью внутренне
             };
 
             await _userRepository.CreateAsync(newUser, cancellationToken);

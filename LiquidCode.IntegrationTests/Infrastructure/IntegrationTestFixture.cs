@@ -43,11 +43,7 @@ public sealed class IntegrationTestFixture : IAsyncLifetime, IDisposable
         ApplyEnvironmentVariables();
         await RunMigrationsAsync();
 
-        var configurationOverrides = new Dictionary<string, string?>
-        {
-        };
-
-        Factory = new IntegrationTestWebApplicationFactory(_connectionString, configurationOverrides);
+        Factory = new IntegrationTestWebApplicationFactory(_environmentVariables);
 
         // trigger application startup once so ASP.NET pipeline is ready for tests
         using var client = Factory.CreateClient();
@@ -88,7 +84,7 @@ public sealed class IntegrationTestFixture : IAsyncLifetime, IDisposable
             [ConfigurationKeys.PostgresUri] = _postgresUri,
             [ConfigurationKeys.JwtIssuer] = "test-issuer",
             [ConfigurationKeys.JwtAudience] = "test-audience",
-            [ConfigurationKeys.JwtSigningKey] = "test-signing-key-1234567890",
+            [ConfigurationKeys.JwtSigningKey] = "test-signing-key-1234567890vetyivfy4yfv34yvfy2f3f4",
             [ConfigurationKeys.S3AccessKey] = "access-key",
             [ConfigurationKeys.S3SecretKey] = "secret-key",
             [ConfigurationKeys.S3Endpoint] = "http://localhost:9000",
