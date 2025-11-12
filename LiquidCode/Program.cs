@@ -9,6 +9,7 @@ using LiquidCode.Domain.Services.Articles;
 using LiquidCode.Domain.Services.Contests;
 using LiquidCode.Domain.Services.Groups;
 using LiquidCode.Domain.Services.Missions;
+using LiquidCode.Domain.Services.Profile;
 using LiquidCode.Domain.Services.Submits;
 using LiquidCode.Domain.Services.Tags;
 using LiquidCode.Domain.Services;
@@ -118,6 +119,7 @@ builder.Services.AddScoped<IArticleRepository, ArticleRepository>();
 builder.Services.AddScoped<ITagRepository, TagRepository>();
 builder.Services.AddScoped<IContestRepository, ContestRepository>();
 builder.Services.AddScoped<IGroupRepository, GroupRepository>();
+builder.Services.AddScoped<IProfileRepository, ProfileRepository>();
 
 // Добавить сервисы
 builder.Services.AddScoped<IAuthenticationService, AuthenticationService>();
@@ -128,6 +130,7 @@ builder.Services.AddScoped<ITagService, TagService>();
 builder.Services.AddScoped<IContestService, ContestService>();
 builder.Services.AddScoped<IGroupService, GroupService>();
 builder.Services.AddScoped<IMediaService, MediaService>();
+builder.Services.AddScoped<IProfileService, ProfileService>();
 
 builder.Services.AddDbContext<LiquidDbContext>(options =>
     options.UseNpgsql(dbConnectionString).UseSnakeCaseNamingConvention());
