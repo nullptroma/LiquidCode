@@ -14,18 +14,18 @@ namespace LiquidCode.IntegrationTests.Infrastructure;
 
 public sealed class IntegrationTestWebApplicationFactory : WebApplicationFactory<Program>
 {
-    private Dictionary<string, string?>? _environmentVariables;
+    private Dictionary<string, string?>? _configuration;
 
-    public IntegrationTestWebApplicationFactory(Dictionary<string, string?>? env)
+    public IntegrationTestWebApplicationFactory(Dictionary<string, string?>? configuration)
     {
-        _environmentVariables = env;
+        _configuration = configuration;
     }
 
     protected override IHost CreateHost(IHostBuilder builder)
     {
         builder.ConfigureAppConfiguration(configurationBuilder =>
         {
-            configurationBuilder.AddInMemoryCollection(_environmentVariables);
+            configurationBuilder.AddInMemoryCollection(_configuration);
         });
 
         return base.CreateHost(builder);
