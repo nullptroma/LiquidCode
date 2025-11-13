@@ -1,12 +1,9 @@
 using System;
 using System.Linq;
 using System.Net;
-using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.Tasks;
-using LiquidCode.Api.Authentication.Requests;
-using LiquidCode.Api.Authentication.Responses;
 using LiquidCode.Api.Groups.Requests;
 using LiquidCode.Api.Groups.Responses;
 using LiquidCode.Infrastructure.Database.Entities;
@@ -22,51 +19,12 @@ public class GroupsControllerTests
 
     public GroupsControllerTests(IntegrationTestFixture fixture) => _fixture = fixture;
 
-    #region Helper Methods
-
-    private async Task<(HttpClient client, string username, int userId, string jwt)> CreateAuthenticatedClient()
-    {
-        var client = _fixture.CreateClient();
-        var username = TestDataGenerator.UniqueUsername("groups");
-        var password = TestDataGenerator.ValidPassword();
-        var request = new RegisterRequest(username, TestDataGenerator.EmailFor(username), password);
-
-        var response = await client.PostAsJsonAsync("authentication/register", request, TestContext.Current.CancellationToken);
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
-        var tokens = await response.Content.ReadFromJsonAsync<AuthTokensResponse>(JsonOptions, TestContext.Current.CancellationToken);
-        Assert.NotNull(tokens);
-
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokens!.Jwt);
-
-        // Parse JWT to get userId (JWT payload contains userId as ClaimTypes.NameIdentifier claim)
-        var handler = new System.IdentityModel.Tokens.Jwt.JwtSecurityTokenHandler();
-        var jwtToken = handler.ReadJwtToken(tokens!.Jwt);
-        var userIdClaim = jwtToken.Claims.First(c => c.Type == System.Security.Claims.ClaimTypes.NameIdentifier);
-        var userId = int.Parse(userIdClaim.Value);
-
-        return (client, username, userId, tokens.Jwt);
-    }
-
-    private async Task<int> CreateGroup(HttpClient client, string name, string? description = null)
-    {
-        var request = new CreateGroupRequest(name, description);
-        var response = await client.PostAsJsonAsync("groups", request, TestContext.Current.CancellationToken);
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
-        var groupResponse = await response.Content.ReadFromJsonAsync<GroupResponse>(JsonOptions, TestContext.Current.CancellationToken);
-        Assert.NotNull(groupResponse);
-        return groupResponse!.Id;
-    }
-
-    #endregion
-
     #region Create Tests
 
     [Fact]
     public async Task Create_WithValidRequest_ReturnsGroup()
     {
-        var (client, username, _, _) = await CreateAuthenticatedClient();
+        var (client, username, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_create_valid");
         var groupName = TestDataGenerator.UniqueGroupName();
         var description = "Test Description";
         var request = new CreateGroupRequest(groupName, description);
@@ -89,7 +47,7 @@ public class GroupsControllerTests
     [Fact]
     public async Task Create_WithValidRequestNoDescription_ReturnsGroup()
     {
-        var (client, _, _, _) = await CreateAuthenticatedClient();
+        var (client, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_create_no_description");
         var groupName = TestDataGenerator.UniqueGroupName();
         var request = new CreateGroupRequest(groupName, null);
 
@@ -117,7 +75,7 @@ public class GroupsControllerTests
     [Fact]
     public async Task Create_WithInvalidName_ReturnsBadRequest()
     {
-        var (client, _, _, _) = await CreateAuthenticatedClient();
+        var (client, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_create_invalid_name");
         var request = new CreateGroupRequest("AB", "Description"); // Too short (min 3)
 
         var response = await client.PostAsJsonAsync("groups", request, TestContext.Current.CancellationToken);
@@ -128,7 +86,7 @@ public class GroupsControllerTests
     [Fact]
     public async Task Create_WithTooLongName_ReturnsBadRequest()
     {
-        var (client, _, _, _) = await CreateAuthenticatedClient();
+        var (client, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_create_too_long");
         var longName = new string('A', 129); // Max 128
         var request = new CreateGroupRequest(longName, "Description");
 
@@ -144,9 +102,9 @@ public class GroupsControllerTests
     [Fact]
     public async Task Get_ExistingGroup_ReturnsGroup()
     {
-        var (client, _, _, _) = await CreateAuthenticatedClient();
+        var (client, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_get_existing");
         var groupName = TestDataGenerator.UniqueGroupName();
-        var groupId = await CreateGroup(client, groupName);
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(client, groupName);
 
         var response = await client.GetAsync($"groups/{groupId}", TestContext.Current.CancellationToken);
 
@@ -161,8 +119,8 @@ public class GroupsControllerTests
     [Fact]
     public async Task Get_ExistingGroupWithoutAuthentication_ReturnsGroup()
     {
-        var (authClient, _, _, _) = await CreateAuthenticatedClient();
-        var groupId = await CreateGroup(authClient, TestDataGenerator.UniqueGroupName());
+        var (authClient, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_get_public");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(authClient, TestDataGenerator.UniqueGroupName());
 
         using var unauthClient = _fixture.CreateClient();
         var response = await unauthClient.GetAsync($"groups/{groupId}", TestContext.Current.CancellationToken);
@@ -173,7 +131,7 @@ public class GroupsControllerTests
     [Fact]
     public async Task Get_NonExistingGroup_ReturnsNotFound()
     {
-        var (client, _, _, _) = await CreateAuthenticatedClient();
+        var (client, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_get_missing");
         var nonExistingId = 999999;
 
         var response = await client.GetAsync($"groups/{nonExistingId}", TestContext.Current.CancellationToken);
@@ -188,8 +146,8 @@ public class GroupsControllerTests
     [Fact]
     public async Task Update_WithValidRequest_ReturnsUpdatedGroup()
     {
-        var (client, _, _, _) = await CreateAuthenticatedClient();
-        var groupId = await CreateGroup(client, $"Old Name {Guid.NewGuid():N}", "Old Description");
+        var (client, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_update_valid");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(client, $"Old Name {Guid.NewGuid():N}", "Old Description");
 
         var newName = $"New Name {Guid.NewGuid():N}";
         var newDescription = "New Description";
@@ -208,9 +166,9 @@ public class GroupsControllerTests
     [Fact]
     public async Task Update_OnlyName_UpdatesOnlyName()
     {
-        var (client, _, _, _) = await CreateAuthenticatedClient();
+        var (client, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_update_name_only");
         var oldDescription = "Old Description";
-        var groupId = await CreateGroup(client, $"Old Name {Guid.NewGuid():N}", oldDescription);
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(client, $"Old Name {Guid.NewGuid():N}", oldDescription);
 
         var newName = $"New Name {Guid.NewGuid():N}";
         var updateRequest = new UpdateGroupRequest(newName, null);
@@ -228,9 +186,9 @@ public class GroupsControllerTests
     [Fact]
     public async Task Update_OnlyDescription_UpdatesOnlyDescription()
     {
-        var (client, _, _, _) = await CreateAuthenticatedClient();
+        var (client, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_update_description_only");
         var oldName = $"Old Name {Guid.NewGuid():N}";
-        var groupId = await CreateGroup(client, oldName, "Old Description");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(client, oldName, "Old Description");
 
         var newDescription = "New Description";
         var updateRequest = new UpdateGroupRequest(null, newDescription);
@@ -248,7 +206,7 @@ public class GroupsControllerTests
     [Fact]
     public async Task Update_NonExistingGroup_ReturnsNotFound()
     {
-        var (client, _, _, _) = await CreateAuthenticatedClient();
+        var (client, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_update_missing");
         var nonExistingId = 999999;
         var updateRequest = new UpdateGroupRequest("New Name", "New Description");
 
@@ -260,10 +218,10 @@ public class GroupsControllerTests
     [Fact]
     public async Task Update_OtherUsersGroup_ReturnsNotFound()
     {
-        var (client1, _, _, _) = await CreateAuthenticatedClient();
-        var groupId = await CreateGroup(client1, TestDataGenerator.UniqueGroupName());
+        var (client1, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_update_owner");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(client1, TestDataGenerator.UniqueGroupName());
 
-        var (client2, _, _, _) = await CreateAuthenticatedClient();
+        var (client2, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_update_other");
         var updateRequest = new UpdateGroupRequest("Hacked Name", null);
 
         var response = await client2.PutAsJsonAsync($"groups/{groupId}", updateRequest, TestContext.Current.CancellationToken);
@@ -274,8 +232,8 @@ public class GroupsControllerTests
     [Fact]
     public async Task Update_WithoutAuthentication_ReturnsUnauthorized()
     {
-        var (authClient, _, _, _) = await CreateAuthenticatedClient();
-        var groupId = await CreateGroup(authClient, TestDataGenerator.UniqueGroupName());
+        var (authClient, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_update_unauth");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(authClient, TestDataGenerator.UniqueGroupName());
 
         using var unauthClient = _fixture.CreateClient();
         var updateRequest = new UpdateGroupRequest("New Name", null);
@@ -292,8 +250,8 @@ public class GroupsControllerTests
     [Fact]
     public async Task Delete_ExistingGroup_ReturnsNoContent()
     {
-        var (client, _, _, _) = await CreateAuthenticatedClient();
-        var groupId = await CreateGroup(client, TestDataGenerator.UniqueGroupName());
+        var (client, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_delete_existing");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(client, TestDataGenerator.UniqueGroupName());
 
         var response = await client.DeleteAsync($"groups/{groupId}", TestContext.Current.CancellationToken);
 
@@ -307,7 +265,7 @@ public class GroupsControllerTests
     [Fact]
     public async Task Delete_NonExistingGroup_ReturnsNotFound()
     {
-        var (client, _, _, _) = await CreateAuthenticatedClient();
+        var (client, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_delete_missing");
         var nonExistingId = 999999;
 
         var response = await client.DeleteAsync($"groups/{nonExistingId}", TestContext.Current.CancellationToken);
@@ -318,10 +276,10 @@ public class GroupsControllerTests
     [Fact]
     public async Task Delete_OtherUsersGroup_ReturnsNotFound()
     {
-        var (client1, _, _, _) = await CreateAuthenticatedClient();
-        var groupId = await CreateGroup(client1, TestDataGenerator.UniqueGroupName());
+        var (client1, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_delete_owner");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(client1, TestDataGenerator.UniqueGroupName());
 
-        var (client2, _, _, _) = await CreateAuthenticatedClient();
+        var (client2, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_delete_other");
 
         var response = await client2.DeleteAsync($"groups/{groupId}", TestContext.Current.CancellationToken);
 
@@ -331,8 +289,8 @@ public class GroupsControllerTests
     [Fact]
     public async Task Delete_WithoutAuthentication_ReturnsUnauthorized()
     {
-        var (authClient, _, _, _) = await CreateAuthenticatedClient();
-        var groupId = await CreateGroup(authClient, TestDataGenerator.UniqueGroupName());
+        var (authClient, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_delete_unauth");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(authClient, TestDataGenerator.UniqueGroupName());
 
         using var unauthClient = _fixture.CreateClient();
 
@@ -348,11 +306,11 @@ public class GroupsControllerTests
     [Fact]
     public async Task GetMyGroups_WithMultipleGroups_ReturnsAllGroups()
     {
-        var (client, _, _, _) = await CreateAuthenticatedClient();
-        
-        var groupId1 = await CreateGroup(client, $"Group 1 {Guid.NewGuid():N}");
-        var groupId2 = await CreateGroup(client, $"Group 2 {Guid.NewGuid():N}");
-        var groupId3 = await CreateGroup(client, $"Group 3 {Guid.NewGuid():N}");
+        var (client, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_my_multiple");
+
+        var (groupId1, _) = await TestClientHelper.CreateGroupAsync(client, $"Group 1 {Guid.NewGuid():N}");
+        var (groupId2, _) = await TestClientHelper.CreateGroupAsync(client, $"Group 2 {Guid.NewGuid():N}");
+        var (groupId3, _) = await TestClientHelper.CreateGroupAsync(client, $"Group 3 {Guid.NewGuid():N}");
 
         var response = await client.GetAsync("groups/my", TestContext.Current.CancellationToken);
 
@@ -370,7 +328,7 @@ public class GroupsControllerTests
     [Fact]
     public async Task GetMyGroups_WithNoGroups_ReturnsEmptyList()
     {
-        var (client, _, _, _) = await CreateAuthenticatedClient();
+        var (client, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_my_empty");
 
         var response = await client.GetAsync("groups/my", TestContext.Current.CancellationToken);
 
@@ -384,12 +342,12 @@ public class GroupsControllerTests
     [Fact]
     public async Task GetMyGroups_WithPagination_ReturnsCorrectPage()
     {
-        var (client, _, _, _) = await CreateAuthenticatedClient();
+        var (client, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_my_pagination");
         
         // Create 15 groups
         for (int i = 0; i < 15; i++)
         {
-            await CreateGroup(client, $"Group {i} {Guid.NewGuid():N}");
+            await TestClientHelper.CreateGroupAsync(client, $"Group {i} {Guid.NewGuid():N}");
         }
 
         // Get first page (pageSize=10, page=0)
@@ -428,11 +386,11 @@ public class GroupsControllerTests
     [Fact]
     public async Task UpdateMemberRole_NonExistentMember_ReturnsNotFound()
     {
-        var (client1, _, _, _) = await CreateAuthenticatedClient();
-        var groupId = await CreateGroup(client1, TestDataGenerator.UniqueGroupName());
+        var (client1, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_member_nonexistent");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(client1, TestDataGenerator.UniqueGroupName());
 
         // Create second user
-        var (client2, _, userId2, _) = await CreateAuthenticatedClient();
+        var (client2, _, userId2, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_member_nonexistent_user");
 
         // Try to update non-existent member
         var membershipRequest = new GroupMembershipRequest(userId2, GroupMembershipRole.Member);
@@ -444,19 +402,10 @@ public class GroupsControllerTests
     [Fact]
     public async Task UpdateMemberRole_UpdateExistingMember_ReturnsNoContent()
     {
-        var (client1, _, _, _) = await CreateAuthenticatedClient();
-        var groupId = await CreateGroup(client1, TestDataGenerator.UniqueGroupName());
+        var (client1, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_member_promote_owner");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(client1, TestDataGenerator.UniqueGroupName());
 
-        // Create second user and join via link
-        var (client2, _, userId2, _) = await CreateAuthenticatedClient();
-        
-        // Get join link
-        var linkResponse = await client1.GetAsync($"groups/{groupId}/join-link", TestContext.Current.CancellationToken);
-        var joinLink = await linkResponse.Content.ReadFromJsonAsync<GroupJoinLinkResponse>(JsonOptions, TestContext.Current.CancellationToken);
-        Assert.NotNull(joinLink);
-        
-        // Join group using token
-        await client2.PostAsync($"groups/join/{joinLink!.Token}", null, TestContext.Current.CancellationToken);
+        var (client2, _, userId2, _) = await TestClientHelper.CreateMemberClientAsync(_fixture, client1, groupId, "groups_member_promote_member");
 
         // Promote to Administrator
         var membershipRequest = new GroupMembershipRequest(userId2, GroupMembershipRole.Administrator);
@@ -474,7 +423,7 @@ public class GroupsControllerTests
     [Fact]
     public async Task UpdateMemberRole_NonExistingGroup_ReturnsNotFound()
     {
-        var (client, _, _, _) = await CreateAuthenticatedClient();
+        var (client, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_member_missing_group");
         var nonExistingId = 999999;
         var membershipRequest = new GroupMembershipRequest(1, GroupMembershipRole.Member);
 
@@ -486,10 +435,10 @@ public class GroupsControllerTests
     [Fact]
     public async Task UpdateMemberRole_OtherUsersGroup_ReturnsNotFound()
     {
-        var (client1, _, _, _) = await CreateAuthenticatedClient();
-        var groupId = await CreateGroup(client1, TestDataGenerator.UniqueGroupName());
+        var (client1, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_member_foreign_owner");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(client1, TestDataGenerator.UniqueGroupName());
 
-        var (client2, _, _, _) = await CreateAuthenticatedClient();
+        var (client2, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_member_foreign_user");
         var membershipRequest = new GroupMembershipRequest(1, GroupMembershipRole.Member);
 
         var response = await client2.PostAsJsonAsync($"groups/{groupId}/members", membershipRequest, TestContext.Current.CancellationToken);
@@ -500,8 +449,8 @@ public class GroupsControllerTests
     [Fact]
     public async Task UpdateMemberRole_WithoutAuthentication_ReturnsUnauthorized()
     {
-        var (authClient, _, _, _) = await CreateAuthenticatedClient();
-        var groupId = await CreateGroup(authClient, TestDataGenerator.UniqueGroupName());
+        var (authClient, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_member_unauth");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(authClient, TestDataGenerator.UniqueGroupName());
 
         using var unauthClient = _fixture.CreateClient();
         var membershipRequest = new GroupMembershipRequest(1, GroupMembershipRole.Member);
@@ -514,19 +463,10 @@ public class GroupsControllerTests
     [Fact]
     public async Task RemoveMember_ExistingMember_ReturnsNoContent()
     {
-        var (client1, _, _, _) = await CreateAuthenticatedClient();
-        var groupId = await CreateGroup(client1, TestDataGenerator.UniqueGroupName());
+        var (client1, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_remove_member_owner");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(client1, TestDataGenerator.UniqueGroupName());
 
-        // Create second user and join via link
-        var (client2, _, userId2, _) = await CreateAuthenticatedClient();
-        
-        // Get join link
-        var linkResponse = await client1.GetAsync($"groups/{groupId}/join-link", TestContext.Current.CancellationToken);
-        var joinLink = await linkResponse.Content.ReadFromJsonAsync<GroupJoinLinkResponse>(JsonOptions, TestContext.Current.CancellationToken);
-        Assert.NotNull(joinLink);
-        
-        // Join group using token
-        await client2.PostAsync($"groups/join/{joinLink!.Token}", null, TestContext.Current.CancellationToken);
+        var (client2, _, userId2, _) = await TestClientHelper.CreateMemberClientAsync(_fixture, client1, groupId, "groups_remove_member_member");
 
         // Remove member
         var response = await client1.DeleteAsync($"groups/{groupId}/members/{userId2}", TestContext.Current.CancellationToken);
@@ -543,7 +483,7 @@ public class GroupsControllerTests
     [Fact]
     public async Task RemoveMember_NonExistingGroup_ReturnsNotFound()
     {
-        var (client, _, _, _) = await CreateAuthenticatedClient();
+        var (client, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_remove_missing_group");
         var nonExistingId = 999999;
 
         var response = await client.DeleteAsync($"groups/{nonExistingId}/members/1", TestContext.Current.CancellationToken);
@@ -554,10 +494,10 @@ public class GroupsControllerTests
     [Fact]
     public async Task RemoveMember_OtherUsersGroup_ReturnsNotFound()
     {
-        var (client1, _, _, _) = await CreateAuthenticatedClient();
-        var groupId = await CreateGroup(client1, TestDataGenerator.UniqueGroupName());
+        var (client1, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_remove_foreign_owner");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(client1, TestDataGenerator.UniqueGroupName());
 
-        var (client2, _, _, _) = await CreateAuthenticatedClient();
+        var (client2, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_remove_foreign_user");
 
         var response = await client2.DeleteAsync($"groups/{groupId}/members/1", TestContext.Current.CancellationToken);
 
@@ -567,8 +507,8 @@ public class GroupsControllerTests
     [Fact]
     public async Task RemoveMember_WithoutAuthentication_ReturnsUnauthorized()
     {
-        var (authClient, _, _, _) = await CreateAuthenticatedClient();
-        var groupId = await CreateGroup(authClient, TestDataGenerator.UniqueGroupName());
+        var (authClient, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_remove_unauth");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(authClient, TestDataGenerator.UniqueGroupName());
 
         using var unauthClient = _fixture.CreateClient();
 
@@ -584,8 +524,8 @@ public class GroupsControllerTests
     [Fact]
     public async Task GetJoinLink_ForOwnGroup_ReturnsLink()
     {
-        var (client, _, _, _) = await CreateAuthenticatedClient();
-        var groupId = await CreateGroup(client, TestDataGenerator.UniqueGroupName());
+        var (client, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_joinlink_owner");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(client, TestDataGenerator.UniqueGroupName());
 
         var response = await client.GetAsync($"groups/{groupId}/join-link", TestContext.Current.CancellationToken);
 
@@ -600,7 +540,7 @@ public class GroupsControllerTests
     [Fact]
     public async Task GetJoinLink_NonExistingGroup_ReturnsNotFound()
     {
-        var (client, _, _, _) = await CreateAuthenticatedClient();
+        var (client, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_joinlink_missing");
         var nonExistingId = 999999;
 
         var response = await client.GetAsync($"groups/{nonExistingId}/join-link", TestContext.Current.CancellationToken);
@@ -611,10 +551,10 @@ public class GroupsControllerTests
     [Fact]
     public async Task GetJoinLink_OtherUsersGroup_ReturnsNotFound()
     {
-        var (client1, _, _, _) = await CreateAuthenticatedClient();
-        var groupId = await CreateGroup(client1, TestDataGenerator.UniqueGroupName());
+        var (client1, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_joinlink_foreign_owner");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(client1, TestDataGenerator.UniqueGroupName());
 
-        var (client2, _, _, _) = await CreateAuthenticatedClient();
+        var (client2, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_joinlink_foreign_user");
 
         var response = await client2.GetAsync($"groups/{groupId}/join-link", TestContext.Current.CancellationToken);
 
@@ -624,8 +564,8 @@ public class GroupsControllerTests
     [Fact]
     public async Task GetJoinLink_WithoutAuthentication_ReturnsUnauthorized()
     {
-        var (authClient, _, _, _) = await CreateAuthenticatedClient();
-        var groupId = await CreateGroup(authClient, TestDataGenerator.UniqueGroupName());
+        var (authClient, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_joinlink_unauth");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(authClient, TestDataGenerator.UniqueGroupName());
 
         using var unauthClient = _fixture.CreateClient();
 
@@ -637,8 +577,8 @@ public class GroupsControllerTests
     [Fact]
     public async Task JoinByToken_WithValidToken_ReturnsGroup()
     {
-        var (client1, _, _, _) = await CreateAuthenticatedClient();
-        var groupId = await CreateGroup(client1, TestDataGenerator.UniqueGroupName());
+        var (client1, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_join_valid_owner");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(client1, TestDataGenerator.UniqueGroupName());
 
         // Get join link
         var linkResponse = await client1.GetAsync($"groups/{groupId}/join-link", TestContext.Current.CancellationToken);
@@ -646,7 +586,7 @@ public class GroupsControllerTests
         Assert.NotNull(joinLink);
 
         // Create second user
-        var (client2, _, _, _) = await CreateAuthenticatedClient();
+    var (client2, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_join_valid_member");
 
         // Join group using token
         var response = await client2.PostAsync($"groups/join/{joinLink!.Token}", null, TestContext.Current.CancellationToken);
@@ -667,7 +607,7 @@ public class GroupsControllerTests
     [Fact]
     public async Task JoinByToken_WithInvalidToken_ReturnsBadRequest()
     {
-        var (client, _, _, _) = await CreateAuthenticatedClient();
+        var (client, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_join_invalid_token");
         var invalidToken = Guid.NewGuid().ToString("N");
 
         var response = await client.PostAsync($"groups/join/{invalidToken}", null, TestContext.Current.CancellationToken);
@@ -678,8 +618,8 @@ public class GroupsControllerTests
     [Fact]
     public async Task JoinByToken_WithoutAuthentication_ReturnsUnauthorized()
     {
-        var (authClient, _, _, _) = await CreateAuthenticatedClient();
-        var groupId = await CreateGroup(authClient, TestDataGenerator.UniqueGroupName());
+        var (authClient, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_join_unauth_owner");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(authClient, TestDataGenerator.UniqueGroupName());
 
         var linkResponse = await authClient.GetAsync($"groups/{groupId}/join-link", TestContext.Current.CancellationToken);
         var joinLink = await linkResponse.Content.ReadFromJsonAsync<GroupJoinLinkResponse>(JsonOptions, TestContext.Current.CancellationToken);
@@ -695,8 +635,8 @@ public class GroupsControllerTests
     [Fact]
     public async Task JoinByToken_AlreadyMember_StillReturnsOk()
     {
-        var (client, _, _, _) = await CreateAuthenticatedClient();
-        var groupId = await CreateGroup(client, TestDataGenerator.UniqueGroupName());
+        var (client, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "groups_join_self");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(client, TestDataGenerator.UniqueGroupName());
 
         // Get join link
         var linkResponse = await client.GetAsync($"groups/{groupId}/join-link", TestContext.Current.CancellationToken);
