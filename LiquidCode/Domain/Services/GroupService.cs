@@ -107,9 +107,17 @@ public class GroupService : IGroupService
         if (group == null)
             return null;
 
-        var includePrivate = requesterId.HasValue && IsAdmin(group, requesterId.Value);
+        // Группа доступна только членам группы
+        if (!requesterId.HasValue)
+            return null;
+
+        var membership = group.Memberships.FirstOrDefault(m => m.UserId == requesterId.Value);
+        if (membership == null)
+            return null;
+
+        var includePrivate = IsAdmin(group, requesterId.Value);
         var joinToken = includePrivate
-            ? await EnsureJoinLinkAsync(groupId, requesterId!.Value, cancellationToken)
+            ? await EnsureJoinLinkAsync(groupId, requesterId.Value, cancellationToken)
             : await _groupRepository.GetActiveJoinTokenAsync(groupId, cancellationToken);
 
         return GroupResponse.FromEntity(group, includePrivate, joinToken);
