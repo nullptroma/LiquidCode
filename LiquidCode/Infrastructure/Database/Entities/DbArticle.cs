@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using LiquidCode.Shared.Validation;
 using Microsoft.EntityFrameworkCore;
 
 namespace LiquidCode.Infrastructure.Database.Entities;
@@ -16,7 +17,7 @@ public class DbArticle : ISoftDeletable, ITimestamped
     public int AuthorId { get; set; }
     public DbUser Author { get; init; } = null!;
     
-    [StringLength(128)]
+    [StringLength(ValidationLengths.Article.NameMax, MinimumLength = ValidationLengths.Article.NameMin)]
     public string Name { get; set; } = "";
     
     [Column(TypeName = "text")]

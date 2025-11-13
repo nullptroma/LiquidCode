@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using LiquidCode.Shared.Validation;
 using Microsoft.EntityFrameworkCore;
 
 namespace LiquidCode.Infrastructure.Database.Entities;
@@ -19,7 +20,7 @@ public class DbGroupFeedPost : ISoftDeletable, ITimestamped
     public int AuthorId { get; set; }
     public DbUser Author { get; init; } = null!;
 
-    [StringLength(128)]
+    [StringLength(ValidationLengths.Group.FeedPostNameMax)]
     public string Name { get; set; } = "";
 
     [Column(TypeName = "text")]

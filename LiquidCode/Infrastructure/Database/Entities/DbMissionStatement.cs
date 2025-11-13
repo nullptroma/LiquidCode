@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using LiquidCode.Shared.Validation;
 using Microsoft.EntityFrameworkCore;
 using LiquidCode.Domain.Enums;
 
@@ -21,7 +22,7 @@ public class DbMissionStatement : ITimestamped
     /// <summary>
     /// Код языка (например: "russian", "english")
     /// </summary>
-    [StringLength(50)]
+    [StringLength(ValidationLengths.Mission.StatementLanguageMax)]
     public string Language { get; set; } = "";
 
     /// <summary>

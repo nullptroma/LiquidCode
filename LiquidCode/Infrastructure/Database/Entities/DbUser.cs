@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using LiquidCode.Shared.Validation;
 using Microsoft.EntityFrameworkCore;
 
 namespace LiquidCode.Infrastructure.Database.Entities;
@@ -13,13 +14,13 @@ public class DbUser : ISoftDeletable, ITimestamped
 {
     public int Id { get; init; }
     
-    [StringLength(128, MinimumLength = 4)] 
+    [StringLength(ValidationLengths.User.UsernameMax, MinimumLength = ValidationLengths.User.UsernameMin)] 
     public string Username { get; init; } = "";
     
-    [StringLength(256, MinimumLength = 4)] 
+    [StringLength(ValidationLengths.User.EmailMax, MinimumLength = ValidationLengths.User.EmailMin)] 
     public string Email { get; init; } = "";
     
-    [StringLength(256)] 
+    [StringLength(ValidationLengths.User.PasswordHashMax)] 
     public string PassHash { get; init; } = "";
     
     // Поддержка мягкого удаления

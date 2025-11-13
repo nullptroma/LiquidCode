@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel.DataAnnotations;
+using LiquidCode.Shared.Validation;
 using Microsoft.EntityFrameworkCore;
 
 namespace LiquidCode.Infrastructure.Database.Entities;
@@ -20,7 +21,7 @@ public class DbGroupJoinToken : ITimestamped
     public int CreatedById { get; set; }
     public DbUser CreatedBy { get; set; } = null!;
 
-    [StringLength(128)]
+    [StringLength(ValidationLengths.Group.JoinTokenMax)]
     public string Token { get; set; } = Guid.NewGuid().ToString("N");
 
     public DateTime ExpiresAt { get; set; }

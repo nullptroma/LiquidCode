@@ -1,5 +1,7 @@
 using FluentValidation;
+using LiquidCode.Api.Shared;
 using LiquidCode.Shared.Constants;
+using LiquidCode.Shared.Validation;
 
 namespace LiquidCode.Api.Missions.Requests;
 
@@ -60,10 +62,7 @@ public class UploadMissionRequestValidator : AbstractValidator<UploadMissionRequ
             });
 
         RuleFor(x => x.Name)
-            .NotEmpty()
-            .WithMessage("Mission name is required")
-            .Length(3, 255)
-            .WithMessage("Mission name must be between 3 and 255 characters")
+            .RequiredText("Mission name", ValidationLengths.Mission.Name)
             .Matches(@"^[a-zA-Z0-9\s\-_.()]+$")
             .WithMessage("Mission name contains invalid characters");
 

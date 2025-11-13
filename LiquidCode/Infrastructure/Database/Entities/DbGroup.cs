@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using LiquidCode.Shared.Validation;
 using Microsoft.EntityFrameworkCore;
 
 namespace LiquidCode.Infrastructure.Database.Entities;
@@ -12,10 +13,10 @@ public class DbGroup : ISoftDeletable, ITimestamped
 {
     public int Id { get; set; }
     
-    [StringLength(128)]
+    [StringLength(ValidationLengths.Group.NameMax, MinimumLength = ValidationLengths.Group.NameMin)]
     public string Name { get; set; } = "";
     
-    [StringLength(512)]
+    [StringLength(ValidationLengths.Group.DescriptionMax)]
     public string? Description { get; set; }
     
     public ICollection<DbGroupMembership> Memberships { get; init; } = new HashSet<DbGroupMembership>();

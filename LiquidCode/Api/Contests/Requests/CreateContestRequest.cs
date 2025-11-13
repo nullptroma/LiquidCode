@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using LiquidCode.Infrastructure.Database.Entities;
+using LiquidCode.Shared.Validation;
 
 namespace LiquidCode.Api.Contests.Requests;
 
@@ -19,8 +20,8 @@ namespace LiquidCode.Api.Contests.Requests;
 /// <param name="MissionIds">Идентификаторы миссий в контесте</param>
 /// <param name="ArticleIds">Идентификаторы статей в контесте</param>
 public record CreateContestRequest(
-    [Required] [StringLength(128, MinimumLength = 3)] string Name,
-    string? Description,
+    [Required] [StringLength(ValidationLengths.Contest.NameMax, MinimumLength = ValidationLengths.Contest.NameMin)] string Name,
+    [StringLength(ValidationLengths.Contest.DescriptionMax)] string? Description,
     ContestScheduleType ScheduleType,
     ContestVisibility Visibility,
     DateTime? StartsAt,

@@ -1,4 +1,6 @@
 using FluentValidation;
+using LiquidCode.Api.Shared;
+using LiquidCode.Shared.Validation;
 
 namespace LiquidCode.Api.Submits.Requests;
 
@@ -25,8 +27,6 @@ public sealed class TesterCallbackRequestValidator : AbstractValidator<TesterCal
             .When(x => x.AmountOfTests > 0);
 
         RuleFor(x => x.Message)
-            .MaximumLength(10_000)
-            .WithMessage("Message must not exceed 10000 characters")
-            .When(x => !string.IsNullOrEmpty(x.Message));
+            .OptionalTextWhenProvided("Message", ValidationLengths.Solution.TestingMessageMax);
     }
 }

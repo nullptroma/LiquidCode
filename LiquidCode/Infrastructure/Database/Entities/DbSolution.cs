@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using LiquidCode.Api.Submits.Dto;
+using LiquidCode.Shared.Validation;
 using Microsoft.EntityFrameworkCore;
 
 namespace LiquidCode.Infrastructure.Database.Entities;
@@ -16,19 +17,19 @@ public class DbSolution : ITimestamped
     [Required] 
     public DbMission Mission { get; init; } = null!;
     
-    [StringLength(16)] 
+    [StringLength(ValidationLengths.Solution.LanguageMax)] 
     [Required] 
     public string Language { get; init; } = null!;
     
-    [StringLength(16)] 
+    [StringLength(ValidationLengths.Solution.LanguageVersionMax)] 
     [Required] 
     public string LanguageVersion { get; init; } = null!;
     
-    [StringLength(10000)] 
+    [StringLength(ValidationLengths.Solution.SourceCodeMax, MinimumLength = ValidationLengths.Solution.SourceCodeMin)] 
     [Required] 
     public string SourceCode { get; init; } = null!;
     
-    [StringLength(256)] 
+    [StringLength(ValidationLengths.Solution.StatusMax)] 
     [Required] 
     public string Status { get; set; } = null!;
 
@@ -36,7 +37,7 @@ public class DbSolution : ITimestamped
 
     public TesterErrorCode TestingErrorCode { get; set; } = TesterErrorCode.None;
 
-    [StringLength(10_000)]
+    [StringLength(ValidationLengths.Solution.TestingMessageMax)]
     public string? TestingMessage { get; set; }
 
     public int CurrentTest { get; set; }

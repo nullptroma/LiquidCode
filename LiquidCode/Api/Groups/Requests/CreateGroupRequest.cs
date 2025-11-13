@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using LiquidCode.Shared.Validation;
 
 namespace LiquidCode.Api.Groups.Requests;
 
@@ -8,6 +9,6 @@ namespace LiquidCode.Api.Groups.Requests;
 /// <param name="Name">Название группы</param>
 /// <param name="Description">Описание группы</param>
 public record CreateGroupRequest(
-    [Required] [StringLength(128, MinimumLength = 3)] string Name,
-    string? Description
+    [Required] [StringLength(ValidationLengths.Group.NameMax, MinimumLength = ValidationLengths.Group.NameMin)] string Name,
+    [StringLength(ValidationLengths.Group.DescriptionMax)] string? Description
 );

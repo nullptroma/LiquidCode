@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using LiquidCode.Shared.Validation;
 using Microsoft.EntityFrameworkCore;
 
 namespace LiquidCode.Infrastructure.Database.Entities;
@@ -13,7 +14,7 @@ public class DbTag : ISoftDeletable, ITimestamped
 {
     public int Id { get; set; }
     
-    [StringLength(64)]
+    [StringLength(ValidationLengths.Tag.NameMax, MinimumLength = ValidationLengths.Tag.NameMin)]
     public string Name { get; set; } = "";
     
     public ICollection<DbMissionTag> MissionTags { get; init; } = new HashSet<DbMissionTag>();

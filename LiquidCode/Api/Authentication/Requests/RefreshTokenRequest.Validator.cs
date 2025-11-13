@@ -1,4 +1,5 @@
 using FluentValidation;
+using LiquidCode.Api.Shared;
 
 namespace LiquidCode.Api.Authentication.Requests;
 
@@ -10,9 +11,6 @@ public class RefreshTokenRequestValidator : AbstractValidator<RefreshTokenReques
     public RefreshTokenRequestValidator()
     {
         RuleFor(x => x.RefreshToken)
-            .NotEmpty()
-            .WithMessage("Refresh token is required")
-            .MinimumLength(10)
-            .WithMessage("Refresh token is invalid");
+            .ValidRefreshToken();
     }
 }

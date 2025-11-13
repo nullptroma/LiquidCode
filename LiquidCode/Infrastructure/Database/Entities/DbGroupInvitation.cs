@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel.DataAnnotations;
+using LiquidCode.Shared.Validation;
 using Microsoft.EntityFrameworkCore;
 
 namespace LiquidCode.Infrastructure.Database.Entities;
@@ -23,7 +24,7 @@ public class DbGroupInvitation : ITimestamped
     public int InviteeId { get; set; }
     public DbUser Invitee { get; set; } = null!;
 
-    [StringLength(128)]
+    [StringLength(ValidationLengths.Group.InvitationTokenMax)]
     public string Token { get; set; } = Guid.NewGuid().ToString("N");
 
     public GroupInvitationStatus Status { get; set; } = GroupInvitationStatus.Pending;

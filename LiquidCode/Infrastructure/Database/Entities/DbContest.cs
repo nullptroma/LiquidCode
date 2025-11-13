@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using LiquidCode.Shared.Validation;
 using Microsoft.EntityFrameworkCore;
 
 namespace LiquidCode.Infrastructure.Database.Entities;
@@ -16,10 +17,10 @@ public class DbContest : ISoftDeletable, ITimestamped
 {
     public int Id { get; set; }
     
-    [StringLength(128)]
+    [StringLength(ValidationLengths.Contest.NameMax, MinimumLength = ValidationLengths.Contest.NameMin)]
     public string Name { get; set; } = "";
     
-    [StringLength(1024)]
+    [StringLength(ValidationLengths.Contest.DescriptionMax)]
     public string? Description { get; set; }
     
     public ContestScheduleType ScheduleType { get; set; } = ContestScheduleType.FixedWindow;

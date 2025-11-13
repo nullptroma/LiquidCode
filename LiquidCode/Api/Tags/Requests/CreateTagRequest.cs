@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using LiquidCode.Shared.Validation;
 
 namespace LiquidCode.Api.Tags.Requests;
 
@@ -7,5 +8,5 @@ namespace LiquidCode.Api.Tags.Requests;
 /// </summary>
 /// <param name="Name">Название тега</param>
 public record CreateTagRequest(
-    [Required] [StringLength(64, MinimumLength = 2)] string Name
+    [Required] [StringLength(ValidationLengths.Tag.NameMax, MinimumLength = ValidationLengths.Tag.NameMin)] string Name
 );

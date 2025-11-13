@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using LiquidCode.Shared.Validation;
 using Microsoft.EntityFrameworkCore;
 
 namespace LiquidCode.Infrastructure.Database.Entities;
@@ -10,17 +11,17 @@ namespace LiquidCode.Infrastructure.Database.Entities;
 public class DbRefreshToken : ITimestamped
 {
     [Key] 
-    [StringLength(128)] 
+    [StringLength(ValidationLengths.RefreshToken.TokenMax)] 
     public string Token { get; init; } = "";
     
     public DbUser DbUser { get; init; } = null!;
     
     public DateTime Expires { get; init; }
     
-    [StringLength(512)] 
+    [StringLength(ValidationLengths.RefreshToken.OsNameMax)] 
     public string OsName { get; init; } = "";
     
-    [StringLength(128)] 
+    [StringLength(ValidationLengths.RefreshToken.IpAddressMax)] 
     public string IpAddress { get; init; } = "";
     
     // Timestamps

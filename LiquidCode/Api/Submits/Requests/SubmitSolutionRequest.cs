@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using LiquidCode.Infrastructure.Database.Entities;
+using LiquidCode.Shared.Validation;
 
 namespace LiquidCode.Api.Submits.Requests;
 
@@ -13,7 +14,7 @@ namespace LiquidCode.Api.Submits.Requests;
 /// <param name="ContestId">Идентификатор контеста (если решение отправляется в рамках контеста)</param>
 public record SubmitSolutionRequest(
     [Required] int MissionId,
-    [Required] [StringLength(16)] string Language,
-    [Required] [StringLength(16)] string LanguageVersion,
-    [Required] [StringLength(10000, MinimumLength = 1)] string SourceCode,
+    [Required] [StringLength(ValidationLengths.Solution.LanguageMax)] string Language,
+    [Required] [StringLength(ValidationLengths.Solution.LanguageVersionMax)] string LanguageVersion,
+    [Required] [StringLength(ValidationLengths.Solution.SourceCodeMax, MinimumLength = ValidationLengths.Solution.SourceCodeMin)] string SourceCode,
     int? ContestId);

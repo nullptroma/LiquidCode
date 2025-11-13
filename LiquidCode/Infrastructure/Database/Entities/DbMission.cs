@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using LiquidCode.Shared.Validation;
 using Microsoft.EntityFrameworkCore;
 
 namespace LiquidCode.Infrastructure.Database.Entities;
@@ -16,10 +17,10 @@ public class DbMission : ISoftDeletable, ITimestamped
     
     public DbUser Author { get; init; } = null!;
     
-    [StringLength(128)] 
+    [StringLength(ValidationLengths.Mission.NameMax, MinimumLength = ValidationLengths.Mission.NameMin)] 
     public string Name { get; set; } = "";
     
-    [StringLength(256)] 
+    [StringLength(ValidationLengths.Mission.S3KeyMax)] 
     public string S3Key { get; init; } = "";
     
     public int Difficulty { get; init; }

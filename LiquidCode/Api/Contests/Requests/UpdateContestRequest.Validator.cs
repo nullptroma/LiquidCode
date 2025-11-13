@@ -1,4 +1,6 @@
 using FluentValidation;
+using LiquidCode.Api.Shared;
+using LiquidCode.Shared.Validation;
 
 namespace LiquidCode.Api.Contests.Requests;
 
@@ -10,14 +12,10 @@ public class UpdateContestRequestValidator : AbstractValidator<UpdateContestRequ
     public UpdateContestRequestValidator()
     {
         RuleFor(x => x.Name)
-            .Length(3, 128)
-            .WithMessage("Contest name must be between 3 and 128 characters")
-            .When(x => !string.IsNullOrEmpty(x.Name));
+            .OptionalTextWithinRange("Contest name", ValidationLengths.Contest.Name);
 
         RuleFor(x => x.Description)
-            .MaximumLength(5000)
-            .WithMessage("Description must not exceed 5000 characters")
-            .When(x => x.Description != null);
+            .OptionalTextWhenProvided("Description", ValidationLengths.Contest.DescriptionMax);
 
         RuleFor(x => x.AttemptDurationMinutes)
             .GreaterThan(0)

@@ -1,4 +1,6 @@
 using FluentValidation;
+using LiquidCode.Api.Shared;
+using LiquidCode.Shared.Validation;
 
 namespace LiquidCode.Api.Groups.Requests;
 
@@ -7,14 +9,9 @@ public class CreateGroupFeedPostRequestValidator : AbstractValidator<CreateGroup
     public CreateGroupFeedPostRequestValidator()
     {
         RuleFor(x => x.Name)
-            .MaximumLength(256)
-            .WithMessage("Post name must not exceed 256 characters")
-            .When(x => !string.IsNullOrWhiteSpace(x.Name));
+            .OptionalText("Post name", ValidationLengths.Group.FeedPostNameMax);
 
         RuleFor(x => x.Content)
-            .NotEmpty()
-            .WithMessage("Content must not be empty")
-            .MaximumLength(50000)
-            .WithMessage("Content must not exceed 50000 characters");
+            .RequiredText("Content", ValidationLengths.Group.FeedPostContent);
     }
 }
