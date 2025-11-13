@@ -5,6 +5,8 @@ namespace LiquidCode.Api.Tags.Responses;
 /// <summary>
 /// Ответ API для тега
 /// </summary>
+/// <param name="Id">Идентификатор тега</param>
+/// <param name="Name">Название тега</param>
 public record TagResponse(
     int Id,
     string Name

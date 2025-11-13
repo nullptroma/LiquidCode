@@ -7,6 +7,13 @@ namespace LiquidCode.Api.Articles.Responses;
 /// <summary>
 /// Ответ API для статьи
 /// </summary>
+/// <param name="Id">Идентификатор статьи</param>
+/// <param name="AuthorId">Идентификатор автора</param>
+/// <param name="Name">Название статьи</param>
+/// <param name="Content">Содержимое статьи (может содержать разметку или HTML)</param>
+/// <param name="Tags">Список тегов статьи, отсортированный по алфавиту</param>
+/// <param name="CreatedAt">Дата и время создания</param>
+/// <param name="UpdatedAt">Дата и время последнего обновления</param>
 public record ArticleResponse(
     int Id,
     int AuthorId,

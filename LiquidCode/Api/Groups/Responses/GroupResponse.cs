@@ -8,6 +8,12 @@ namespace LiquidCode.Api.Groups.Responses;
 /// <summary>
 /// Ответ о группе
 /// </summary>
+/// <param name="Id">Идентификатор группы</param>
+/// <param name="Name">Название группы</param>
+/// <param name="Description">Описание группы</param>
+/// <param name="Members">Список участников группы</param>
+/// <param name="Contests">Список контестов группы</param>
+/// <param name="ActiveJoinLink">Активная ссылка для присоединения к группе</param>
 public record GroupResponse(
     int Id,
     string Name,

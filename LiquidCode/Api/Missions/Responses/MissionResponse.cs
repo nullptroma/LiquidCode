@@ -5,6 +5,16 @@ namespace LiquidCode.Api.Missions.Responses;
 /// <summary>
 /// Модель ответа для миссии с опциональной полной информацией о statement'ах
 /// </summary>
+/// <param name="Id">Идентификатор миссии</param>
+/// <param name="AuthorId">Идентификатор автора</param>
+/// <param name="Name">Название миссии</param>
+/// <param name="Difficulty">Уровень сложности (числовое значение рейтинга)</param>
+/// <param name="Tags">Список тегов миссии, отсортированный по алфавиту</param>
+/// <param name="CreatedAt">Дата и время создания</param>
+/// <param name="UpdatedAt">Дата и время последнего обновления</param>
+/// <param name="TimeLimitMilliseconds">Ограничение по времени выполнения в миллисекундах</param>
+/// <param name="MemoryLimitBytes">Ограничение по использованию памяти в байтах</param>
+/// <param name="Statements">Список statement'ов миссии на разных языках (может быть null при получении списков)</param>
 public record MissionResponse(
     int Id,
     int AuthorId,

@@ -5,6 +5,9 @@ namespace LiquidCode.Api.Missions.Responses;
 /// <summary>
 /// Модель медиа файла statement'а
 /// </summary>
+/// <param name="Id">Идентификатор медиа-файла</param>
+/// <param name="FileName">Имя файла</param>
+/// <param name="MediaUrl">URL медиа-файла</param>
 public record MissionStatementMediaResponse(
     int Id,
     string FileName,

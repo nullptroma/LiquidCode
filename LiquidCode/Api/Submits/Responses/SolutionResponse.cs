@@ -6,6 +6,18 @@ namespace LiquidCode.Api.Submits.Responses;
 /// <summary>
 /// Модель ответа для решения
 /// </summary>
+/// <param name="Id">Идентификатор решения</param>
+/// <param name="MissionId">Идентификатор миссии</param>
+/// <param name="Language">Язык программирования</param>
+/// <param name="LanguageVersion">Версия языка программирования</param>
+/// <param name="SourceCode">Исходный код решения</param>
+/// <param name="Status">Статус решения</param>
+/// <param name="Time">Дата и время отправки</param>
+/// <param name="TesterState">Состояние тестирования</param>
+/// <param name="TesterErrorCode">Код ошибки тестирования</param>
+/// <param name="TesterMessage">Сообщение от тестирующего модуля</param>
+/// <param name="CurrentTest">Номер текущего теста</param>
+/// <param name="AmountOfTests">Общее количество тестов</param>
 public record SolutionResponse(
     int Id,
     int MissionId,
