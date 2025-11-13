@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using LiquidCode.Api.Contests.Requests;
 using LiquidCode.Api.Submits.Responses;
@@ -147,8 +148,8 @@ public class ContestsController(IContestService contestService, ISubmitService s
     /// </summary>
     [HttpGet]
     public async Task<IActionResult> List(
-        [FromQuery] int pageSize = 10,
-        [FromQuery] int page = 0,
+        [FromQuery] [Range(1, 100)] int pageSize = 10,
+        [FromQuery] [Range(0, int.MaxValue)] int page = 0,
         [FromQuery] int? groupId = null,
         CancellationToken cancellationToken = default)
     {
@@ -182,8 +183,8 @@ public class ContestsController(IContestService contestService, ISubmitService s
     [Authorize]
     [HttpGet("participating")]
     public async Task<IActionResult> ListParticipating(
-        [FromQuery] int pageSize = 10,
-        [FromQuery] int page = 0,
+        [FromQuery] [Range(1, 100)] int pageSize = 10,
+        [FromQuery] [Range(0, int.MaxValue)] int page = 0,
         CancellationToken cancellationToken = default)
     {
         if (!User.TryGetUserId(out var userId))
@@ -256,8 +257,8 @@ public class ContestsController(IContestService contestService, ISubmitService s
     [HttpGet("{contestId:int}/members")]
     public async Task<IActionResult> GetContestMembers(
         [FromRoute] int contestId,
-        [FromQuery] int pageSize = 25,
-        [FromQuery] int page = 0,
+        [FromQuery] [Range(1, 100)] int pageSize = 25,
+        [FromQuery] [Range(0, int.MaxValue)] int page = 0,
         CancellationToken cancellationToken = default)
     {
         var result = await contestService.GetMembersPageAsync(contestId, pageSize, page, cancellationToken);

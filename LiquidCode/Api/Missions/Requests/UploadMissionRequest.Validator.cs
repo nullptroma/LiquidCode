@@ -34,9 +34,14 @@ public class UploadMissionRequestValidator : AbstractValidator<UploadMissionRequ
                 }
 
                 // Проверить MIME тип
-                if (!file.ContentType.Contains("zip", StringComparison.OrdinalIgnoreCase) &&
-                    !file.ContentType.Contains("application/x-zip-compressed", StringComparison.OrdinalIgnoreCase) &&
-                    !file.ContentType.Contains("application/x-zip", StringComparison.OrdinalIgnoreCase))
+                var allowedMimeTypes = new[]
+                {
+                    "application/zip",
+                    "application/x-zip-compressed",
+                    "application/x-zip"
+                };
+
+                if (!allowedMimeTypes.Contains(file.ContentType, StringComparer.OrdinalIgnoreCase))
                 {
                     context.AddFailure(
                         nameof(UploadMissionRequest.MissionFile),

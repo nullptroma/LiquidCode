@@ -4,6 +4,7 @@ using LiquidCode.Domain.Interfaces.Services;
 using LiquidCode.Shared.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace LiquidCode.Api.Authentication;
 
@@ -18,6 +19,7 @@ public class AuthenticationController(IAuthenticationService authService) : Cont
     /// Регистрирует нового пользователя
     /// </summary>
     [HttpPost("register")]
+    [EnableRateLimiting("auth")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)
@@ -34,6 +36,7 @@ public class AuthenticationController(IAuthenticationService authService) : Cont
     /// Аутентифицирует пользователя с помощью имени пользователя и пароля
     /// </summary>
     [HttpPost("login")]
+    [EnableRateLimiting("auth")]
     public async Task<IActionResult> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
     {
         if (!ModelState.IsValid)

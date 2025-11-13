@@ -1,5 +1,6 @@
 using System.Text;
 using System.Text.Json.Serialization;
+using System.Threading.RateLimiting;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using LiquidCode;
@@ -21,6 +22,7 @@ using LiquidCode.Shared.Constants;
 using LiquidCode.Shared.Options;
 using LiquidCode.Shared.Extensions;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -74,6 +76,40 @@ if (builder.Configuration[ConfigurationKeys.MigrateOnlyFlag] == "1")
 // Добавить FluentValidation
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
+
+// Настроить Rate Limiting
+builder.Services.AddRateLimiter(options =>
+{
+    // Rate limit для authentication endpoints
+    options.AddFixedWindowLimiter("auth", limiterOptions =>
+    {
+        limiterOptions.Window = TimeSpan.FromMinutes(1);
+        limiterOptions.PermitLimit = 5;
+        limiterOptions.QueueLimit = 0;
+    });
+
+    // Rate limit для submit endpoints
+    options.AddFixedWindowLimiter("submit", limiterOptions =>
+    {
+        limiterOptions.Window = TimeSpan.FromMinutes(1);
+        limiterOptions.PermitLimit = 10;
+        limiterOptions.QueueLimit = 2;
+    });
+
+    // Общий rate limit
+    options.AddFixedWindowLimiter("general", limiterOptions =>
+    {
+        limiterOptions.Window = TimeSpan.FromMinutes(1);
+        limiterOptions.PermitLimit = 100;
+        limiterOptions.QueueLimit = 0;
+    });
+
+    options.OnRejected = async (context, token) =>
+    {
+        context.HttpContext.Response.StatusCode = 429;
+        await context.HttpContext.Response.WriteAsync("Too many requests. Please try again later.", token);
+    };
+});
 
 builder.Services.AddControllers().AddJsonOptions(options =>
 {
@@ -179,10 +215,11 @@ builder.Services.AddSwaggerGen(c =>
 
 var app = builder.Build();
 
-File.WriteAllText(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "config.json"), app.Configuration.ToJson());
-
 // Глобальный middleware обработки исключений (должен быть первым!)
-//app.UseExceptionHandling();
+app.UseExceptionHandling();
+
+// Использовать rate limiting
+//app.UseRateLimiter();
 
 // Использовать именованную разрешающую политику, чтобы предварительные запросы включали
 // Access-Control-Allow-Headers и другие необходимые заголовки.

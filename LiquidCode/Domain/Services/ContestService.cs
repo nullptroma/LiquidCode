@@ -776,7 +776,7 @@ public class ContestService : IContestService
         {
             DateTimeKind.Utc => value.Value,
             DateTimeKind.Local => value.Value.ToUniversalTime(),
-            _ => DateTime.SpecifyKind(value.Value, DateTimeKind.Utc)
+            _ => throw new ArgumentException("DateTime must have UTC or Local Kind specified. Unspecified Kind is not allowed for contest dates.", nameof(value))
         };
     }
 

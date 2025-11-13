@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using LiquidCode.Api.Groups.Requests;
 using LiquidCode.Domain.Interfaces.Services;
 using LiquidCode.Shared.Extensions;
@@ -87,8 +88,8 @@ public class GroupsController(IGroupService groupService) : ControllerBase
     [Authorize]
     [HttpGet("my")]
     public async Task<IActionResult> GetMyGroups(
-        [FromQuery] int pageSize = 10,
-        [FromQuery] int page = 0,
+        [FromQuery] [Range(1, 100)] int pageSize = 10,
+        [FromQuery] [Range(0, int.MaxValue)] int page = 0,
         CancellationToken cancellationToken = default)
     {
         if (!User.TryGetUserId(out var userId))

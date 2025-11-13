@@ -1,3 +1,4 @@
+using System.ComponentModel.DataAnnotations;
 using LiquidCode.Api.Missions.Requests;
 using LiquidCode.Api.Missions.Responses;
 using LiquidCode.Domain.Interfaces.Services;
@@ -52,8 +53,8 @@ public class MissionsController(IMissionService missionService) : ControllerBase
     /// </summary>
     [HttpGet]
     public async Task<IActionResult> GetMissionsList(
-        [FromQuery] int pageSize = 10,
-        [FromQuery] int page = 0,
+        [FromQuery] [Range(1, 100)] int pageSize = 10,
+        [FromQuery] [Range(0, int.MaxValue)] int page = 0,
         [FromQuery] List<string>? tags = null,
         CancellationToken cancellationToken = default)
     {

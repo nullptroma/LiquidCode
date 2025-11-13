@@ -8,6 +8,7 @@ using LiquidCode.Shared.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -38,6 +39,7 @@ public class SubmitController(
     /// </summary>
     [Authorize]
     [HttpPost]
+    [EnableRateLimiting("submit")]
     public async Task<IActionResult> SubmitSolution([FromBody] SubmitSolutionRequest request, CancellationToken cancellationToken)
     {
         if (!User.TryGetUserId(out var userId))
@@ -144,9 +146,6 @@ public class SubmitController(
 
         if (string.IsNullOrWhiteSpace(token))
             return BadRequest("Callback token is required.");
-
-        if (request.SubmitId <= 0 || request.SubmitId > int.MaxValue)
-            return BadRequest("SubmitId value is out of supported range.");
 
         var updateResult = await _submitService.UpdateTesterStatusAsync(
             (int)request.SubmitId,

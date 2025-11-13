@@ -77,14 +77,14 @@ public class AuthenticationService : IAuthenticationService
             var user = await _userRepository.FindByUsernameAsync(request.Username, cancellationToken);
             if (user == null)
             {
-                _logger.LogWarning("Login attempt for non-existent user: {Username}", request.Username);
+                _logger.LogWarning("Login attempt failed for: {Username}", request.Username);
                 return null;
             }
 
             // Проверить пароль с использованием BCrypt
             if (!BCrypt.Net.BCrypt.Verify(request.Password, user.PassHash))
             {
-                _logger.LogWarning("Invalid password for user: {Username}", request.Username);
+                _logger.LogWarning("Login attempt failed for: {Username}", request.Username);
                 return null;
             }
 
