@@ -1,9 +1,11 @@
+using System;
 using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
@@ -11,85 +13,165 @@ using LiquidCode.Api.Authentication.Requests;
 using LiquidCode.Api.Authentication.Responses;
 using LiquidCode.Api.Groups.Requests;
 using LiquidCode.Api.Groups.Responses;
-using Xunit;
 
 namespace LiquidCode.IntegrationTests.Infrastructure;
+
+/// <summary>
+/// Authenticated user context with client and metadata
+/// </summary>
+internal record AuthenticatedUser(HttpClient Client, string Username, int UserId, string Jwt);
 
 internal static class TestClientHelper
 {
     private static readonly JsonSerializerOptions JsonOptions = TestJsonOptions.Default;
+    private static CancellationToken CancellationToken => TestContext.Current.CancellationToken;
 
-    public static async Task<(HttpClient Client, string Username, int UserId, string Jwt)> CreateAuthenticatedClientAsync(IntegrationTestFixture fixture, string prefix)
+    /// <summary>
+    /// Creates and registers a new authenticated user
+    /// </summary>
+    public static async Task<AuthenticatedUser> CreateAuthenticatedUserAsync(
+        IntegrationTestFixture fixture, 
+        string prefix)
     {
         var client = fixture.CreateClient();
         var username = TestDataGenerator.UniqueUsername(prefix);
         var password = TestDataGenerator.ValidPassword();
         var registerRequest = new RegisterRequest(username, TestDataGenerator.EmailFor(username), password);
 
-        var registerResponse = await client.PostAsJsonAsync("authentication/register", registerRequest, TestContext.Current.CancellationToken);
-        Assert.Equal(HttpStatusCode.OK, registerResponse.StatusCode);
+        var registerResponse = await client.PostAsJsonAsync("authentication/register", registerRequest, CancellationToken);
+        
+        var tokens = await EnsureSuccessAndReadAsync<AuthTokensResponse>(registerResponse);
+        
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokens.Jwt);
 
-        var tokens = await registerResponse.Content.ReadFromJsonAsync<AuthTokensResponse>(JsonOptions, TestContext.Current.CancellationToken);
-        Assert.NotNull(tokens);
+        var userId = ExtractUserIdFromJwt(tokens.Jwt);
 
-        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", tokens!.Jwt);
-
-        var handler = new JwtSecurityTokenHandler();
-        var jwtToken = handler.ReadJwtToken(tokens.Jwt);
-        var userIdClaim = jwtToken.Claims.First(c => c.Type == ClaimTypes.NameIdentifier);
-        var userId = int.Parse(userIdClaim.Value);
-
-        return (client, username, userId, tokens.Jwt);
+        return new AuthenticatedUser(client, username, userId, tokens.Jwt);
     }
 
-    public static async Task<(int GroupId, string Name)> CreateGroupAsync(HttpClient client, string? name = null, string? description = null)
+    /// <summary>
+    /// Creates a group with a specific name
+    /// </summary>
+    public static async Task<(int GroupId, string Name)> CreateGroupAsync(
+        HttpClient client, 
+        string name,
+        string? description = null)
     {
-        var groupName = name ?? TestDataGenerator.UniqueGroupName();
-        var request = new CreateGroupRequest(groupName, description);
+        var request = new CreateGroupRequest(name, description);
 
-        var response = await client.PostAsJsonAsync("groups", request, TestContext.Current.CancellationToken);
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
-        var group = await response.Content.ReadFromJsonAsync<GroupResponse>(JsonOptions, TestContext.Current.CancellationToken);
-        Assert.NotNull(group);
-        return (group!.Id, group.Name);
+        var response = await client.PostAsJsonAsync("groups", request, CancellationToken);
+        var group = await EnsureSuccessAndReadAsync<GroupResponse>(response);
+        
+        return (group.Id, group.Name);
     }
 
-    public static async Task<(HttpClient Client, string Username, int UserId, string Jwt)> CreateMemberClientAsync(IntegrationTestFixture fixture, HttpClient adminClient, int groupId, string prefix)
+    /// <summary>
+    /// Creates a group with an auto-generated unique name
+    /// </summary>
+    public static Task<(int GroupId, string Name)> CreateGroupWithUniqueNameAsync(
+        HttpClient client,
+        string? description = null)
     {
-        var (client, username, userId, jwt) = await CreateAuthenticatedClientAsync(fixture, prefix);
-
-        var linkResponse = await adminClient.GetAsync($"groups/{groupId}/join-link", TestContext.Current.CancellationToken);
-        Assert.Equal(HttpStatusCode.OK, linkResponse.StatusCode);
-
-        var joinLink = await linkResponse.Content.ReadFromJsonAsync<GroupJoinLinkResponse>(JsonOptions, TestContext.Current.CancellationToken);
-        Assert.NotNull(joinLink);
-
-        var joinResponse = await client.PostAsync($"groups/join/{joinLink!.Token}", null, TestContext.Current.CancellationToken);
-        Assert.Equal(HttpStatusCode.OK, joinResponse.StatusCode);
-
-        return (client, username, userId, jwt);
+        var groupName = TestDataGenerator.UniqueGroupName("Group");
+        return CreateGroupAsync(client, groupName, description);
     }
 
-    public static async Task<GroupChatMessageResponse> SendGroupChatMessageAsync(HttpClient client, int groupId, string content)
+    /// <summary>
+    /// Creates a new user and adds them as a member to the specified group
+    /// </summary>
+    public static async Task<AuthenticatedUser> CreateGroupMemberAsync(
+        IntegrationTestFixture fixture, 
+        HttpClient adminClient, 
+        int groupId, 
+        string usernamePrefix)
+    {
+        var user = await CreateAuthenticatedUserAsync(fixture, usernamePrefix);
+
+        var joinLink = await GetGroupJoinLinkAsync(adminClient, groupId);
+        await JoinGroupByTokenAsync(user.Client, joinLink.Token);
+
+        return user;
+    }
+
+    /// <summary>
+    /// Gets a join link for a group
+    /// </summary>
+    public static async Task<GroupJoinLinkResponse> GetGroupJoinLinkAsync(HttpClient client, int groupId)
+    {
+        var response = await client.GetAsync($"groups/{groupId}/join-link", CancellationToken);
+        return await EnsureSuccessAndReadAsync<GroupJoinLinkResponse>(response);
+    }
+
+    /// <summary>
+    /// Joins a group using a token
+    /// </summary>
+    public static async Task<GroupResponse> JoinGroupByTokenAsync(HttpClient client, string token)
+    {
+        var response = await client.PostAsync($"groups/join/{token}", null, CancellationToken);
+        return await EnsureSuccessAndReadAsync<GroupResponse>(response);
+    }
+
+    /// <summary>
+    /// Sends a chat message to a group
+    /// </summary>
+    public static async Task<GroupChatMessageResponse> SendGroupChatMessageAsync(
+        HttpClient client, 
+        int groupId, 
+        string content)
     {
         var request = new CreateGroupChatMessageRequest(content);
-        var response = await client.PostAsJsonAsync($"groups/{groupId}/chat", request, TestContext.Current.CancellationToken);
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
-        var message = await response.Content.ReadFromJsonAsync<GroupChatMessageResponse>(JsonOptions, TestContext.Current.CancellationToken);
-        Assert.NotNull(message);
-        return message!;
+        var response = await client.PostAsJsonAsync($"groups/{groupId}/chat", request, CancellationToken);
+        return await EnsureSuccessAndReadAsync<GroupChatMessageResponse>(response);
     }
 
-    public static async Task<GroupFeedPostResponse> CreateGroupFeedPostAsync(HttpClient client, int groupId, string name, string content)
+    /// <summary>
+    /// Creates a feed post in a group
+    /// </summary>
+    public static async Task<GroupFeedPostResponse> CreateGroupFeedPostAsync(
+        HttpClient client, 
+        int groupId, 
+        string name, 
+        string content)
     {
         var request = new CreateGroupFeedPostRequest(name, content);
-        var response = await client.PostAsJsonAsync($"groups/{groupId}/feed", request, TestContext.Current.CancellationToken);
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
-        var post = await response.Content.ReadFromJsonAsync<GroupFeedPostResponse>(JsonOptions, TestContext.Current.CancellationToken);
-        Assert.NotNull(post);
-        return post!;
+        var response = await client.PostAsJsonAsync($"groups/{groupId}/feed", request, CancellationToken);
+        return await EnsureSuccessAndReadAsync<GroupFeedPostResponse>(response);
     }
+
+    // Private helper methods
+
+    private static async Task<T> EnsureSuccessAndReadAsync<T>(HttpResponseMessage response) where T : class
+    {
+        if (!response.IsSuccessStatusCode)
+        {
+            var content = await response.Content.ReadAsStringAsync(CancellationToken);
+            throw new InvalidOperationException(
+                $"Request failed with status {response.StatusCode}. " +
+                $"Response: {content}");
+        }
+
+        var result = await response.Content.ReadFromJsonAsync<T>(JsonOptions, CancellationToken);
+        
+        if (result is null)
+        {
+            throw new InvalidOperationException($"Failed to deserialize response to {typeof(T).Name}");
+        }
+
+        return result;
+    }
+
+    private static int ExtractUserIdFromJwt(string jwt)
+    {
+        var handler = new JwtSecurityTokenHandler();
+        var jwtToken = handler.ReadJwtToken(jwt);
+        var userIdClaim = jwtToken.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);
+        
+        if (userIdClaim is null || !int.TryParse(userIdClaim.Value, out var userId))
+        {
+            throw new InvalidOperationException("Failed to extract user ID from JWT");
+        }
+
+        return userId;
+    }
+
 }
