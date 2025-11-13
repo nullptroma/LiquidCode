@@ -24,6 +24,13 @@ public class GroupChatRepository : IGroupChatRepository
             .Include(m => m.Author)
             .FirstOrDefaultAsync(m => m.Id == messageId, cancellationToken);
 
+    /// <summary>
+    /// Получить сообщения из чата группы.
+    /// Поведение зависит от наличия фильтров:
+    /// - Если afterMessageId или afterCreatedAt указаны: возвращает новые сообщения после указанного ID/даты (для long polling)
+    /// - Если оба параметра null: возвращает последние N сообщений (самые свежие)
+    /// Результат всегда возвращается в хронологическом порядке (от старых к новым)
+    /// </summary>
     public async Task<IReadOnlyList<DbGroupChatMessage>> GetMessagesAsync(
         int groupId,
         int limit,
@@ -38,20 +45,39 @@ public class GroupChatRepository : IGroupChatRepository
             .Include(m => m.Author)
             .Where(m => m.GroupId == groupId);
 
-        if (afterMessageId.HasValue)
+        // Если указаны фильтры - получаем сообщения после них (для long polling)
+        if (afterMessageId.HasValue || afterCreatedAt.HasValue)
         {
-            query = query.Where(m => m.Id > afterMessageId.Value);
-        }
+            if (afterMessageId.HasValue)
+            {
+                query = query.Where(m => m.Id > afterMessageId.Value);
+            }
 
-        if (afterCreatedAt.HasValue)
+            if (afterCreatedAt.HasValue)
+            {
+                query = query.Where(m => m.CreatedAt > afterCreatedAt.Value);
+            }
+
+            // Сортируем по возрастанию ID (от старых к новым)
+            return await query
+                .OrderBy(m => m.Id)
+                .Take(limit)
+                .ToListAsync(cancellationToken);
+        }
+        else
         {
-            query = query.Where(m => m.CreatedAt > afterCreatedAt.Value);
-        }
+            // Если фильтры не указаны - получаем последние (самые свежие) сообщения
+            // Сортируем по убыванию, берём limit, затем разворачиваем обратно
+            var messages = await query
+                .OrderByDescending(m => m.Id)
+                .Take(limit)
+                .ToListAsync(cancellationToken);
 
-        return await query
-            .OrderBy(m => m.Id)
-            .Take(limit)
-            .ToListAsync(cancellationToken);
+            messages.Reverse();
+
+            // Возвращаем в прямом порядке (от старых к новым)
+            return messages;
+        }
     }
 
     public async Task CreateAsync(DbGroupChatMessage message, CancellationToken cancellationToken = default)

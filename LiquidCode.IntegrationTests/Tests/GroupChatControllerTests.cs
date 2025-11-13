@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -184,5 +185,45 @@ public class GroupChatControllerTests
         // Проверяем, что запрос действительно ждал около 2 секунд
         Assert.True(elapsed.TotalSeconds >= 1.5, $"Expected at least 1.5s wait, but got {elapsed.TotalSeconds}s");
         Assert.True(elapsed.TotalSeconds <= 3, $"Expected at most 3s wait, but got {elapsed.TotalSeconds}s");
+    }
+
+    [Fact]
+    public async Task GetMessages_WithoutFilters_ReturnsLatestMessages()
+    {
+        // Arrange: создаём группу и отправляем много сообщений
+        var (adminClient, _, _, _) = await TestClientHelper.CreateAuthenticatedUserAsync(_fixture, "chat_owner");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(adminClient, TestDataGenerator.UniqueGroupName("Chat Group"));
+
+        // Отправляем 10 сообщений
+        var sentMessages = new List<GroupChatMessageResponse>();
+        for (var i = 1; i <= 10; i++)
+        {
+            var msg = await TestClientHelper.SendGroupChatMessageAsync(adminClient, groupId, $"Message {i}");
+            sentMessages.Add(msg);
+        }
+
+        var (memberClient, _, _, _) = await TestClientHelper.CreateGroupMemberAsync(_fixture, adminClient, groupId, "chat_member_latest");
+
+        // Act: запрашиваем последние 5 сообщений БЕЗ фильтров
+        var response = await memberClient.GetAsync($"groups/{groupId}/chat?limit=5&timeoutSeconds=0", TestContext.Current.CancellationToken);
+
+        // Assert: должны получить последние 5 сообщений (6, 7, 8, 9, 10)
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var messages = await response.Content.ReadFromJsonAsync<List<GroupChatMessageResponse>>(JsonOptions, TestContext.Current.CancellationToken);
+        Assert.NotNull(messages);
+        Assert.Equal(5, messages!.Count);
+
+        // Проверяем, что это именно последние 5 сообщений в правильном порядке
+        var expectedMessages = sentMessages.Skip(5).Take(5).ToList();
+        for (var i = 0; i < 5; i++)
+        {
+            Assert.Equal(expectedMessages[i].Id, messages[i].Id);
+            Assert.Equal(expectedMessages[i].Content, messages[i].Content);
+        }
+
+        // Проверяем, что сообщения идут в порядке от старых к новым
+        Assert.Equal("Message 6", messages[0].Content);
+        Assert.Equal("Message 10", messages[4].Content);
     }
 }

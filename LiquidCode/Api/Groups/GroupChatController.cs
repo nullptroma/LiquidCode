@@ -14,6 +14,25 @@ namespace LiquidCode.Api.Groups;
 [Authorize]
 public class GroupChatController(IGroupChatService chatService) : ControllerBase
 {
+    /// <summary>
+    /// Получить сообщения из чата группы.
+    /// Поддерживает два режима работы:
+    /// 1. Получение последних N сообщений (если afterMessageId и afterCreatedAt не указаны)
+    /// 2. Long polling для новых сообщений (если указан afterMessageId или afterCreatedAt и timeoutSeconds > 0)
+    /// </summary>
+    /// <param name="groupId">ID группы</param>
+    /// <param name="limit">Максимальное количество сообщений (по умолчанию 50)</param>
+    /// <param name="afterMessageId">ID сообщения, после которого нужно получить новые. Если null, вернёт последние сообщения.</param>
+    /// <param name="afterCreatedAt">Дата создания, после которой нужно получить сообщения. Если null, вернёт последние сообщения.</param>
+    /// <param name="timeoutSeconds">Таймаут ожидания новых сообщений в секундах (0-60). Работает только с afterMessageId/afterCreatedAt. По умолчанию 30.</param>
+    /// <param name="cancellationToken">Токен отмены</param>
+    /// <returns>Список сообщений в хронологическом порядке (от старых к новым)</returns>
+    /// <remarks>
+    /// Примеры использования:
+    /// - GET /groups/1/chat?limit=20 - получить последние 20 сообщений
+    /// - GET /groups/1/chat?afterMessageId=100&amp;timeoutSeconds=30 - ждать новые сообщения после ID 100 до 30 секунд (long polling)
+    /// - GET /groups/1/chat?afterMessageId=100&amp;timeoutSeconds=0 - сразу получить новые сообщения после ID 100 без ожидания
+    /// </remarks>
     [HttpGet]
     public async Task<IActionResult> GetMessages(
         [FromRoute] int groupId,
@@ -39,6 +58,13 @@ public class GroupChatController(IGroupChatService chatService) : ControllerBase
         return Ok(result);
     }
 
+    /// <summary>
+    /// Отправить сообщение в чат группы
+    /// </summary>
+    /// <param name="groupId">ID группы</param>
+    /// <param name="request">Данные сообщения</param>
+    /// <param name="cancellationToken">Токен отмены</param>
+    /// <returns>Отправленное сообщение</returns>
     [HttpPost]
     public async Task<IActionResult> SendMessage(
         [FromRoute] int groupId,

@@ -67,6 +67,13 @@ public class GroupChatService : IGroupChatService
         return stored == null ? null : GroupChatMessageResponse.FromEntity(stored);
     }
 
+    /// <summary>
+    /// Получить сообщения из чата группы.
+    /// Режимы работы:
+    /// 1. Если afterMessageId и afterCreatedAt не указаны - возвращает последние N сообщений (самые свежие)
+    /// 2. Если указаны фильтры и timeoutSeconds > 0 - включается long polling: метод ожидает появления новых сообщений
+    /// 3. Если указаны фильтры и timeoutSeconds = 0 - сразу возвращает новые сообщения без ожидания
+    /// </summary>
     public async Task<IReadOnlyList<GroupChatMessageResponse>?> GetMessagesAsync(int groupId, int requesterId, int limit, long? afterMessageId, DateTime? afterCreatedAt, int timeoutSeconds, CancellationToken cancellationToken = default)
     {
         if (limit <= 0)
@@ -78,7 +85,7 @@ public class GroupChatService : IGroupChatService
         if (membership == null)
             return null;
 
-        // Long polling: если запрашивают новые сообщения, ждём их появления
+        // Long polling: если запрашивают новые сообщения после определённого ID/даты, ждём их появления
         if (timeoutSeconds > 0 && (afterMessageId.HasValue || afterCreatedAt.HasValue))
         {
             var pollInterval = TimeSpan.FromMilliseconds(500); // Интервал опроса БД
@@ -88,6 +95,7 @@ public class GroupChatService : IGroupChatService
             {
                 var messages = await _groupChatRepository.GetMessagesAsync(groupId, limit, afterMessageId, afterCreatedAt, cancellationToken);
                 
+                // Если появились новые сообщения - сразу возвращаем их
                 if (messages.Count > 0)
                 {
                     return messages.Select(GroupChatMessageResponse.FromEntity).ToList();
@@ -105,7 +113,7 @@ public class GroupChatService : IGroupChatService
             }
         }
 
-        // Обычный запрос или истёк таймаут long polling
+        // Обычный запрос (получить последние сообщения) или истёк таймаут long polling (вернуть пустой список)
         var finalMessages = await _groupChatRepository.GetMessagesAsync(groupId, limit, afterMessageId, afterCreatedAt, cancellationToken);
         return finalMessages.Select(GroupChatMessageResponse.FromEntity).ToList();
     }
