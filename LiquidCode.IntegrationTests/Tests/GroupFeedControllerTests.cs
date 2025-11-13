@@ -18,34 +18,13 @@ public class GroupFeedControllerTests
 
     public GroupFeedControllerTests(IntegrationTestFixture fixture) => _fixture = fixture;
 
-    #region Helpers
-
-    private async Task<GroupFeedPostResponse> CreateFeedPostAsync(HttpClient client, int groupId, string name, string content)
-    {
-        var request = new CreateGroupFeedPostRequest(name, content);
-        var response = await client.PostAsJsonAsync($"groups/{groupId}/feed", request, TestContext.Current.CancellationToken);
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
-        var post = await response.Content.ReadFromJsonAsync<GroupFeedPostResponse>(JsonOptions, TestContext.Current.CancellationToken);
-        Assert.NotNull(post);
-        return post!;
-    }
-
-    #endregion
-
     [Fact]
     public async Task CreateFeedPost_AsAdministrator_ReturnsPost()
     {
         var (adminClient, adminUsername, adminId, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "feed_admin");
         var (groupId, _) = await TestClientHelper.CreateGroupAsync(adminClient, name: TestDataGenerator.UniqueGroupName("Feed Group"));
 
-        var request = new CreateGroupFeedPostRequest("Announcement", "Welcome to the group!");
-        var response = await adminClient.PostAsJsonAsync($"groups/{groupId}/feed", request, TestContext.Current.CancellationToken);
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
-        var post = await response.Content.ReadFromJsonAsync<GroupFeedPostResponse>(JsonOptions, TestContext.Current.CancellationToken);
-        Assert.NotNull(post);
+        var post = await TestClientHelper.CreateGroupFeedPostAsync(adminClient, groupId, "Announcement", "Welcome to the group!");
         Assert.Equal(groupId, post!.GroupId);
         Assert.Equal(adminId, post.AuthorId);
         Assert.Equal(adminUsername, post.AuthorUsername);
@@ -70,16 +49,16 @@ public class GroupFeedControllerTests
     [Fact]
     public async Task GetFeedPage_AsMember_ReturnsPosts()
     {
-    var (adminClient, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "feed_owner");
-    var (groupId, _) = await TestClientHelper.CreateGroupAsync(adminClient, name: TestDataGenerator.UniqueGroupName("Feed Group"));
+        var (adminClient, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "feed_owner");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(adminClient, name: TestDataGenerator.UniqueGroupName("Feed Group"));
 
         var posts = new List<GroupFeedPostResponse>();
         for (var i = 0; i < 3; i++)
         {
-            posts.Add(await CreateFeedPostAsync(adminClient, groupId, $"Post {i}", $"Content {i}"));
+            posts.Add(await TestClientHelper.CreateGroupFeedPostAsync(adminClient, groupId, $"Post {i}", $"Content {i}"));
         }
 
-    var (memberClient, _, _, _) = await TestClientHelper.CreateMemberClientAsync(_fixture, adminClient, groupId, "feed_member2");
+        var (memberClient, _, _, _) = await TestClientHelper.CreateMemberClientAsync(_fixture, adminClient, groupId, "feed_member2");
 
         var response = await memberClient.GetAsync($"groups/{groupId}/feed?pageSize=10&page=0", TestContext.Current.CancellationToken);
 
@@ -101,7 +80,7 @@ public class GroupFeedControllerTests
     {
         var (adminClient, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "feed_owner");
         var (groupId, _) = await TestClientHelper.CreateGroupAsync(adminClient, name: TestDataGenerator.UniqueGroupName("Feed Group"));
-        await CreateFeedPostAsync(adminClient, groupId, "Post", "Content");
+        await TestClientHelper.CreateGroupFeedPostAsync(adminClient, groupId, "Post", "Content");
 
         var (strangerClient, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "feed_stranger");
 
@@ -115,7 +94,7 @@ public class GroupFeedControllerTests
     {
         var (adminClient, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "feed_owner");
         var (groupId, _) = await TestClientHelper.CreateGroupAsync(adminClient, name: TestDataGenerator.UniqueGroupName("Feed Group"));
-        var post = await CreateFeedPostAsync(adminClient, groupId, "Initial", "Initial content");
+        var post = await TestClientHelper.CreateGroupFeedPostAsync(adminClient, groupId, "Initial", "Initial content");
 
         var updateRequest = new UpdateGroupFeedPostRequest("Updated", "Updated content");
         var response = await adminClient.PutAsJsonAsync($"groups/{groupId}/feed/{post.Id}", updateRequest, TestContext.Current.CancellationToken);
@@ -131,9 +110,9 @@ public class GroupFeedControllerTests
     [Fact]
     public async Task UpdateFeedPost_AsDifferentUser_ReturnsNotFound()
     {
-    var (adminClient, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "feed_owner");
-    var (groupId, _) = await TestClientHelper.CreateGroupAsync(adminClient, name: TestDataGenerator.UniqueGroupName("Feed Group"));
-        var post = await CreateFeedPostAsync(adminClient, groupId, "Initial", "Initial content");
+        var (adminClient, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "feed_owner");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(adminClient, name: TestDataGenerator.UniqueGroupName("Feed Group"));
+        var post = await TestClientHelper.CreateGroupFeedPostAsync(adminClient, groupId, "Initial", "Initial content");
 
         var (memberClient, _, _, _) = await TestClientHelper.CreateMemberClientAsync(_fixture, adminClient, groupId, "feed_member3");
         var updateRequest = new UpdateGroupFeedPostRequest("Hack", "Hacked content");
@@ -148,7 +127,7 @@ public class GroupFeedControllerTests
     {
         var (adminClient, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "feed_owner");
         var (groupId, _) = await TestClientHelper.CreateGroupAsync(adminClient, name: TestDataGenerator.UniqueGroupName("Feed Group"));
-        var post = await CreateFeedPostAsync(adminClient, groupId, "Initial", "Initial content");
+        var post = await TestClientHelper.CreateGroupFeedPostAsync(adminClient, groupId, "Initial", "Initial content");
 
         var response = await adminClient.DeleteAsync($"groups/{groupId}/feed/{post.Id}", TestContext.Current.CancellationToken);
 
@@ -163,7 +142,7 @@ public class GroupFeedControllerTests
     {
         var (adminClient, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "feed_owner");
         var (groupId, _) = await TestClientHelper.CreateGroupAsync(adminClient, name: TestDataGenerator.UniqueGroupName("Feed Group"));
-        var post = await CreateFeedPostAsync(adminClient, groupId, "Initial", "Initial content");
+        var post = await TestClientHelper.CreateGroupFeedPostAsync(adminClient, groupId, "Initial", "Initial content");
 
         var (strangerClient, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "feed_stranger");
 
@@ -175,8 +154,8 @@ public class GroupFeedControllerTests
     [Fact]
     public async Task GetFeedPage_WithInvalidPagination_ReturnsBadRequest()
     {
-    var (adminClient, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "feed_owner");
-    var (groupId, _) = await TestClientHelper.CreateGroupAsync(adminClient, name: TestDataGenerator.UniqueGroupName("Feed Group"));
+        var (adminClient, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "feed_owner");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(adminClient, name: TestDataGenerator.UniqueGroupName("Feed Group"));
 
         var response = await adminClient.GetAsync($"groups/{groupId}/feed?pageSize=0&page=0", TestContext.Current.CancellationToken);
 

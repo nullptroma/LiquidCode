@@ -17,21 +17,6 @@ public class GroupChatControllerTests
 
     public GroupChatControllerTests(IntegrationTestFixture fixture) => _fixture = fixture;
 
-    #region Helpers
-
-    private async Task<GroupChatMessageResponse> SendMessageAsync(HttpClient client, int groupId, string content)
-    {
-        var request = new CreateGroupChatMessageRequest(content);
-        var response = await client.PostAsJsonAsync($"groups/{groupId}/chat", request, TestContext.Current.CancellationToken);
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
-        var message = await response.Content.ReadFromJsonAsync<GroupChatMessageResponse>(JsonOptions, TestContext.Current.CancellationToken);
-        Assert.NotNull(message);
-        return message!;
-    }
-
-    #endregion
-
     [Fact]
     public async Task SendMessage_AsMember_ReturnsMessage()
     {
@@ -39,12 +24,7 @@ public class GroupChatControllerTests
         var (groupId, _) = await TestClientHelper.CreateGroupAsync(adminClient, name: TestDataGenerator.UniqueGroupName("Chat Group"));
         var (memberClient, memberUsername, memberUserId, _) = await TestClientHelper.CreateMemberClientAsync(_fixture, adminClient, groupId, "chat_member");
 
-        var response = await memberClient.PostAsJsonAsync($"groups/{groupId}/chat", new CreateGroupChatMessageRequest("Hello everyone"), TestContext.Current.CancellationToken);
-
-        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
-
-        var message = await response.Content.ReadFromJsonAsync<GroupChatMessageResponse>(JsonOptions, TestContext.Current.CancellationToken);
-        Assert.NotNull(message);
+        var message = await TestClientHelper.SendGroupChatMessageAsync(memberClient, groupId, "Hello everyone");
         Assert.Equal(groupId, message!.GroupId);
         Assert.Equal(memberUserId, message.AuthorId);
         Assert.Equal(memberUsername, message.AuthorUsername);
@@ -85,7 +65,7 @@ public class GroupChatControllerTests
         var sentMessages = new List<GroupChatMessageResponse>();
         for (var i = 0; i < 3; i++)
         {
-            sentMessages.Add(await SendMessageAsync(adminClient, groupId, $"Message {i}"));
+            sentMessages.Add(await TestClientHelper.SendGroupChatMessageAsync(adminClient, groupId, $"Message {i}"));
         }
 
     var (memberClient, _, _, _) = await TestClientHelper.CreateMemberClientAsync(_fixture, adminClient, groupId, "chat_member3");
@@ -108,7 +88,7 @@ public class GroupChatControllerTests
     {
         var (adminClient, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "chat_owner");
         var (groupId, _) = await TestClientHelper.CreateGroupAsync(adminClient, name: TestDataGenerator.UniqueGroupName("Chat Group"));
-        await SendMessageAsync(adminClient, groupId, "Hello");
+    await TestClientHelper.SendGroupChatMessageAsync(adminClient, groupId, "Hello");
 
         var (strangerClient, _, _, _) = await TestClientHelper.CreateAuthenticatedClientAsync(_fixture, "chat_stranger");
 

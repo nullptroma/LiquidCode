@@ -70,4 +70,26 @@ internal static class TestClientHelper
 
         return (client, username, userId, jwt);
     }
+
+    public static async Task<GroupChatMessageResponse> SendGroupChatMessageAsync(HttpClient client, int groupId, string content)
+    {
+        var request = new CreateGroupChatMessageRequest(content);
+        var response = await client.PostAsJsonAsync($"groups/{groupId}/chat", request, TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var message = await response.Content.ReadFromJsonAsync<GroupChatMessageResponse>(JsonOptions, TestContext.Current.CancellationToken);
+        Assert.NotNull(message);
+        return message!;
+    }
+
+    public static async Task<GroupFeedPostResponse> CreateGroupFeedPostAsync(HttpClient client, int groupId, string name, string content)
+    {
+        var request = new CreateGroupFeedPostRequest(name, content);
+        var response = await client.PostAsJsonAsync($"groups/{groupId}/feed", request, TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var post = await response.Content.ReadFromJsonAsync<GroupFeedPostResponse>(JsonOptions, TestContext.Current.CancellationToken);
+        Assert.NotNull(post);
+        return post!;
+    }
 }
