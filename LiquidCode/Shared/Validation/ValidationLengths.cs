@@ -65,8 +65,14 @@ public static class ValidationLengths
 
     public static class Solution
     {
+        public const int LanguageMin = 1;
         public const int LanguageMax = 16;
+        public static readonly LengthRange Language = new(LanguageMin, LanguageMax);
+
+        public const int LanguageVersionMin = 1;
         public const int LanguageVersionMax = 16;
+        public static readonly LengthRange LanguageVersion = new(LanguageVersionMin, LanguageVersionMax);
+
         public const int SourceCodeMin = 1;
         public const int SourceCodeMax = 10_000;
         public static readonly LengthRange SourceCode = new(SourceCodeMin, SourceCodeMax);
@@ -90,6 +96,12 @@ public static class ValidationLengths
         public const int NameMin = 3;
         public const int NameMax = 128;
         public static readonly LengthRange Name = new(NameMin, NameMax);
+
+        public const int ContentMin = 1;
+        public const int ContentMax = 200_000;
+        public static readonly LengthRange Content = new(ContentMin, ContentMax);
+
+        public const int TagsMaxCount = 32;
     }
 
     public static class Tag

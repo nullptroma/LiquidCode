@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Linq;
 using FluentValidation;
 using LiquidCode.Shared.Validation;
@@ -22,6 +24,8 @@ public static class ValidationExtensions
         return ruleBuilder
             .NotEmpty()
             .WithMessage($"{fieldName} is required")
+            .Must(value => !string.IsNullOrWhiteSpace(value))
+            .WithMessage($"{fieldName} must not be empty")
             .Length(lengthRange.Min, lengthRange.Max)
             .WithMessage($"{fieldName} must be between {lengthRange.Min} and {lengthRange.Max} characters");
     }
@@ -80,6 +84,142 @@ public static class ValidationExtensions
             .WithMessage($"{fieldName} must not be empty when provided")
             .MaximumLength(maxLength)
             .WithMessage($"{fieldName} must not exceed {maxLength} characters");
+    }
+
+    /// <summary>
+    /// Правило для положительных идентификаторов.
+    /// </summary>
+    public static IRuleBuilderOptions<T, int> PositiveId<T>(
+        this IRuleBuilder<T, int> ruleBuilder,
+        string fieldName)
+    {
+        return ruleBuilder
+            .GreaterThan(0)
+            .WithMessage($"{fieldName} must be greater than 0");
+    }
+
+    /// <summary>
+    /// Правило для nullable идентификаторов.
+    /// </summary>
+    public static IRuleBuilderOptions<T, int?> OptionalPositiveId<T>(
+        this IRuleBuilder<T, int?> ruleBuilder,
+        string fieldName)
+    {
+        return ruleBuilder
+            .Must(id => !id.HasValue || id.Value > 0)
+            .WithMessage($"{fieldName} must be greater than 0");
+    }
+
+    /// <summary>
+    /// Валидация тегов.
+    /// </summary>
+    public static IRuleBuilderOptions<T, string> ValidTagName<T>(
+        this IRuleBuilder<T, string> ruleBuilder,
+        string fieldName = "Tag")
+    {
+        return ruleBuilder.RequiredText(fieldName, ValidationLengths.Tag.Name);
+    }
+
+    /// <summary>
+    /// Правило для проверки списка тегов.
+    /// </summary>
+    public static IRuleBuilderOptionsConditions<T, IEnumerable<string>?> ValidTagsCollection<T>(
+        this IRuleBuilder<T, IEnumerable<string>?> ruleBuilder,
+        int maxCount,
+        string fieldName = "Tags")
+    {
+        return ruleBuilder.Custom((tags, context) =>
+        {
+            if (tags == null)
+            {
+                return;
+            }
+
+            var tagList = tags.ToList();
+            if (tagList.Count > maxCount)
+            {
+                context.AddFailure(fieldName, $"{fieldName} must not contain more than {maxCount} values");
+            }
+
+            var normalized = tagList
+                .Where(tag => !string.IsNullOrWhiteSpace(tag))
+                .Select(tag => tag!.Trim().ToLowerInvariant())
+                .ToList();
+
+            if (normalized.Distinct().Count() != normalized.Count)
+            {
+                context.AddFailure(fieldName, $"{fieldName} must contain unique values");
+            }
+        });
+    }
+
+    /// <summary>
+    /// Проверка enums с учетом флагов.
+    /// </summary>
+    public static IRuleBuilderOptions<T, TEnum> ValidEnumValue<T, TEnum>(
+        this IRuleBuilder<T, TEnum> ruleBuilder,
+        string fieldName,
+        bool allowDefault = false)
+        where TEnum : struct, Enum
+    {
+        var isFlagsEnum = typeof(TEnum).IsDefined(typeof(FlagsAttribute), false);
+
+        var builder = allowDefault
+            ? ruleBuilder
+            : ruleBuilder
+                .Must(value => !EqualityComparer<TEnum>.Default.Equals(value, default))
+                .WithMessage($"{fieldName} is required");
+
+        return builder
+            .Must(value => IsValidEnumValue(value, isFlagsEnum))
+            .WithMessage($"{fieldName} contains invalid value");
+    }
+
+    /// <summary>
+    /// Nullable-перегрузка для enums.
+    /// </summary>
+    public static IRuleBuilderOptions<T, TEnum?> OptionalEnumValue<T, TEnum>(
+        this IRuleBuilder<T, TEnum?> ruleBuilder,
+        string fieldName,
+        bool allowDefault = false)
+        where TEnum : struct, Enum
+    {
+        var isFlagsEnum = typeof(TEnum).IsDefined(typeof(FlagsAttribute), false);
+
+        var builder = ruleBuilder;
+
+        if (!allowDefault)
+        {
+            builder = builder
+                .Must(value => !value.HasValue || !EqualityComparer<TEnum>.Default.Equals(value.Value, default))
+                .WithMessage($"{fieldName} is required");
+        }
+
+        return builder
+            .Must(value => !value.HasValue || IsValidEnumValue(value.Value, isFlagsEnum))
+            .WithMessage($"{fieldName} contains invalid value");
+    }
+
+    private static bool IsValidEnumValue<TEnum>(TEnum value, bool isFlagsEnum)
+        where TEnum : struct, Enum
+    {
+        if (!isFlagsEnum)
+        {
+            return Enum.IsDefined(typeof(TEnum), value);
+        }
+
+        var numericValue = Convert.ToInt64(value);
+        var allowedMask = AllowedFlagsCache<TEnum>.Mask;
+        return (numericValue & ~allowedMask) == 0;
+    }
+
+    private static class AllowedFlagsCache<TEnum>
+        where TEnum : struct, Enum
+    {
+        public static readonly long Mask = Enum
+            .GetValues<TEnum>()
+        .Select(value => Convert.ToInt64(value))
+            .Aggregate(0L, (current, next) => current | next);
     }
 
     /// <summary>
