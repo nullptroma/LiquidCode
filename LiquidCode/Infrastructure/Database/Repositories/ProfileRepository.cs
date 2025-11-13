@@ -26,22 +26,24 @@ public class ProfileRepository : IProfileRepository
             .AsNoTracking()
             .CountAsync(u => !u.IsDeleted, cancellationToken);
 
-        var acceptedCountsQuery = _dbContext.UserSubmits
+        var acceptedPerUserQuery = _dbContext.UserSubmits
             .AsNoTracking()
             .Where(s => !s.IsDeleted &&
                         !s.Solution.Mission.IsDeleted &&
                         s.Solution.Status.StartsWith(AcceptedStatusPrefix))
             .GroupBy(s => s.User.Id)
-            .Select(g => new AcceptedCountDto(g.Key, g.Count()));
+            .Select(g => new { UserId = g.Key, Count = g.Count() });
 
-        var userAccepted = await acceptedCountsQuery
+        var userAccepted = await acceptedPerUserQuery
             .Where(x => x.UserId == userId)
-            .Select(x => (int?)x.AcceptedCount)
+            .Select(x => (int?)x.Count)
             .FirstOrDefaultAsync(cancellationToken) ?? 0;
 
-        var higher = totalUsers == 0
+        var higher = totalUsers == 0 || userAccepted == 0
             ? 0
-            : await acceptedCountsQuery.CountAsync(x => x.AcceptedCount > userAccepted, cancellationToken);
+            : await acceptedPerUserQuery
+                .Where(x => x.Count > userAccepted)
+                .CountAsync(cancellationToken);
 
         return new ProfileUserPlacement(totalUsers, userAccepted, higher);
     }
@@ -233,5 +235,4 @@ public class ProfileRepository : IProfileRepository
         return new CreationActivityMetrics(missionsTotal, missionsRecent, articlesTotal, articlesRecent, contestsTotal, contestsRecent);
     }
 
-    private sealed record AcceptedCountDto(int UserId, int AcceptedCount);
 }
