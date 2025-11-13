@@ -20,6 +20,7 @@ public class GroupChatController(IGroupChatService chatService) : ControllerBase
         [FromQuery] int limit = 50,
         [FromQuery] long? afterMessageId = null,
         [FromQuery] DateTime? afterCreatedAt = null,
+        [FromQuery] int timeoutSeconds = 30,
         CancellationToken cancellationToken = default)
     {
         if (!User.TryGetUserId(out var userId))
@@ -28,7 +29,10 @@ public class GroupChatController(IGroupChatService chatService) : ControllerBase
         if (limit <= 0)
             return BadRequest("Limit must be positive.");
 
-        var result = await chatService.GetMessagesAsync(groupId, userId, limit, afterMessageId, afterCreatedAt, cancellationToken);
+        if (timeoutSeconds < 0 || timeoutSeconds > 60)
+            return BadRequest("Timeout must be between 0 and 60 seconds.");
+
+        var result = await chatService.GetMessagesAsync(groupId, userId, limit, afterMessageId, afterCreatedAt, timeoutSeconds, cancellationToken);
         if (result == null)
             return NotFound("Group not found or access denied.");
 

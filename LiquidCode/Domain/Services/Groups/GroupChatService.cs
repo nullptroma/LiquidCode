@@ -67,7 +67,7 @@ public class GroupChatService : IGroupChatService
         return stored == null ? null : GroupChatMessageResponse.FromEntity(stored);
     }
 
-    public async Task<IReadOnlyList<GroupChatMessageResponse>?> GetMessagesAsync(int groupId, int requesterId, int limit, long? afterMessageId, DateTime? afterCreatedAt, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<GroupChatMessageResponse>?> GetMessagesAsync(int groupId, int requesterId, int limit, long? afterMessageId, DateTime? afterCreatedAt, int timeoutSeconds, CancellationToken cancellationToken = default)
     {
         if (limit <= 0)
             return null;
@@ -78,8 +78,36 @@ public class GroupChatService : IGroupChatService
         if (membership == null)
             return null;
 
-        var messages = await _groupChatRepository.GetMessagesAsync(groupId, limit, afterMessageId, afterCreatedAt, cancellationToken);
-        return messages.Select(GroupChatMessageResponse.FromEntity).ToList();
+        // Long polling: если запрашивают новые сообщения, ждём их появления
+        if (timeoutSeconds > 0 && (afterMessageId.HasValue || afterCreatedAt.HasValue))
+        {
+            var pollInterval = TimeSpan.FromMilliseconds(500); // Интервал опроса БД
+            var deadline = DateTime.UtcNow.AddSeconds(timeoutSeconds);
+
+            while (DateTime.UtcNow < deadline && !cancellationToken.IsCancellationRequested)
+            {
+                var messages = await _groupChatRepository.GetMessagesAsync(groupId, limit, afterMessageId, afterCreatedAt, cancellationToken);
+                
+                if (messages.Count > 0)
+                {
+                    return messages.Select(GroupChatMessageResponse.FromEntity).ToList();
+                }
+
+                // Ждём перед следующей попыткой
+                try
+                {
+                    await Task.Delay(pollInterval, cancellationToken);
+                }
+                catch (TaskCanceledException)
+                {
+                    break;
+                }
+            }
+        }
+
+        // Обычный запрос или истёк таймаут long polling
+        var finalMessages = await _groupChatRepository.GetMessagesAsync(groupId, limit, afterMessageId, afterCreatedAt, cancellationToken);
+        return finalMessages.Select(GroupChatMessageResponse.FromEntity).ToList();
     }
 
     private async Task<DbGroupMembership?> GetMembershipAsync(int groupId, int userId, CancellationToken cancellationToken)

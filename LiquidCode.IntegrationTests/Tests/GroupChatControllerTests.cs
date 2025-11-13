@@ -108,4 +108,81 @@ public class GroupChatControllerTests
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
+
+    [Fact]
+    public async Task GetMessages_LongPolling_ReturnsNewMessageWhenArrives()
+    {
+        // Arrange: создаём группу и двух участников
+        var (adminClient, _, _, _) = await TestClientHelper.CreateAuthenticatedUserAsync(_fixture, "chat_owner");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(adminClient, TestDataGenerator.UniqueGroupName("Chat Group"));
+        var (memberClient, _, _, _) = await TestClientHelper.CreateGroupMemberAsync(_fixture, adminClient, groupId, "chat_member_polling");
+
+        // Отправляем первое сообщение, чтобы получить его ID
+        var firstMessage = await TestClientHelper.SendGroupChatMessageAsync(adminClient, groupId, "Initial message");
+        Assert.NotNull(firstMessage);
+
+        // Act: запускаем long polling запрос в отдельной задаче
+        var longPollingTask = Task.Run(async () =>
+        {
+            var response = await memberClient.GetAsync(
+                $"groups/{groupId}/chat?limit=10&afterMessageId={firstMessage.Id}&timeoutSeconds=10",
+                TestContext.Current.CancellationToken);
+            
+            Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+            
+            var messages = await response.Content.ReadFromJsonAsync<List<GroupChatMessageResponse>>(
+                JsonOptions, 
+                TestContext.Current.CancellationToken);
+            
+            return messages;
+        });
+
+        // Ждём немного, чтобы убедиться что long polling запрос начался
+        await Task.Delay(1000, TestContext.Current.CancellationToken);
+
+        // Отправляем новое сообщение, пока long polling ждёт
+        var newMessage = await TestClientHelper.SendGroupChatMessageAsync(adminClient, groupId, "New message during polling");
+        Assert.NotNull(newMessage);
+
+        // Assert: long polling должен получить новое сообщение
+        var receivedMessages = await longPollingTask;
+        Assert.NotNull(receivedMessages);
+        Assert.Single(receivedMessages!);
+        Assert.Equal(newMessage.Id, receivedMessages[0].Id);
+        Assert.Equal("New message during polling", receivedMessages[0].Content);
+    }
+
+    [Fact]
+    public async Task GetMessages_LongPolling_ReturnsEmptyListAfterTimeout()
+    {
+        // Arrange: создаём группу и участника
+        var (adminClient, _, _, _) = await TestClientHelper.CreateAuthenticatedUserAsync(_fixture, "chat_owner");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(adminClient, TestDataGenerator.UniqueGroupName("Chat Group"));
+        var (memberClient, _, _, _) = await TestClientHelper.CreateGroupMemberAsync(_fixture, adminClient, groupId, "chat_member_timeout");
+
+        // Отправляем сообщение, чтобы получить его ID
+        var message = await TestClientHelper.SendGroupChatMessageAsync(adminClient, groupId, "Only message");
+        Assert.NotNull(message);
+
+        // Act: запускаем long polling с коротким таймаутом и НЕ отправляем новых сообщений
+        var startTime = DateTime.UtcNow;
+        var response = await memberClient.GetAsync(
+            $"groups/{groupId}/chat?limit=10&afterMessageId={message.Id}&timeoutSeconds=2",
+            TestContext.Current.CancellationToken);
+        var elapsed = DateTime.UtcNow - startTime;
+
+        // Assert: должен вернуть пустой список после истечения таймаута
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        
+        var messages = await response.Content.ReadFromJsonAsync<List<GroupChatMessageResponse>>(
+            JsonOptions, 
+            TestContext.Current.CancellationToken);
+        
+        Assert.NotNull(messages);
+        Assert.Empty(messages!);
+        
+        // Проверяем, что запрос действительно ждал около 2 секунд
+        Assert.True(elapsed.TotalSeconds >= 1.5, $"Expected at least 1.5s wait, but got {elapsed.TotalSeconds}s");
+        Assert.True(elapsed.TotalSeconds <= 3, $"Expected at most 3s wait, but got {elapsed.TotalSeconds}s");
+    }
 }
