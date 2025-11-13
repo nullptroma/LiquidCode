@@ -119,6 +119,8 @@ builder.Services.AddScoped<IArticleRepository, ArticleRepository>();
 builder.Services.AddScoped<ITagRepository, TagRepository>();
 builder.Services.AddScoped<IContestRepository, ContestRepository>();
 builder.Services.AddScoped<IGroupRepository, GroupRepository>();
+builder.Services.AddScoped<IGroupFeedRepository, GroupFeedRepository>();
+builder.Services.AddScoped<IGroupChatRepository, GroupChatRepository>();
 builder.Services.AddScoped<IProfileRepository, ProfileRepository>();
 
 // Добавить сервисы
@@ -131,6 +133,8 @@ builder.Services.AddScoped<IContestService, ContestService>();
 builder.Services.AddScoped<IGroupService, GroupService>();
 builder.Services.AddScoped<IMediaService, MediaService>();
 builder.Services.AddScoped<IProfileService, ProfileService>();
+builder.Services.AddScoped<IGroupFeedService, GroupFeedService>();
+builder.Services.AddScoped<IGroupChatService, GroupChatService>();
 
 builder.Services.AddDbContext<LiquidDbContext>(options =>
     options.UseNpgsql(dbConnectionString).UseSnakeCaseNamingConvention());

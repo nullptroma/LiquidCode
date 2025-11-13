@@ -31,6 +31,8 @@ public class LiquidDbContext : DbContext
     public DbSet<DbGroupMembership> GroupMemberships { get; set; } = null!;
     public DbSet<DbGroupInvitation> GroupInvitations { get; set; } = null!;
     public DbSet<DbGroupJoinToken> GroupJoinTokens { get; set; } = null!;
+    public DbSet<DbGroupFeedPost> GroupFeedPosts { get; set; } = null!;
+    public DbSet<DbGroupChatMessage> GroupChatMessages { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -97,6 +99,30 @@ public class LiquidDbContext : DbContext
             .WithMany()
             .HasForeignKey(t => t.CreatedById)
             .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<DbGroupFeedPost>()
+            .HasOne(p => p.Group)
+            .WithMany(g => g.FeedPosts)
+            .HasForeignKey(p => p.GroupId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<DbGroupFeedPost>()
+            .HasOne(p => p.Author)
+            .WithMany()
+            .HasForeignKey(p => p.AuthorId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        modelBuilder.Entity<DbGroupChatMessage>()
+            .HasOne(m => m.Group)
+            .WithMany(g => g.ChatMessages)
+            .HasForeignKey(m => m.GroupId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<DbGroupChatMessage>()
+            .HasOne(m => m.Author)
+            .WithMany()
+            .HasForeignKey(m => m.AuthorId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 
     public override int SaveChanges()
