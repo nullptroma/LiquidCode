@@ -421,6 +421,103 @@ public class GroupsControllerTests
     }
 
     [Fact]
+    public async Task UpdateMemberRole_AdminCannotMakeSelfCreator_ReturnsNotFound()
+    {
+        var (ownerClient, _, _, _) = await TestClientHelper.CreateAuthenticatedUserAsync(_fixture, "groups_admin_promote_self_owner");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(ownerClient, TestDataGenerator.UniqueGroupName());
+
+        // Create and join a member
+        var (adminClient, _, adminId, _) = await TestClientHelper.CreateGroupMemberAsync(_fixture, ownerClient, groupId, "groups_admin_promote_self_admin");
+
+        // Owner promotes user to Administrator
+        var promoteToAdminRequest = new GroupMembershipRequest(adminId, GroupMembershipRole.Administrator);
+        var promoteAdminResponse = await ownerClient.PostAsJsonAsync($"groups/{groupId}/members", promoteToAdminRequest, TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NoContent, promoteAdminResponse.StatusCode);
+
+        // Admin tries to make themselves Creator -> not allowed
+        var makeCreatorRequest = new GroupMembershipRequest(adminId, GroupMembershipRole.Creator | GroupMembershipRole.Administrator);
+        var response = await adminClient.PostAsJsonAsync($"groups/{groupId}/members", makeCreatorRequest, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateMemberRole_AdminCannotMakeOtherCreator_ReturnsNotFound()
+    {
+        var (ownerClient, _, _, _) = await TestClientHelper.CreateAuthenticatedUserAsync(_fixture, "groups_admin_promote_other_owner");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(ownerClient, TestDataGenerator.UniqueGroupName());
+
+        // Create and join two members
+        var (adminClient, _, adminId, _) = await TestClientHelper.CreateGroupMemberAsync(_fixture, ownerClient, groupId, "groups_admin_promote_other_admin");
+        var (memberClient2, _, memberId2, _) = await TestClientHelper.CreateGroupMemberAsync(_fixture, ownerClient, groupId, "groups_admin_promote_other_member");
+
+        // Owner promotes adminClient to Administrator
+        var promoteToAdminRequest = new GroupMembershipRequest(adminId, GroupMembershipRole.Administrator);
+        var promoteAdminResponse = await ownerClient.PostAsJsonAsync($"groups/{groupId}/members", promoteToAdminRequest, TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NoContent, promoteAdminResponse.StatusCode);
+
+        // Admin tries to make another member Creator -> not allowed
+        var makeCreatorRequest = new GroupMembershipRequest(memberId2, GroupMembershipRole.Creator | GroupMembershipRole.Administrator);
+        var response = await adminClient.PostAsJsonAsync($"groups/{groupId}/members", makeCreatorRequest, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateMemberRole_MakeMemberCreator_OriginalCreatorLosesCreator()
+    {
+        var (ownerClient, _, ownerId, _) = await TestClientHelper.CreateAuthenticatedUserAsync(_fixture, "groups_member_promote_to_creator_owner");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(ownerClient, TestDataGenerator.UniqueGroupName());
+
+        // Create and join a regular member
+        var (memberClient, _, memberId, _) = await TestClientHelper.CreateGroupMemberAsync(_fixture, ownerClient, groupId, "groups_member_promote_to_creator_member");
+
+        // Owner promotes member to Creator and Administrator
+        var makeCreatorRequest = new GroupMembershipRequest(memberId, GroupMembershipRole.Creator);
+        var promoteResponse = await ownerClient.PostAsJsonAsync($"groups/{groupId}/members", makeCreatorRequest, TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NoContent, promoteResponse.StatusCode);
+
+        // Verify new member is Creator+Administrator and owner has lost Creator flag
+        var getResponse = await ownerClient.GetAsync($"groups/{groupId}", TestContext.Current.CancellationToken);
+        var group = await getResponse.Content.ReadFromJsonAsync<GroupResponse>(JsonOptions, TestContext.Current.CancellationToken);
+        Assert.NotNull(group);
+
+        // Member should be Administrator + Creator
+        Assert.Contains(group!.Members, m => m.UserId == memberId && m.Role.HasFlag(GroupMembershipRole.Creator) && m.Role.HasFlag(GroupMembershipRole.Administrator));
+
+        // Owner should no longer have Creator flag (but keep Administrator)
+        Assert.Contains(group.Members, m => m.UserId == ownerId && m.Role.HasFlag(GroupMembershipRole.Administrator) && !m.Role.HasFlag(GroupMembershipRole.Creator));
+    }
+
+    [Fact]
+    public async Task UpdateMemberRole_MakeAdminCreator_OriginalCreatorLosesCreator()
+    {
+        var (ownerClient, _, ownerId, _) = await TestClientHelper.CreateAuthenticatedUserAsync(_fixture, "groups_member_promote_admin_to_creator_owner");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(ownerClient, TestDataGenerator.UniqueGroupName());
+
+        // Create and join a member
+        var (adminClient, _, adminId, _) = await TestClientHelper.CreateGroupMemberAsync(_fixture, ownerClient, groupId, "groups_member_promote_admin_to_creator_admin");
+
+        // Owner promotes member to Administrator first
+        var promoteToAdminRequest = new GroupMembershipRequest(adminId, GroupMembershipRole.Administrator);
+        var promoteAdminResponse = await ownerClient.PostAsJsonAsync($"groups/{groupId}/members", promoteToAdminRequest, TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NoContent, promoteAdminResponse.StatusCode);
+
+        // Now owner promotes admin to Creator (should also give Administrator flag)
+        var makeCreatorRequest = new GroupMembershipRequest(adminId, GroupMembershipRole.Creator);
+        var promoteResponse = await ownerClient.PostAsJsonAsync($"groups/{groupId}/members", makeCreatorRequest, TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NoContent, promoteResponse.StatusCode);
+
+        // Verify admin is Creator+Administrator and owner has lost Creator flag
+        var getResponse = await ownerClient.GetAsync($"groups/{groupId}", TestContext.Current.CancellationToken);
+        var group = await getResponse.Content.ReadFromJsonAsync<GroupResponse>(JsonOptions, TestContext.Current.CancellationToken);
+        Assert.NotNull(group);
+
+        Assert.Contains(group!.Members, m => m.UserId == adminId && m.Role.HasFlag(GroupMembershipRole.Creator) && m.Role.HasFlag(GroupMembershipRole.Administrator));
+        Assert.Contains(group.Members, m => m.UserId == ownerId && m.Role.HasFlag(GroupMembershipRole.Administrator) && !m.Role.HasFlag(GroupMembershipRole.Creator));
+    }
+
+    [Fact]
     public async Task UpdateMemberRole_NonExistingGroup_ReturnsNotFound()
     {
         var (client, _, _, _) = await TestClientHelper.CreateAuthenticatedUserAsync(_fixture, "groups_member_missing_group");

@@ -155,6 +155,35 @@ public class GroupService : IGroupService
             return false;
         }
 
+        // If making someone a Creator, ensure they are Administrator too and remove Creator from current owner
+        if (role.HasFlag(GroupMembershipRole.Creator))
+        {
+            // Only the current Creator can transfer the creator flag
+            var currentCreator = group.Memberships.FirstOrDefault(m => m.Role.HasFlag(GroupMembershipRole.Creator));
+            if (currentCreator == null || currentCreator.UserId != requesterId)
+            {
+                _logger.LogWarning("Attempt to assign creator role in group {GroupId} by non-creator {RequesterId}", groupId, requesterId);
+                return false;
+            }
+            // Ensure creator always has Administrator role as well
+            role |= GroupMembershipRole.Administrator;
+
+            if (currentCreator != null && currentCreator.UserId != targetUserId)
+            {
+                var newRole = currentCreator.Role & ~GroupMembershipRole.Creator;
+                await _groupRepository.UpsertMembershipAsync(
+                    groupId,
+                    currentCreator.UserId,
+                    newRole,
+                    new GroupMembershipOptions(
+                        InvitedById: currentCreator.InvitedById,
+                        InvitationId: currentCreator.InvitationId,
+                        IsAutoJoined: currentCreator.IsAutoJoined,
+                        JoinedAt: currentCreator.JoinedAt),
+                    cancellationToken);
+            }
+        }
+
         await _groupRepository.UpsertMembershipAsync(
             groupId,
             targetUserId,
