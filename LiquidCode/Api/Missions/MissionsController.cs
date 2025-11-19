@@ -78,4 +78,21 @@ public class MissionsController(IMissionService missionService) : ControllerBase
         var result = await missionService.GetMyMissionsAsync(userId, cancellationToken);
         return Ok(result);
     }
+
+    /// <summary>
+    /// Удаляет миссию. Доступно только автору
+    /// </summary>
+    [Authorize]
+    [HttpDelete("{id:int}")]
+    public async Task<IActionResult> DeleteMission([FromRoute] int id, CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out var userId))
+            return Unauthorized("User ID not found in claims.");
+
+        var success = await missionService.DeleteAsync(id, userId, cancellationToken);
+        if (!success)
+            return NotFound("Mission not found or access denied.");
+
+        return NoContent();
+    }
 }

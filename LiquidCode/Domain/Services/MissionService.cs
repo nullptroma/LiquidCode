@@ -169,12 +169,37 @@ public class MissionService : IMissionService
         try
         {
             var mission = await _missionRepository.FindWithDetailsAsync(missionId, cancellationToken);
-            return mission == null ? null : MissionResponse.FromEntity(mission, includeStatements: true);
+            if (mission == null || mission.IsDeleted)
+                return null;
+
+            return MissionResponse.FromEntity(mission, includeStatements: true);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting mission details: {MissionId}", missionId);
             return null;
+        }
+    }
+
+    public async Task<bool> DeleteAsync(int missionId, int requesterId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var mission = await _missionRepository.FindWithDetailsAsync(missionId, cancellationToken);
+            if (mission == null || mission.IsDeleted)
+                return false;
+
+            // Only author can delete their mission
+            if (mission.Author == null || mission.Author.Id != requesterId)
+                return false;
+
+            await _missionRepository.SoftDeleteAsync(mission, cancellationToken);
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error deleting mission: {MissionId}", missionId);
+            return false;
         }
     }
 

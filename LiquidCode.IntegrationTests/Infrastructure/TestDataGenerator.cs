@@ -11,4 +11,6 @@ internal static class TestDataGenerator
     public static string EmailFor(string username) => $"{username}@example.com";
 
     public static string UniqueGroupName(string prefix = "Test Group") => $"{prefix} {Guid.NewGuid():N}";
+
+    public static string UniqueMissionName(string prefix = "Mission") => $"{prefix} {Guid.NewGuid():N}";
 }

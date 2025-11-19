@@ -42,4 +42,9 @@ public interface IMissionService
     /// Возвращает миссии, загруженные текущим пользователем
     /// </summary>
     Task<IReadOnlyList<MissionResponse>> GetMyMissionsAsync(int userId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Удаляет миссию. Удалять может только автор миссии.
+    /// </summary>
+    Task<bool> DeleteAsync(int missionId, int requesterId, CancellationToken cancellationToken = default);
 }

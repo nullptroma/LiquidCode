@@ -9,6 +9,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using Microsoft.Extensions.DependencyInjection;
+using LiquidCode.Infrastructure.Database;
+using LiquidCode.Infrastructure.Database.Entities;
 using LiquidCode.Api.Authentication.Requests;
 using LiquidCode.Api.Authentication.Responses;
 using LiquidCode.Api.Groups.Requests;
@@ -136,6 +139,33 @@ internal static class TestClientHelper
         var request = new CreateGroupFeedPostRequest(name, content);
         var response = await client.PostAsJsonAsync($"groups/{groupId}/feed", request, CancellationToken);
         return await EnsureSuccessAndReadAsync<GroupFeedPostResponse>(response);
+    }
+
+    /// <summary>
+    /// Inserts a mission directly into the test database for the specified author
+    /// </summary>
+    public static async Task<int> CreateMissionInDatabaseAsync(IntegrationTestFixture fixture, int authorId, string? name = null)
+    {
+        using var scope = fixture.Factory.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<LiquidDbContext>();
+        var user = await context.Users.FindAsync(authorId);
+        if (user is null)
+            throw new InvalidOperationException($"User not found: {authorId}");
+
+        var mission = new DbMission
+        {
+            Author = user,
+            Name = name ?? TestDataGenerator.UniqueMissionName(),
+            S3Key = "test-key",
+            Difficulty = 1,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        await context.Missions.AddAsync(mission, CancellationToken);
+        await context.SaveChangesAsync(CancellationToken);
+
+        return mission.Id;
     }
 
     // Private helper methods
