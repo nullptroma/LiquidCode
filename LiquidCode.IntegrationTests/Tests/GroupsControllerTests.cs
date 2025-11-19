@@ -432,6 +432,7 @@ public class GroupsControllerTests
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
+
     [Fact]
     public async Task UpdateMemberRole_OtherUsersGroup_ReturnsNotFound()
     {
@@ -458,6 +459,42 @@ public class GroupsControllerTests
         var response = await unauthClient.PostAsJsonAsync($"groups/{groupId}/members", membershipRequest, TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateMemberRole_CannotDemoteCreator_ByCreator_ReturnsNotFound()
+    {
+        var (client, _, creatorId, _) = await TestClientHelper.CreateAuthenticatedUserAsync(_fixture, "groups_member_creator_self_demote");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(client, TestDataGenerator.UniqueGroupName());
+
+        // Creator tries to remove Creator flag from themselves -> not allowed
+        var membershipRequest = new GroupMembershipRequest(creatorId, GroupMembershipRole.Administrator);
+
+        var response = await client.PostAsJsonAsync($"groups/{groupId}/members", membershipRequest, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task UpdateMemberRole_CannotDemoteCreator_ByOtherAdmin_ReturnsNotFound()
+    {
+        // Owner creates group
+        var (ownerClient, _, ownerId, _) = await TestClientHelper.CreateAuthenticatedUserAsync(_fixture, "groups_member_creator_protected_owner");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(ownerClient, TestDataGenerator.UniqueGroupName());
+
+        // Create and join second user
+        var (adminClient, _, userId2, _) = await TestClientHelper.CreateGroupMemberAsync(_fixture, ownerClient, groupId, "groups_member_creator_protected_admin");
+
+        // Owner promotes second user to Administrator
+        var promoteRequest = new GroupMembershipRequest(userId2, GroupMembershipRole.Administrator);
+        var promoteResponse = await ownerClient.PostAsJsonAsync($"groups/{groupId}/members", promoteRequest, TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NoContent, promoteResponse.StatusCode);
+
+        // Second user (now admin) tries to demote the owner (remove Creator flag)
+        var demoteRequest = new GroupMembershipRequest(ownerId, GroupMembershipRole.Administrator);
+        var response = await adminClient.PostAsJsonAsync($"groups/{groupId}/members", demoteRequest, TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Fact]
@@ -515,6 +552,108 @@ public class GroupsControllerTests
         var response = await unauthClient.DeleteAsync($"groups/{groupId}/members/1", TestContext.Current.CancellationToken);
 
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task RemoveMember_CannotRemoveCreator_ByCreator_ReturnsNotFound()
+    {
+        var (client, _, creatorId, _) = await TestClientHelper.CreateAuthenticatedUserAsync(_fixture, "groups_remove_creator_self");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(client, TestDataGenerator.UniqueGroupName());
+
+        // Creator tries to remove themselves
+        var response = await client.DeleteAsync($"groups/{groupId}/members/{creatorId}", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task RemoveMember_CannotRemoveCreator_ByOtherAdmin_ReturnsNotFound()
+    {
+        var (ownerClient, _, ownerId, _) = await TestClientHelper.CreateAuthenticatedUserAsync(_fixture, "groups_remove_creator_protection_owner");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(ownerClient, TestDataGenerator.UniqueGroupName());
+
+        var (adminClient, _, userId2, _) = await TestClientHelper.CreateGroupMemberAsync(_fixture, ownerClient, groupId, "groups_remove_creator_protection_admin");
+
+        // Owner promotes second user to Administrator
+        var promoteRequest = new GroupMembershipRequest(userId2, GroupMembershipRole.Administrator);
+        var promoteResponse = await ownerClient.PostAsJsonAsync($"groups/{groupId}/members", promoteRequest, TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NoContent, promoteResponse.StatusCode);
+
+        // Admin tries to remove creator
+        var response = await adminClient.DeleteAsync($"groups/{groupId}/members/{ownerId}", TestContext.Current.CancellationToken);
+
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task RemoveMember_Self_AsMember_ReturnsNoContent()
+    {
+        var (ownerClient, _, _, _) = await TestClientHelper.CreateAuthenticatedUserAsync(_fixture, "groups_remove_self_owner");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(ownerClient, TestDataGenerator.UniqueGroupName());
+
+        // Create and join a member
+        var (memberClient, _, memberId, _) = await TestClientHelper.CreateGroupMemberAsync(_fixture, ownerClient, groupId, "groups_remove_self_member");
+
+        // Member removes themselves
+        var response = await memberClient.DeleteAsync($"groups/{groupId}/members/{memberId}", TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+
+        // Verify member was removed
+        var getResponse = await ownerClient.GetAsync($"groups/{groupId}", TestContext.Current.CancellationToken);
+        var group = await getResponse.Content.ReadFromJsonAsync<GroupResponse>(JsonOptions, TestContext.Current.CancellationToken);
+        Assert.NotNull(group);
+        Assert.DoesNotContain(group!.Members, m => m.UserId == memberId);
+    }
+
+    [Fact]
+    public async Task RemoveMember_Self_AsAdmin_ReturnsNoContent()
+    {
+        var (ownerClient, _, _, _) = await TestClientHelper.CreateAuthenticatedUserAsync(_fixture, "groups_remove_self_owner2");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(ownerClient, TestDataGenerator.UniqueGroupName());
+
+        // Create and join a member
+        var (adminClient, _, adminId, _) = await TestClientHelper.CreateGroupMemberAsync(_fixture, ownerClient, groupId, "groups_remove_self_admin");
+
+        // Owner promotes them to Administrator
+        var promoteRequest = new GroupMembershipRequest(adminId, GroupMembershipRole.Administrator);
+        var promoteResponse = await ownerClient.PostAsJsonAsync($"groups/{groupId}/members", promoteRequest, TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NoContent, promoteResponse.StatusCode);
+
+        // Admin removes themselves
+        var response = await adminClient.DeleteAsync($"groups/{groupId}/members/{adminId}", TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+
+        // Verify admin was removed
+        var getResponse = await ownerClient.GetAsync($"groups/{groupId}", TestContext.Current.CancellationToken);
+        var group = await getResponse.Content.ReadFromJsonAsync<GroupResponse>(JsonOptions, TestContext.Current.CancellationToken);
+        Assert.NotNull(group);
+        Assert.DoesNotContain(group!.Members, m => m.UserId == adminId);
+    }
+
+    [Fact]
+    public async Task RemoveMember_AdminRemovesMember_ReturnsNoContent()
+    {
+        var (ownerClient, _, _, _) = await TestClientHelper.CreateAuthenticatedUserAsync(_fixture, "groups_admin_remove_owner");
+        var (groupId, _) = await TestClientHelper.CreateGroupAsync(ownerClient, TestDataGenerator.UniqueGroupName());
+
+        // Create a regular member
+        var (memberClient, _, memberId, _) = await TestClientHelper.CreateGroupMemberAsync(_fixture, ownerClient, groupId, "groups_admin_remove_member");
+
+        // Create and promote another user to Administrator
+        var (adminClient, _, adminId, _) = await TestClientHelper.CreateGroupMemberAsync(_fixture, ownerClient, groupId, "groups_admin_remove_admin");
+        var promoteRequest = new GroupMembershipRequest(adminId, GroupMembershipRole.Administrator);
+        var promoteResponse = await ownerClient.PostAsJsonAsync($"groups/{groupId}/members", promoteRequest, TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NoContent, promoteResponse.StatusCode);
+
+        // Admin removes the regular member
+        var response = await adminClient.DeleteAsync($"groups/{groupId}/members/{memberId}", TestContext.Current.CancellationToken);
+        Assert.Equal(HttpStatusCode.NoContent, response.StatusCode);
+
+        // Verify member was removed
+        var getResponse = await ownerClient.GetAsync($"groups/{groupId}", TestContext.Current.CancellationToken);
+        var group = await getResponse.Content.ReadFromJsonAsync<GroupResponse>(JsonOptions, TestContext.Current.CancellationToken);
+        Assert.NotNull(group);
+        Assert.DoesNotContain(group!.Members, m => m.UserId == memberId);
     }
 
     #endregion

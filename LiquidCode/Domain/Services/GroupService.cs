@@ -174,19 +174,27 @@ public class GroupService : IGroupService
         var group = await _groupRepository.FindWithDetailsAsync(groupId, includeSoftDeleted: false, cancellationToken);
         if (group == null)
             return false;
-
-        if (!IsAdmin(group, requesterId))
-            return false;
-
         var membership = group.Memberships.FirstOrDefault(m => m.UserId == targetUserId);
         if (membership == null)
             return false;
 
+        // Creator cannot be removed
         if (membership.Role.HasFlag(GroupMembershipRole.Creator))
         {
             _logger.LogWarning("Attempt to remove creator {UserId} from group {GroupId}", targetUserId, groupId);
             return false;
         }
+
+        // Allow users to remove themselves (leave group) unless they are the creator
+        if (requesterId == targetUserId)
+        {
+            await _groupRepository.RemoveMembershipAsync(groupId, targetUserId, cancellationToken);
+            return true;
+        }
+
+        // Otherwise, only admins can remove other members
+        if (!IsAdmin(group, requesterId))
+            return false;
 
         await _groupRepository.RemoveMembershipAsync(groupId, targetUserId, cancellationToken);
         return true;
