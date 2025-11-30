@@ -88,7 +88,7 @@ public class ContestService : IContestService
             EndsAt = schedule.EndsAt,
             AttemptDurationMinutes = schedule.AttemptDurationMinutes,
             MaxAttempts = NormalizeMaxAttempts(request.MaxAttempts) ?? 1,
-            AllowEarlyFinish = request.AllowEarlyFinish ?? true,
+            AllowEarlyFinish = request.AllowEarlyFinish,
             GroupId = visibility == ContestVisibility.GroupPrivate ? request.GroupId : null,
             CreatedAt = now,
             UpdatedAt = now

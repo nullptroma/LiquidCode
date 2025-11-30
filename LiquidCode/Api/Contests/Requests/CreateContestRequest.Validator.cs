@@ -21,15 +21,13 @@ public class CreateContestRequestValidator : AbstractValidator<CreateContestRequ
             .GreaterThan(0)
             .WithMessage("Attempt duration must be positive")
             .LessThanOrEqualTo(43200) // 30 дней в минутах
-            .WithMessage("Attempt duration must not exceed 30 days")
-            .When(x => x.AttemptDurationMinutes.HasValue);
+            .WithMessage("Attempt duration must not exceed 30 days");
 
         RuleFor(x => x.MaxAttempts)
             .GreaterThan(0)
             .WithMessage("Max attempts must be positive")
             .LessThanOrEqualTo(1000)
-            .WithMessage("Max attempts must not exceed 1000")
-            .When(x => x.MaxAttempts.HasValue);
+            .WithMessage("Max attempts must not exceed 1000");
 
         RuleFor(x => x.StartsAt)
             .LessThan(x => x.EndsAt)

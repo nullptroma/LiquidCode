@@ -26,9 +26,9 @@ public record CreateContestRequest(
     ContestVisibility Visibility,
     DateTime? StartsAt,
     DateTime? EndsAt,
-    int? AttemptDurationMinutes,
-    int? MaxAttempts,
-    bool? AllowEarlyFinish,
+    int AttemptDurationMinutes,
+    int MaxAttempts,
+    bool AllowEarlyFinish,
     int? GroupId,
     IEnumerable<int>? MissionIds,
     IEnumerable<int>? ArticleIds
