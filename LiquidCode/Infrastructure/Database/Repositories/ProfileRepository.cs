@@ -142,45 +142,221 @@ public class ProfileRepository : IProfileRepository
         return items;
     }
 
-    public async Task<IReadOnlyList<SubmissionProjection>> GetRecentSubmissionsAsync(int userId, int limit, CancellationToken cancellationToken = default)
+    public async Task<(IReadOnlyList<ProfileRecentMissionProjection> Items, bool HasNextPage)> GetRecentMissionActivitiesAsync(
+        int userId,
+        int pageSize,
+        int pageNumber,
+        CancellationToken cancellationToken = default)
     {
-        var items = await _dbContext.UserSubmits
+        if (pageSize <= 0 || pageNumber < 0)
+            throw new ArgumentException("Page size must be positive, page number must be non-negative");
+
+        var submissions = await _dbContext.UserSubmits
             .AsNoTracking()
             .Where(s => !s.IsDeleted &&
                         s.User.Id == userId &&
+                        s.ContestId == null &&
                         !s.Solution.Mission.IsDeleted)
-            .OrderByDescending(s => s.CreatedAt)
-            .Take(limit)
-            .Select(s => new SubmissionProjection(
+            .Select(s => new RecentMissionSubmission(
                 s.Solution.Mission.Id,
                 s.Solution.Mission.Name,
                 s.Solution.Mission.Difficulty,
+                s.Solution.Mission.TimeLimitMilliseconds,
+                s.Solution.Mission.MemoryLimitBytes,
+                s.Id,
                 s.Solution.Status ?? string.Empty,
                 s.CreatedAt,
-                s.Solution.Mission.TimeLimitMilliseconds,
-                s.Solution.Mission.MemoryLimitBytes))
+                s.Solution.Status != null && s.Solution.Status.StartsWith(AcceptedStatusPrefix)))
             .ToListAsync(cancellationToken);
 
-        return items;
+        if (submissions.Count == 0)
+            return (Array.Empty<ProfileRecentMissionProjection>(), false);
+
+        var missionEntries = submissions
+            .GroupBy(s => new
+            {
+                s.MissionId,
+                s.MissionName,
+                s.Difficulty,
+                s.TimeLimitMilliseconds,
+                s.MemoryLimitBytes
+            })
+            .Select(group =>
+            {
+                var ordered = group
+                    .OrderByDescending(item => item.CreatedAt)
+                    .Select(item => new ProfileSubmissionProjection(
+                        item.SubmissionId,
+                        item.Status,
+                        item.CreatedAt,
+                        item.IsAccepted,
+                        item.TimeLimitMilliseconds,
+                        item.MemoryLimitBytes))
+                    .ToList();
+
+                var latestSubmission = ordered.First();
+                var latestAccepted = ordered.FirstOrDefault(x => x.IsAccepted);
+
+                return new ProfileRecentMissionProjection(
+                    group.Key.MissionId,
+                    group.Key.MissionName,
+                    group.Key.Difficulty,
+                    latestAccepted,
+                    latestSubmission);
+            })
+            .OrderByDescending(entry => entry.LatestSubmission.CreatedAt)
+            .ToList();
+
+        var paged = missionEntries
+            .Skip(pageSize * pageNumber)
+            .Take(pageSize + 1)
+            .ToList();
+
+        var hasNext = paged.Count > pageSize;
+        if (hasNext)
+        {
+            paged.RemoveAt(paged.Count - 1);
+        }
+
+        return (paged, hasNext);
     }
 
-    public async Task<IReadOnlyList<AuthoredMissionProjection>> GetAuthoredMissionsAsync(int userId, int limit, CancellationToken cancellationToken = default)
+    public async Task<(IReadOnlyList<AuthoredMissionProjection> Items, bool HasNextPage)> GetAuthoredMissionsPageAsync(
+        int userId,
+        int pageSize,
+        int pageNumber,
+        CancellationToken cancellationToken = default)
     {
-        var items = await _dbContext.Missions
+        if (pageSize <= 0 || pageNumber < 0)
+            throw new ArgumentException("Page size must be positive, page number must be non-negative");
+
+        var query = _dbContext.Missions
             .AsNoTracking()
             .Where(m => !m.IsDeleted && EF.Property<int>(m, "AuthorId") == userId)
             .OrderByDescending(m => m.CreatedAt)
-            .Take(limit)
+            .ThenByDescending(m => m.Id)
             .Select(m => new AuthoredMissionProjection(
                 m.Id,
                 m.Name,
                 m.Difficulty,
                 m.CreatedAt,
                 m.TimeLimitMilliseconds,
-                m.MemoryLimitBytes))
+                m.MemoryLimitBytes));
+
+        var items = await query
+            .Skip(pageSize * pageNumber)
+            .Take(pageSize + 1)
             .ToListAsync(cancellationToken);
 
-        return items;
+        var hasNext = items.Count > pageSize;
+        if (hasNext)
+        {
+            items.RemoveAt(items.Count - 1);
+        }
+
+        return (items, hasNext);
+    }
+
+    public async Task<(IReadOnlyList<ProfileArticleProjection> Items, bool HasNextPage)> GetArticlesPageAsync(
+        int userId,
+        int pageSize,
+        int pageNumber,
+        CancellationToken cancellationToken = default)
+    {
+        if (pageSize <= 0 || pageNumber < 0)
+            throw new ArgumentException("Page size must be positive, page number must be non-negative");
+
+        var query = _dbContext.Articles
+            .AsNoTracking()
+            .Where(a => !a.IsDeleted && a.AuthorId == userId)
+            .OrderByDescending(a => a.CreatedAt)
+            .ThenByDescending(a => a.Id)
+            .Select(a => new ProfileArticleProjection(
+                a.Id,
+                a.Name,
+                a.CreatedAt,
+                a.UpdatedAt));
+
+        var items = await query
+            .Skip(pageSize * pageNumber)
+            .Take(pageSize + 1)
+            .ToListAsync(cancellationToken);
+
+        var hasNext = items.Count > pageSize;
+        if (hasNext)
+        {
+            items.RemoveAt(items.Count - 1);
+        }
+
+        return (items, hasNext);
+    }
+
+    public async Task<(IReadOnlyList<ProfileContestProjection> Items, bool HasNextPage)> GetUserContestsPageAsync(
+        int userId,
+        ProfileContestFilter filter,
+        int pageSize,
+        int pageNumber,
+        CancellationToken cancellationToken = default)
+    {
+        if (pageSize <= 0 || pageNumber < 0)
+            throw new ArgumentException("Page size must be positive, page number must be non-negative");
+
+        var now = DateTime.UtcNow;
+
+        var query = _dbContext.ContestMemberships
+            .AsNoTracking()
+            .Where(m => m.UserId == userId && !m.Contest.IsDeleted);
+
+        switch (filter)
+        {
+            case ProfileContestFilter.Upcoming:
+                query = query.Where(m =>
+                        ((m.Role & ContestMembershipRole.Participant) != 0 || (m.Role & ContestMembershipRole.Organizer) != 0) &&
+                        (
+                            m.Contest.ScheduleType == ContestScheduleType.AlwaysOpen ||
+                            (m.Contest.EndsAt != null && m.Contest.EndsAt >= now) ||
+                            (m.Contest.EndsAt == null && m.Contest.StartsAt != null && m.Contest.StartsAt >= now)
+                        ))
+                    .OrderBy(m => m.Contest.StartsAt ?? m.Contest.CreatedAt)
+                    .ThenBy(m => m.Contest.Id);
+                break;
+            case ProfileContestFilter.Past:
+                query = query.Where(m =>
+                        ((m.Role & ContestMembershipRole.Participant) != 0 || (m.Role & ContestMembershipRole.Organizer) != 0) &&
+                        m.Contest.EndsAt != null && m.Contest.EndsAt < now)
+                    .OrderByDescending(m => m.Contest.EndsAt)
+                    .ThenByDescending(m => m.Contest.Id);
+                break;
+            case ProfileContestFilter.Organized:
+                query = query.Where(m => (m.Role & ContestMembershipRole.Organizer) != 0)
+                    .OrderByDescending(m => m.Contest.StartsAt ?? m.Contest.CreatedAt)
+                    .ThenByDescending(m => m.Contest.Id);
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(filter), filter, null);
+        }
+
+        var items = await query
+            .Select(m => new ProfileContestProjection(
+                m.ContestId,
+                m.Contest.Name,
+                m.Contest.ScheduleType,
+                m.Contest.Visibility,
+                m.Contest.StartsAt,
+                m.Contest.EndsAt,
+                m.Contest.AttemptDurationMinutes,
+                m.Role))
+            .Skip(pageSize * pageNumber)
+            .Take(pageSize + 1)
+            .ToListAsync(cancellationToken);
+
+        var hasNext = items.Count > pageSize;
+        if (hasNext)
+        {
+            items.RemoveAt(items.Count - 1);
+        }
+
+        return (items, hasNext);
     }
 
     public async Task<ContestActivityMetrics> GetContestActivityAsync(int userId, DateTime fromUtc, CancellationToken cancellationToken = default)
@@ -234,5 +410,16 @@ public class ProfileRepository : IProfileRepository
 
         return new CreationActivityMetrics(missionsTotal, missionsRecent, articlesTotal, articlesRecent, contestsTotal, contestsRecent);
     }
+
+    private sealed record RecentMissionSubmission(
+        int MissionId,
+        string MissionName,
+        int Difficulty,
+        int? TimeLimitMilliseconds,
+        int? MemoryLimitBytes,
+        int SubmissionId,
+        string Status,
+        DateTime CreatedAt,
+        bool IsAccepted);
 
 }

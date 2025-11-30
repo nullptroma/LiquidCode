@@ -1,9 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using LiquidCode.Api.Profile.Responses;
 using LiquidCode.Domain.Interfaces.Repositories;
 using LiquidCode.Domain.Interfaces.Services;
+using LiquidCode.Infrastructure.Database.Entities;
+using LiquidCode.Shared.Constants;
 using Microsoft.Extensions.Logging;
 
 namespace LiquidCode.Domain.Services.Profile;
@@ -13,19 +17,12 @@ public class ProfileService(
     IProfileRepository profileRepository,
     ILogger<ProfileService> logger) : IProfileService
 {
-    private const string AcceptedStatusPrefix = "Accepted";
-    private const int EasyDifficultyMax = 1200;
-    private const int MediumDifficultyMax = 2000;
-    private const int CompetencyLimit = 10;
-    private const int RecentSubmissionsLimit = 10;
-    private const int AuthoredMissionsLimit = 10;
-
-    public async Task<ProfileDetailsResponse?> GetProfileAsync(string username, int? requesterId, CancellationToken cancellationToken = default)
+    public async Task<ProfileOverviewResponse?> GetOverviewAsync(string username, int? requesterId, CancellationToken cancellationToken = default)
     {
         _ = requesterId;
 
-        var user = await userRepository.FindByUsernameAsync(username, cancellationToken);
-        if (user == null || user.IsDeleted)
+        var user = await FindActiveUserAsync(username, cancellationToken);
+        if (user == null)
             return null;
 
         try
@@ -34,119 +31,244 @@ public class ProfileService(
             var now = DateTime.UtcNow;
             var last7Days = now.AddDays(-7);
 
-            var placement = await profileRepository.GetUserPlacementAsync(userId, cancellationToken);
-
-            double? topPercent = null;
-            if (placement.TotalUsers > 0)
-            {
-                var position = placement.TotalUsers - placement.HigherAcceptedUsersCount;
-                topPercent = Math.Round(position * 100d / placement.TotalUsers, 1);
-            }
-
             var solvedMissions = await profileRepository.GetSolvedMissionsAsync(userId, cancellationToken);
-            var solvedMissionIds = solvedMissions.Select(m => m.MissionId).ToList();
-            var solvedMissionCount = solvedMissionIds.Count;
+            var solvedCount = solvedMissions.Count;
+            var solvedLast7Days = await profileRepository.CountSolvedMissionsSinceAsync(userId, last7Days, cancellationToken);
+
+            var contestActivity = await profileRepository.GetContestActivityAsync(userId, last7Days, cancellationToken);
+            var creationActivity = await profileRepository.GetCreationActivityAsync(userId, last7Days, cancellationToken);
+
+            return new ProfileOverviewResponse(
+                new ProfileIdentityResponse(user.Id, user.Username, user.Email, user.CreatedAt),
+                new ProfileSolutionsStatsResponse(solvedCount, solvedLast7Days),
+                new ProfileContestStatsResponse(contestActivity.TotalAttempts, contestActivity.AttemptsLastPeriod),
+                new ProfileCreationStatsResponse(
+                    new ProfileMetricResponse(creationActivity.MissionsTotal, creationActivity.MissionsLastPeriod),
+                    new ProfileMetricResponse(creationActivity.ContestsTotal, creationActivity.ContestsLastPeriod),
+                    new ProfileMetricResponse(creationActivity.ArticlesTotal, creationActivity.ArticlesLastPeriod)));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to load overview for user {Username}", username);
+            return null;
+        }
+    }
+
+    public async Task<ProfileProblemsResponse?> GetProblemsAsync(
+        string username,
+        int? requesterId,
+        ProfileProblemsQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        _ = requesterId;
+
+        var user = await FindActiveUserAsync(username, cancellationToken);
+        if (user == null)
+            return null;
+
+        try
+        {
+            var solvedMissions = await profileRepository.GetSolvedMissionsAsync(user.Id, cancellationToken);
             var solvedByBucket = solvedMissions
                 .GroupBy(m => GetDifficultyBucket(m.Difficulty))
                 .ToDictionary(g => g.Key, g => g.Count());
 
-            var solvedLast7Days = await profileRepository.CountSolvedMissionsSinceAsync(userId, last7Days, cancellationToken);
+            var missionDifficultyTotals = await profileRepository.GetMissionDifficultyTotalsAsync(
+                MissionDifficultyThresholds.EasyMax,
+                MissionDifficultyThresholds.MediumMax,
+                cancellationToken);
 
-            var missionDifficultyTotals = await profileRepository.GetMissionDifficultyTotalsAsync(EasyDifficultyMax, MediumDifficultyMax, cancellationToken);
             var bucketTotals = missionDifficultyTotals
                 .Select(item => new { Bucket = ToDifficultyBucket(item.BucketKey), item.Count })
                 .GroupBy(item => item.Bucket)
                 .ToDictionary(g => g.Key, g => g.Sum(x => x.Count));
 
-            var recentSubmissions = await profileRepository.GetRecentSubmissionsAsync(userId, RecentSubmissionsLimit, cancellationToken);
-            var recentSubmissionResponses = recentSubmissions
-                .Select(item => new ProfileMissionActivityItemResponse(
-                    item.MissionId,
-                    item.MissionName,
-                    GetDifficultyLabel(item.Difficulty),
-                    item.Difficulty,
-                    item.Status.StartsWith(AcceptedStatusPrefix, StringComparison.OrdinalIgnoreCase),
-                    item.Status,
-                    item.CreatedAt,
-                    item.TimeLimitMilliseconds,
-                    item.MemoryLimitBytes))
+            var totalMissions = bucketTotals.Values.Sum();
+            var summary = new ProfileProblemsSummaryResponse(
+                new ProfileProblemCounterResponse("total", "Задачи", solvedMissions.Count, totalMissions),
+                new List<ProfileProblemCounterResponse>
+                {
+                    BuildBucketCounter(DifficultyBucket.Easy, bucketTotals, solvedByBucket),
+                    BuildBucketCounter(DifficultyBucket.Medium, bucketTotals, solvedByBucket),
+                    BuildBucketCounter(DifficultyBucket.Hard, bucketTotals, solvedByBucket)
+                });
+
+            var recent = await profileRepository.GetRecentMissionActivitiesAsync(
+                user.Id,
+                query.RecentPageSize,
+                query.RecentPage,
+                cancellationToken);
+
+            var recentResponses = recent.Items
+                .Select(ToRecentMissionResponse)
                 .ToList();
 
-            var authoredMissions = await profileRepository.GetAuthoredMissionsAsync(userId, AuthoredMissionsLimit, cancellationToken);
-            var authoredMissionResponses = authoredMissions
+            var authored = await profileRepository.GetAuthoredMissionsPageAsync(
+                user.Id,
+                query.AuthoredPageSize,
+                query.AuthoredPage,
+                cancellationToken);
+
+            var authoredResponses = authored.Items
                 .Select(m => new ProfileAuthoredMissionResponse(
                     m.MissionId,
                     m.MissionName,
-                    GetDifficultyLabel(m.Difficulty),
+                    GetDifficultyLabel(GetDifficultyBucket(m.Difficulty)),
                     m.Difficulty,
                     m.CreatedAt,
                     m.TimeLimitMilliseconds,
                     m.MemoryLimitBytes))
                 .ToList();
 
-            var competencies = new List<ProfileCompetencyResponse>();
-            if (solvedMissionIds.Count > 0)
-            {
-                var competencyStats = await profileRepository.GetCompetencyStatsAsync(solvedMissionIds, CompetencyLimit, cancellationToken);
-                if (competencyStats.Count > 0)
-                {
-                    var tagTotals = await profileRepository.GetTagTotalsAsync(competencyStats.Select(x => x.TagId).ToList(), cancellationToken);
-                    var totalsMap = tagTotals.ToDictionary(x => x.TagId, x => x.TotalCount);
-
-                    competencies = competencyStats
-                        .Select(x => new ProfileCompetencyResponse(
-                            x.TagName,
-                            x.SolvedCount,
-                            totalsMap.TryGetValue(x.TagId, out var total) ? total : x.SolvedCount))
-                        .ToList();
-                }
-            }
-
-            var contestActivity = await profileRepository.GetContestActivityAsync(userId, last7Days, cancellationToken);
-            var creationActivity = await profileRepository.GetCreationActivityAsync(userId, last7Days, cancellationToken);
-
-            var totalMissions = bucketTotals.Values.Sum();
-
-            var difficultyProgress = new List<ProfileDifficultyProgressResponse>
-            {
-                BuildDifficultyProgress(DifficultyBucket.Easy, bucketTotals, solvedByBucket),
-                BuildDifficultyProgress(DifficultyBucket.Medium, bucketTotals, solvedByBucket),
-                BuildDifficultyProgress(DifficultyBucket.Hard, bucketTotals, solvedByBucket)
-            };
-
-            return new ProfileDetailsResponse(
-                new ProfileHeaderResponse(
-                    user.Id,
-                    user.Username,
-                    user.Email,
-                    user.CreatedAt,
-                    topPercent,
-                    null),
-                new ProfileProblemProgressResponse(
-                    new ProfileProgressCounterResponse("total", "Задачи", solvedMissionCount, totalMissions),
-                    difficultyProgress),
-                competencies,
-                recentSubmissionResponses,
-                authoredMissionResponses,
-                new ProfileActivityResponse(
-                    new ProfileSolutionActivityResponse(
-                        new ProfileActivityMetricResponse("Задачи", solvedMissionCount, solvedLast7Days),
-                        new ProfileActivityMetricResponse("Контесты", contestActivity.TotalAttempts, contestActivity.AttemptsLastPeriod)),
-                    new ProfileCreationActivityResponse(
-                        new ProfileActivityMetricResponse("Задачи", creationActivity.MissionsTotal, creationActivity.MissionsLastPeriod),
-                        new ProfileActivityMetricResponse("Статьи", creationActivity.ArticlesTotal, creationActivity.ArticlesLastPeriod),
-                        new ProfileActivityMetricResponse("Контесты", creationActivity.ContestsTotal, creationActivity.ContestsLastPeriod))));
+            return new ProfileProblemsResponse(
+                summary,
+                BuildPagedResponse(recentResponses, query.RecentPage, query.RecentPageSize, recent.HasNextPage),
+                BuildPagedResponse(authoredResponses, query.AuthoredPage, query.AuthoredPageSize, authored.HasNextPage));
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to build profile for user {Username}", username);
+            logger.LogError(ex, "Failed to load missions page for user {Username}", username);
             return null;
         }
     }
 
-    private static DifficultyBucket GetDifficultyBucket(int difficulty) => difficulty <= EasyDifficultyMax
+    public async Task<ProfileArticlesResponse?> GetArticlesAsync(
+        string username,
+        int? requesterId,
+        ProfileArticlesQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        _ = requesterId;
+
+        var user = await FindActiveUserAsync(username, cancellationToken);
+        if (user == null)
+            return null;
+
+        try
+        {
+            var page = await profileRepository.GetArticlesPageAsync(
+                user.Id,
+                query.PageSize,
+                query.Page,
+                cancellationToken);
+
+            var items = page.Items
+                .Select(a => new ProfileArticleResponse(a.ArticleId, a.Title, a.CreatedAt, a.UpdatedAt))
+                .ToList();
+
+            return new ProfileArticlesResponse(
+                BuildPagedResponse(items, query.Page, query.PageSize, page.HasNextPage));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to load articles page for user {Username}", username);
+            return null;
+        }
+    }
+
+    public async Task<ProfileContestsResponse?> GetContestsAsync(
+        string username,
+        int? requesterId,
+        ProfileContestsQuery query,
+        CancellationToken cancellationToken = default)
+    {
+        _ = requesterId;
+
+        var user = await FindActiveUserAsync(username, cancellationToken);
+        if (user == null)
+            return null;
+
+        try
+        {
+            var upcoming = await profileRepository.GetUserContestsPageAsync(
+                user.Id,
+                ProfileContestFilter.Upcoming,
+                query.UpcomingPageSize,
+                query.UpcomingPage,
+                cancellationToken);
+
+            var past = await profileRepository.GetUserContestsPageAsync(
+                user.Id,
+                ProfileContestFilter.Past,
+                query.PastPageSize,
+                query.PastPage,
+                cancellationToken);
+
+            var mine = await profileRepository.GetUserContestsPageAsync(
+                user.Id,
+                ProfileContestFilter.Organized,
+                query.MinePageSize,
+                query.MinePage,
+                cancellationToken);
+
+            return new ProfileContestsResponse(
+                BuildPagedResponse(upcoming.Items.Select(ToContestResponse).ToList(), query.UpcomingPage, query.UpcomingPageSize, upcoming.HasNextPage),
+                BuildPagedResponse(past.Items.Select(ToContestResponse).ToList(), query.PastPage, query.PastPageSize, past.HasNextPage),
+                BuildPagedResponse(mine.Items.Select(ToContestResponse).ToList(), query.MinePage, query.MinePageSize, mine.HasNextPage));
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to load contests page for user {Username}", username);
+            return null;
+        }
+    }
+
+    private async Task<DbUser?> FindActiveUserAsync(string username, CancellationToken cancellationToken)
+    {
+        var user = await userRepository.FindByUsernameAsync(username, cancellationToken);
+        return user == null || user.IsDeleted ? null : user;
+    }
+
+    private static ProfileContestResponse ToContestResponse(ProfileContestProjection projection) => new(
+        projection.ContestId,
+        projection.Name,
+        projection.ScheduleType,
+        projection.Visibility,
+        projection.StartsAt,
+        projection.EndsAt,
+        projection.AttemptDurationMinutes,
+        projection.Role);
+
+    private static ProfileRecentMissionResponse ToRecentMissionResponse(ProfileRecentMissionProjection projection)
+    {
+        var submission = projection.LatestAccepted ?? projection.LatestSubmission;
+        var bucket = GetDifficultyBucket(projection.Difficulty);
+        return new ProfileRecentMissionResponse(
+            projection.MissionId,
+            projection.MissionName,
+            GetDifficultyLabel(bucket),
+            projection.Difficulty,
+            submission.IsAccepted,
+            submission.Status,
+            submission.CreatedAt,
+            submission.TimeLimitMilliseconds,
+            submission.MemoryLimitBytes);
+    }
+
+    private static ProfileProblemCounterResponse BuildBucketCounter(
+        DifficultyBucket bucket,
+        IReadOnlyDictionary<DifficultyBucket, int> totals,
+        IReadOnlyDictionary<DifficultyBucket, int> solved)
+    {
+        totals.TryGetValue(bucket, out var totalCount);
+        solved.TryGetValue(bucket, out var solvedCount);
+
+        var key = bucket switch
+        {
+            DifficultyBucket.Easy => "easy",
+            DifficultyBucket.Medium => "medium",
+            _ => "hard"
+        };
+
+        return new ProfileProblemCounterResponse(key, GetDifficultyLabel(bucket), solvedCount, totalCount);
+    }
+
+    private static ProfilePagedResponse<T> BuildPagedResponse<T>(IReadOnlyList<T> items, int page, int pageSize, bool hasNext) =>
+        new(items, page, pageSize, hasNext);
+
+    private static DifficultyBucket GetDifficultyBucket(int difficulty) => difficulty <= MissionDifficultyThresholds.EasyMax
         ? DifficultyBucket.Easy
-        : difficulty <= MediumDifficultyMax
+        : difficulty <= MissionDifficultyThresholds.MediumMax
             ? DifficultyBucket.Medium
             : DifficultyBucket.Hard;
 
@@ -157,32 +279,12 @@ public class ProfileService(
         _ => DifficultyBucket.Hard
     };
 
-    private static string GetDifficultyLabel(int difficulty) => GetDifficultyLabel(GetDifficultyBucket(difficulty));
-
     private static string GetDifficultyLabel(DifficultyBucket bucket) => bucket switch
     {
         DifficultyBucket.Easy => "Easy",
         DifficultyBucket.Medium => "Medium",
         _ => "Hard"
     };
-
-    private static ProfileDifficultyProgressResponse BuildDifficultyProgress(
-        DifficultyBucket bucket,
-        IReadOnlyDictionary<DifficultyBucket, int> totals,
-        IReadOnlyDictionary<DifficultyBucket, int> solved)
-    {
-        var key = bucket switch
-        {
-            DifficultyBucket.Easy => "easy",
-            DifficultyBucket.Medium => "medium",
-            _ => "hard"
-        };
-
-        totals.TryGetValue(bucket, out var totalCount);
-        solved.TryGetValue(bucket, out var solvedCount);
-
-        return new ProfileDifficultyProgressResponse(key, GetDifficultyLabel(bucket), solvedCount, totalCount);
-    }
 
     private enum DifficultyBucket
     {

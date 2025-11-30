@@ -28,6 +28,13 @@ public sealed class IntegrationTestWebApplicationFactory : WebApplicationFactory
             configurationBuilder.AddInMemoryCollection(_configuration);
         });
 
+        builder.ConfigureLogging(logging =>
+        {
+            logging.ClearProviders();
+            logging.AddConsole();
+            logging.SetMinimumLevel(LogLevel.Error);
+        });
+
         return base.CreateHost(builder);
     }
 }

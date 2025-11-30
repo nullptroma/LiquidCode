@@ -144,7 +144,11 @@ internal static class TestClientHelper
     /// <summary>
     /// Inserts a mission directly into the test database for the specified author
     /// </summary>
-    public static async Task<int> CreateMissionInDatabaseAsync(IntegrationTestFixture fixture, int authorId, string? name = null)
+    public static async Task<int> CreateMissionInDatabaseAsync(
+        IntegrationTestFixture fixture,
+        int authorId,
+        string? name = null,
+        int difficulty = 1)
     {
         using var scope = fixture.Factory.Services.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<LiquidDbContext>();
@@ -157,7 +161,7 @@ internal static class TestClientHelper
             Author = user,
             Name = name ?? TestDataGenerator.UniqueMissionName(),
             S3Key = "test-key",
-            Difficulty = 1,
+            Difficulty = difficulty,
             CreatedAt = DateTime.UtcNow,
             UpdatedAt = DateTime.UtcNow
         };
