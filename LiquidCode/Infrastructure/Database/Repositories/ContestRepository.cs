@@ -424,4 +424,37 @@ public class ContestRepository : IContestRepository
             .Include(r => r.Mission)
             .Where(r => r.ContestAttemptId == attemptId)
             .ToListAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<DbContest>> GetUpcomingRegisteredAsync(int userId, DateTime asOf, CancellationToken cancellationToken = default)
+    {
+        var query = _dbContext.Contests
+            .Include(c => c.Group)
+            .Include(c => c.Missions)
+                .ThenInclude(cm => cm.Mission)
+                    .ThenInclude(m => m.Author)
+            .Include(c => c.Missions)
+                .ThenInclude(cm => cm.Mission)
+                    .ThenInclude(m => m.MissionTags)
+                        .ThenInclude(mt => mt.Tag)
+            .Include(c => c.Articles)
+                .ThenInclude(ca => ca.Article)
+                    .ThenInclude(a => a.Author)
+            .Include(c => c.Articles)
+                .ThenInclude(ca => ca.Article)
+                    .ThenInclude(a => a.ArticleTags)
+                        .ThenInclude(at => at.Tag)
+            .Include(c => c.Memberships.Where(m => m.UserId == userId))
+                .ThenInclude(m => m.Attempts)
+            .Include(c => c.Memberships.Where(m => m.UserId == userId))
+                .ThenInclude(m => m.ActiveAttempt)
+            .Where(c => !c.IsDeleted &&
+                        c.Memberships.Any(m => m.UserId == userId) &&
+                        (c.ScheduleType == ContestScheduleType.AlwaysOpen ||
+                         (c.ScheduleType == ContestScheduleType.FixedWindow && c.EndsAt.HasValue && c.EndsAt.Value >= asOf) ||
+                         (c.ScheduleType == ContestScheduleType.RollingWindow && c.EndsAt.HasValue && c.EndsAt.Value >= asOf)))
+            .OrderBy(c => c.StartsAt ?? c.CreatedAt)
+            .ThenBy(c => c.Id);
+
+        return await query.ToListAsync(cancellationToken);
+    }
 }

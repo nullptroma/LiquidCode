@@ -218,7 +218,10 @@ public class ContestService : IContestService
     public async Task<ContestResponse?> GetAsync(int contestId, CancellationToken cancellationToken = default)
     {
         var contest = await _contestRepository.FindWithDetailsAsync(contestId, cancellationToken);
-        return contest == null ? null : ContestResponse.FromEntity(contest);
+        if (contest == null || contest.IsDeleted)
+            return null;
+
+        return ContestResponse.FromEntity(contest);
     }
 
     public async Task<ContestsPageResponse?> GetUpcomingAsync(int pageSize, int pageNumber, CancellationToken cancellationToken = default)
@@ -278,6 +281,25 @@ public class ContestService : IContestService
             _logger.LogError(ex, "Error getting participating contests for user {UserId}", userId);
             return null;
         }
+    }
+
+    public async Task<IReadOnlyList<ContestResponse>> GetUpcomingRegisteredWithAttemptsAsync(int userId, CancellationToken cancellationToken = default)
+    {
+        var contests = await _contestRepository.GetUpcomingRegisteredAsync(userId, DateTime.UtcNow, cancellationToken);
+        if (contests == null || contests.Count == 0)
+            return Array.Empty<ContestResponse>();
+
+        var eligible = contests
+            .Select(contest => new
+            {
+                Contest = contest,
+                Membership = contest.Memberships.FirstOrDefault(m => m.UserId == userId)
+            })
+            .Where(x => x.Membership != null && HasRemainingAttempts(x.Contest, x.Membership!))
+            .Select(x => ContestResponse.FromEntity(x.Contest))
+            .ToList();
+
+        return eligible;
     }
 
     public async Task<ContestMembersResult> GetMembersPageAsync(int contestId, int pageSize, int pageNumber, CancellationToken cancellationToken = default)
@@ -868,6 +890,15 @@ public class ContestService : IContestService
     {
         var membership = await _contestRepository.GetMembershipAsync(contestId, userId, cancellationToken);
         return membership != null;
+    }
+
+    private static bool HasRemainingAttempts(DbContest contest, DbContestMembership membership)
+    {
+        if (!contest.MaxAttempts.HasValue)
+            return true;
+
+        var attemptsUsed = membership.Attempts?.Count ?? 0;
+        return attemptsUsed < contest.MaxAttempts.Value;
     }
 
     private sealed record ContestScheduleData(

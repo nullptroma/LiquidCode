@@ -168,6 +168,35 @@ internal static class TestClientHelper
         return mission.Id;
     }
 
+    /// <summary>
+    /// Inserts an article directly into the database for the specified author
+    /// </summary>
+    public static async Task<int> CreateArticleInDatabaseAsync(IntegrationTestFixture fixture, int authorId, string? name = null, string? content = null)
+    {
+        using var scope = fixture.Factory.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<LiquidDbContext>();
+        var author = await context.Users.FindAsync(authorId);
+        if (author is null)
+            throw new InvalidOperationException($"User not found: {authorId}");
+
+        var articleName = name ?? TestDataGenerator.UniqueArticleName();
+        var articleContent = content ?? TestDataGenerator.ArticleContent(articleName);
+
+        var article = new DbArticle
+        {
+            Author = author,
+            Name = articleName,
+            Content = articleContent,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        await context.Articles.AddAsync(article, CancellationToken);
+        await context.SaveChangesAsync(CancellationToken);
+
+        return article.Id;
+    }
+
     // Private helper methods
 
     private static async Task<T> EnsureSuccessAndReadAsync<T>(HttpResponseMessage response) where T : class

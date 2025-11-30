@@ -284,4 +284,18 @@ public class ContestsController(IContestService contestService, ISubmitService s
         var isRegistered = await contestService.IsUserRegisteredAsync(contestId, userId, cancellationToken);
         return Ok(new { isRegistered });
     }
+
+    /// <summary>
+    /// Возвращает предстоящие контесты, где пользователь зарегистрирован и еще может начинать попытки
+    /// </summary>
+    [Authorize]
+    [HttpGet("upcoming/eligible")]
+    public async Task<IActionResult> ListUpcomingEligibleContests(CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out var userId))
+            return Unauthorized("User ID not found in claims.");
+
+        var contests = await contestService.GetUpcomingRegisteredWithAttemptsAsync(userId, cancellationToken);
+        return Ok(contests);
+    }
 }

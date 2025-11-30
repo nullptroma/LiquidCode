@@ -50,6 +50,8 @@ public interface IContestRepository : IRepository<DbContest>
     Task UpdateAttemptAsync(DbContestAttempt attempt, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<DbContestAttempt>> GetUserAttemptsAsync(int contestId, int userId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<DbContestAttemptMissionResult>> GetAttemptResultsAsync(int attemptId, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<DbContest>> GetUpcomingRegisteredAsync(int userId, DateTime asOf, CancellationToken cancellationToken = default);
 }
 
 public record ContestMembershipOptions(
