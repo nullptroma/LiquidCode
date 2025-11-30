@@ -448,6 +448,99 @@ public class ContestsControllerTests
     }
 
     [Fact]
+    public async Task ListMyAttempts_ReturnsAllUserAttempts()
+    {
+        var owner = await TestClientHelper.CreateAuthenticatedUserAsync(_fixture, "contest_my_attempts_owner");
+        var participant = await TestClientHelper.CreateAuthenticatedUserAsync(_fixture, "contest_my_attempts_user");
+        var now = DateTime.UtcNow;
+
+        var (contestA, _) = await CreateContestAsync(
+            owner,
+            ContestScheduleType.FixedWindow,
+            ContestVisibility.Public,
+            now.AddMinutes(-10),
+            now.AddHours(1),
+            attemptDurationMinutes: 30,
+            maxAttempts: 2);
+
+        await participant.Client.PostAsJsonAsync($"contests/{contestA.Id}/members", new ContestMembershipRequest(null, null), Ct);
+        var startA = await participant.Client.PostAsync($"contests/{contestA.Id}/attempts", null, Ct);
+        Assert.Equal(HttpStatusCode.OK, startA.StatusCode);
+
+        var (contestB, _) = await CreateContestAsync(
+            owner,
+            ContestScheduleType.RollingWindow,
+            ContestVisibility.Public,
+            now.AddMinutes(-5),
+            now.AddHours(2),
+            attemptDurationMinutes: 45,
+            maxAttempts: 3);
+
+        await participant.Client.PostAsJsonAsync($"contests/{contestB.Id}/members", new ContestMembershipRequest(null, null), Ct);
+        var startB = await participant.Client.PostAsync($"contests/{contestB.Id}/attempts", null, Ct);
+        Assert.Equal(HttpStatusCode.OK, startB.StatusCode);
+
+        var response = await participant.Client.GetAsync("contests/attempts/my", Ct);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var attempts = await ReadAsync<List<ContestAttemptDetailsResponse>>(response);
+
+        Assert.True(attempts.Count >= 2);
+        Assert.Contains(attempts, a => a.AttemptIndex == 1 && a.Status == ContestAttemptStatus.Active);
+    }
+
+    [Fact]
+    public async Task GetMyActiveAttempt_ReturnsCurrentAttempt()
+    {
+        var owner = await TestClientHelper.CreateAuthenticatedUserAsync(_fixture, "contest_active_owner");
+        var participant = await TestClientHelper.CreateAuthenticatedUserAsync(_fixture, "contest_active_user");
+        var now = DateTime.UtcNow;
+
+        var (contest, _) = await CreateContestAsync(
+            owner,
+            ContestScheduleType.RollingWindow,
+            ContestVisibility.Public,
+            now.AddMinutes(-5),
+            now.AddHours(1),
+            attemptDurationMinutes: 40,
+            maxAttempts: 2);
+
+        await participant.Client.PostAsJsonAsync($"contests/{contest.Id}/members", new ContestMembershipRequest(null, null), Ct);
+
+        var startResponse = await participant.Client.PostAsync($"contests/{contest.Id}/attempts", null, Ct);
+        Assert.Equal(HttpStatusCode.OK, startResponse.StatusCode);
+        var startedAttempt = await ReadAsync<ContestAttemptResponse>(startResponse);
+
+        var response = await participant.Client.GetAsync($"contests/{contest.Id}/attempts/my/active", Ct);
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+        var activeAttempt = await ReadAsync<ContestAttemptResponse>(response);
+
+        Assert.Equal(startedAttempt.AttemptId, activeAttempt.AttemptId);
+        Assert.Equal(ContestAttemptStatus.Active, activeAttempt.Status);
+    }
+
+    [Fact]
+    public async Task GetMyActiveAttempt_ReturnsNotFoundWhenNone()
+    {
+        var owner = await TestClientHelper.CreateAuthenticatedUserAsync(_fixture, "contest_active_none_owner");
+        var participant = await TestClientHelper.CreateAuthenticatedUserAsync(_fixture, "contest_active_none_user");
+        var now = DateTime.UtcNow;
+
+        var (contest, _) = await CreateContestAsync(
+            owner,
+            ContestScheduleType.FixedWindow,
+            ContestVisibility.Public,
+            now.AddMinutes(-5),
+            now.AddHours(1),
+            attemptDurationMinutes: 30,
+            maxAttempts: 1);
+
+        await participant.Client.PostAsJsonAsync($"contests/{contest.Id}/members", new ContestMembershipRequest(null, null), Ct);
+
+        var response = await participant.Client.GetAsync($"contests/{contest.Id}/attempts/my/active", Ct);
+        Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
+    }
+
+    [Fact]
     public async Task ListEndpoints_MyAndParticipatingReturnExpectedSets()
     {
         var userA = await TestClientHelper.CreateAuthenticatedUserAsync(_fixture, "contest_list_me_a");

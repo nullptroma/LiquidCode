@@ -457,4 +457,16 @@ public class ContestRepository : IContestRepository
 
         return await query.ToListAsync(cancellationToken);
     }
+
+    public async Task<IReadOnlyList<DbContestAttempt>> GetAttemptsByUserAsync(int userId, CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.ContestAttempts
+            .Include(a => a.Contest)
+                .ThenInclude(c => c.Missions)
+            .Include(a => a.MissionResults)
+                .ThenInclude(r => r.Mission)
+            .Where(a => a.UserId == userId)
+            .OrderByDescending(a => a.StartedAt)
+            .ToListAsync(cancellationToken);
+    }
 }

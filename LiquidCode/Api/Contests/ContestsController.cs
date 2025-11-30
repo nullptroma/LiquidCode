@@ -298,4 +298,35 @@ public class ContestsController(IContestService contestService, ISubmitService s
         var contests = await contestService.GetUpcomingRegisteredWithAttemptsAsync(userId, cancellationToken);
         return Ok(contests);
     }
+
+    /// <summary>
+    /// Возвращает все попытки текущего пользователя во всех контестах
+    /// </summary>
+    [Authorize]
+    [HttpGet("attempts/my")]
+    public async Task<IActionResult> ListMyAttempts(CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out var userId))
+            return Unauthorized("User ID not found in claims.");
+
+        var attempts = await contestService.GetAllUserAttemptsAsync(userId, cancellationToken);
+        return Ok(attempts);
+    }
+
+    /// <summary>
+    /// Возвращает активную попытку текущего пользователя в конкретном контесте
+    /// </summary>
+    [Authorize]
+    [HttpGet("{contestId:int}/attempts/my/active")]
+    public async Task<IActionResult> GetMyActiveAttempt([FromRoute] int contestId, CancellationToken cancellationToken)
+    {
+        if (!User.TryGetUserId(out var userId))
+            return Unauthorized("User ID not found in claims.");
+
+        var attempt = await contestService.GetActiveAttemptAsync(contestId, userId, cancellationToken);
+        if (attempt == null)
+            return NotFound("Active attempt not found.");
+
+        return Ok(attempt);
+    }
 }

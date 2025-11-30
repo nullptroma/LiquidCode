@@ -25,6 +25,8 @@ public interface IContestService
     Task<ContestAttemptResponse?> StartAttemptAsync(int contestId, int userId, CancellationToken cancellationToken = default);
     Task<bool> IsUserRegisteredAsync(int contestId, int userId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ContestResponse>> GetUpcomingRegisteredWithAttemptsAsync(int userId, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ContestAttemptDetailsResponse>> GetAllUserAttemptsAsync(int userId, CancellationToken cancellationToken = default);
+    Task<ContestAttemptResponse?> GetActiveAttemptAsync(int contestId, int userId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>

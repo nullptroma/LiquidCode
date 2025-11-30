@@ -302,6 +302,70 @@ public class ContestService : IContestService
         return eligible;
     }
 
+    public async Task<IReadOnlyList<ContestAttemptDetailsResponse>> GetAllUserAttemptsAsync(int userId, CancellationToken cancellationToken = default)
+    {
+        var attempts = await _contestRepository.GetAttemptsByUserAsync(userId, cancellationToken);
+        if (attempts == null || attempts.Count == 0)
+            return Array.Empty<ContestAttemptDetailsResponse>();
+
+        var result = attempts.Select(attempt =>
+        {
+            var contest = attempt.Contest;
+            var missionOrder = contest?.Missions.ToDictionary(cm => cm.MissionId, cm => cm.SortOrder) ?? new Dictionary<int,int>();
+
+            var missionResults = attempt.MissionResults
+                .OrderBy(r => missionOrder.TryGetValue(r.MissionId, out var so) ? so : int.MaxValue)
+                .ThenBy(r => r.MissionId)
+                .Select(r => new ContestAttemptMissionResultResponse(
+                    r.MissionId,
+                    r.Mission?.Name ?? $"Mission {r.MissionId}",
+                    r.SolvedAt,
+                    r.FirstAcceptedAt.HasValue,
+                    r.HighestScore,
+                    r.SubmissionCount,
+                    r.Penalty,
+                    r.FirstAcceptedAt,
+                    r.LastSubmissionAt,
+                    r.BestSubmissionId))
+                .ToList();
+
+            return new ContestAttemptDetailsResponse(
+                attempt.Id,
+                attempt.AttemptIndex,
+                attempt.Status,
+                attempt.FinishedBy,
+                contest?.ScheduleType ?? ContestScheduleType.FixedWindow,
+                attempt.StartedAt,
+                attempt.ExpiresAt,
+                attempt.FinishedAt,
+                attempt.TotalScore,
+                attempt.SolvedCount,
+                missionResults);
+        }).ToList();
+
+        return result;
+    }
+
+    public async Task<ContestAttemptResponse?> GetActiveAttemptAsync(int contestId, int userId, CancellationToken cancellationToken = default)
+    {
+        var contest = await _contestRepository.FindWithDetailsAsync(contestId, cancellationToken);
+        if (contest == null || contest.IsDeleted)
+            return null;
+
+        var membership = contest.Memberships.FirstOrDefault(m => m.UserId == userId);
+        if (membership == null)
+            return null;
+
+        var attempt = membership.ActiveAttempt;
+        if (attempt == null || attempt.Status != ContestAttemptStatus.Active)
+            return null;
+
+        if (attempt.ExpiresAt.HasValue && DateTime.UtcNow > attempt.ExpiresAt.Value)
+            return null;
+
+        return ToAttemptResponse(attempt, contest.ScheduleType);
+    }
+
     public async Task<ContestMembersResult> GetMembersPageAsync(int contestId, int pageSize, int pageNumber, CancellationToken cancellationToken = default)
     {
         if (pageSize <= 0 || pageNumber < 0)
