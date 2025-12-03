@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using LiquidCode.Api.Submits.Responses;
 using LiquidCode.Infrastructure.Database.Entities;
 
 namespace LiquidCode.Api.Contests.Responses;
@@ -18,6 +19,7 @@ namespace LiquidCode.Api.Contests.Responses;
 /// <param name="TotalScore">Общий набранный балл</param>
 /// <param name="SolvedCount">Количество решенных задач</param>
 /// <param name="MissionResults">Результаты по каждой миссии в рамках этой попытки</param>
+/// <param name="Submissions">Все посылки пользователя, выполненные в рамках этой попытки</param>
 public record ContestAttemptDetailsResponse(
     int AttemptId,
     int AttemptIndex,
@@ -29,5 +31,6 @@ public record ContestAttemptDetailsResponse(
     DateTime? FinishedAt,
     decimal TotalScore,
     int SolvedCount,
-    IReadOnlyList<ContestAttemptMissionResultResponse> MissionResults
+    IReadOnlyList<ContestAttemptMissionResultResponse> MissionResults,
+    IReadOnlyList<SubmissionResponse> Submissions
 );

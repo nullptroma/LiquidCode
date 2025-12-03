@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using LiquidCode.Api.Contests.Requests;
 using LiquidCode.Api.Contests.Responses;
+using LiquidCode.Api.Submits.Responses;
 using LiquidCode.Domain.Interfaces.Repositories;
 using LiquidCode.Domain.Interfaces.Services;
 using LiquidCode.Infrastructure.Database.Entities;
@@ -329,6 +330,11 @@ public class ContestService : IContestService
                     r.BestSubmissionId))
                 .ToList();
 
+            var submissions = attempt.Submissions
+                .OrderBy(s => s.CreatedAt)
+                .Select(SubmissionResponse.FromEntity)
+                .ToList();
+
             return new ContestAttemptDetailsResponse(
                 attempt.Id,
                 attempt.AttemptIndex,
@@ -340,7 +346,8 @@ public class ContestService : IContestService
                 attempt.FinishedAt,
                 attempt.TotalScore,
                 attempt.SolvedCount,
-                missionResults);
+                missionResults,
+                submissions);
         }).ToList();
 
         return result;
@@ -363,7 +370,7 @@ public class ContestService : IContestService
         if (attempt.ExpiresAt.HasValue && DateTime.UtcNow > attempt.ExpiresAt.Value)
             return null;
 
-        return ToAttemptResponse(attempt, contest.ScheduleType);
+        return ToAttemptResponse(attempt, contest);
     }
 
     public async Task<ContestMembersResult> GetMembersPageAsync(int contestId, int pageSize, int pageNumber, CancellationToken cancellationToken = default)
@@ -435,6 +442,11 @@ public class ContestService : IContestService
                             result.BestSubmissionId))
                         .ToList();
 
+                    var submissions = attempt.Submissions
+                        .OrderBy(s => s.CreatedAt)
+                        .Select(SubmissionResponse.FromEntity)
+                        .ToList();
+
                     return new ContestAttemptDetailsResponse(
                         attempt.Id,
                         attempt.AttemptIndex,
@@ -446,7 +458,8 @@ public class ContestService : IContestService
                         attempt.FinishedAt,
                         attempt.TotalScore,
                         attempt.SolvedCount,
-                        missionResults);
+                        missionResults,
+                        submissions);
                 })
                 .ToList();
 
@@ -632,7 +645,7 @@ public class ContestService : IContestService
             }
             else
             {
-                return ToAttemptResponse(activeAttempt, contest.ScheduleType);
+                return ToAttemptResponse(activeAttempt, contest);
             }
         }
 
@@ -674,7 +687,43 @@ public class ContestService : IContestService
 
         await _contestRepository.SaveChangesAsync(cancellationToken);
 
-        return ToAttemptResponse(attempt, contest.ScheduleType);
+        await InitializeMissionResultsAsync(attempt, missions, cancellationToken);
+
+        return ToAttemptResponse(attempt, contest);
+    }
+
+    private async Task InitializeMissionResultsAsync(
+        DbContestAttempt attempt,
+        ICollection<DbContestMission> missions,
+        CancellationToken cancellationToken)
+    {
+        if (missions == null || missions.Count == 0)
+            return;
+
+        var missionResults = missions
+            .Where(cm => cm.MissionId > 0)
+            .Select(cm => new DbContestAttemptMissionResult
+            {
+                ContestAttemptId = attempt.Id,
+                ContestAttempt = attempt,
+                MissionId = cm.MissionId,
+                Mission = cm.Mission,
+                SubmissionCount = 0,
+                HighestScore = 0,
+                Penalty = 0,
+                BestSubmissionId = null
+            })
+            .ToList();
+
+        if (missionResults.Count == 0)
+            return;
+
+        foreach (var result in missionResults)
+        {
+            attempt.MissionResults.Add(result);
+        }
+
+        await _contestRepository.AddAttemptMissionResultsAsync(missionResults, cancellationToken);
     }
 
     private async Task SyncLineupAsync(DbContest contest, IEnumerable<int>? missionIds, IEnumerable<int>? articleIds, CancellationToken cancellationToken)
@@ -936,19 +985,20 @@ public class ContestService : IContestService
         }
     }
 
-    private static ContestAttemptResponse ToAttemptResponse(DbContestAttempt attempt, ContestScheduleType scheduleType) =>
+    private static ContestAttemptResponse ToAttemptResponse(DbContestAttempt attempt, DbContest contest) =>
         new(
             attempt.Id,
             attempt.ContestId,
             attempt.UserId,
             attempt.AttemptIndex,
             attempt.Status,
-            scheduleType,
+            contest.ScheduleType,
             attempt.StartedAt,
             attempt.ExpiresAt,
             attempt.FinishedAt,
             attempt.TotalScore,
-            attempt.SolvedCount);
+            attempt.SolvedCount,
+            ContestResponse.FromEntity(contest));
 
     public async Task<bool> IsUserRegisteredAsync(int contestId, int userId, CancellationToken cancellationToken = default)
     {

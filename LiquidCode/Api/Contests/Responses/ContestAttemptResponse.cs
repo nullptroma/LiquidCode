@@ -17,6 +17,7 @@ namespace LiquidCode.Api.Contests.Responses;
 /// <param name="FinishedAt">Дата и время завершения попытки</param>
 /// <param name="TotalScore">Общий набранный балл</param>
 /// <param name="SolvedCount">Количество решенных задач</param>
+/// <param name="Contest">Контест, к которому относится попытка</param>
 public record ContestAttemptResponse(
     int AttemptId,
     int ContestId,
@@ -28,5 +29,6 @@ public record ContestAttemptResponse(
     DateTime? ExpiresAt,
     DateTime? FinishedAt,
     decimal TotalScore,
-    int SolvedCount
+    int SolvedCount,
+    ContestResponse Contest
 );

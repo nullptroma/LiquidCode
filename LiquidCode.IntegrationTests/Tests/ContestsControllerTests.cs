@@ -646,6 +646,8 @@ public class ContestsControllerTests
         Assert.Equal(1, attemptDetails.SolvedCount);
         Assert.Single(attemptDetails.MissionResults);
         Assert.Equal(missionIds[0], attemptDetails.MissionResults[0].MissionId);
+        Assert.Single(attemptDetails.Submissions);
+        Assert.Equal(missionIds[0], attemptDetails.Submissions[0].Solution.MissionId);
     }
 
     private async Task<(ContestResponse Contest, IReadOnlyList<int> MissionIds)> CreateContestAsync(
@@ -745,7 +747,10 @@ public class ContestsControllerTests
         await using var scope = _fixture.Factory.Services.CreateAsyncScope();
         var context = scope.ServiceProvider.GetRequiredService<LiquidDbContext>();
         var attempt = await context.ContestAttempts
+            .Include(a => a.Contest)
+            .Include(a => a.User)
             .Include(a => a.MissionResults)
+            .Include(a => a.Submissions)
             .FirstAsync(a => a.Id == attemptId, Ct);
         var mission = await context.Missions.FindAsync(new object?[] { missionId }, Ct) ?? throw new InvalidOperationException("Mission not found");
 
@@ -755,23 +760,61 @@ public class ContestsControllerTests
         attempt.TotalScore = 100;
         attempt.SolvedCount = 1;
 
-        var result = new DbContestAttemptMissionResult
+        var result = attempt.MissionResults.FirstOrDefault(r => r.MissionId == mission.Id);
+        if (result == null)
         {
-            ContestAttempt = attempt,
-            ContestAttemptId = attempt.Id,
-            Mission = mission,
-            MissionId = mission.Id,
-            SolvedAt = attempt.FinishedAt,
-            SubmissionCount = 2,
-            HighestScore = 100,
-            Penalty = 0,
-            FirstAcceptedAt = attempt.FinishedAt,
-            LastSubmissionAt = attempt.FinishedAt,
-            BestSubmissionId = null
-        };
+            result = new DbContestAttemptMissionResult
+            {
+                ContestAttempt = attempt,
+                ContestAttemptId = attempt.Id,
+                Mission = mission,
+                MissionId = mission.Id
+            };
+            attempt.MissionResults.Add(result);
+            await context.ContestAttemptMissionResults.AddAsync(result, Ct);
+        }
 
-        attempt.MissionResults.Add(result);
-        await context.ContestAttemptMissionResults.AddAsync(result, Ct);
+        result.SolvedAt = attempt.FinishedAt;
+        result.SubmissionCount = 2;
+        result.HighestScore = 100;
+        result.Penalty = 0;
+        result.FirstAcceptedAt = attempt.FinishedAt;
+        result.LastSubmissionAt = attempt.FinishedAt;
+        result.BestSubmissionId = null;
+
+        if (!attempt.Submissions.Any())
+        {
+            var solution = new DbSolution
+            {
+                Mission = mission,
+                Language = "csharp",
+                LanguageVersion = "12",
+                SourceCode = "class Solution {}",
+                Status = "Accepted",
+                TestingState = TesterState.Done,
+                TestingErrorCode = TesterErrorCode.None,
+                TestingMessage = null,
+                CurrentTest = 0,
+                AmountOfTests = 0,
+                Time = attempt.FinishedAt ?? DateTime.UtcNow
+            };
+
+            var submission = new DbUserSubmission
+            {
+                User = attempt.User,
+                Solution = solution,
+                ContestId = attempt.ContestId,
+                Contest = attempt.Contest,
+                ContestAttemptId = attempt.Id,
+                ContestAttempt = attempt,
+                SourceType = SubmissionSourceType.Contest
+            };
+
+            attempt.Submissions.Add(submission);
+            await context.Solutions.AddAsync(solution, Ct);
+            await context.UserSubmits.AddAsync(submission, Ct);
+        }
+
         await context.SaveChangesAsync(Ct);
     }
 }

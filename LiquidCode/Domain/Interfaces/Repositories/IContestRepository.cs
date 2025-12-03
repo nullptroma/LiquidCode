@@ -46,6 +46,9 @@ public interface IContestRepository : IRepository<DbContest>
     Task RemoveMembershipAsync(int contestId, int userId, CancellationToken cancellationToken = default);
     Task<DbContestMembership?> GetMembershipAsync(int contestId, int userId, CancellationToken cancellationToken = default);
     Task<DbContestAttempt?> FindActiveAttemptAsync(int contestId, int userId, CancellationToken cancellationToken = default);
+    Task<DbContestAttempt?> FindAttemptWithDetailsAsync(int attemptId, CancellationToken cancellationToken = default);
+    Task AddAttemptMissionResultsAsync(IEnumerable<DbContestAttemptMissionResult> results, CancellationToken cancellationToken = default);
+    Task<DbContestAttemptMissionResult?> GetMissionResultAsync(int attemptId, int missionId, CancellationToken cancellationToken = default);
     Task AddAttemptAsync(DbContestAttempt attempt, CancellationToken cancellationToken = default);
     Task UpdateAttemptAsync(DbContestAttempt attempt, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<DbContestAttempt>> GetUserAttemptsAsync(int contestId, int userId, CancellationToken cancellationToken = default);

@@ -14,8 +14,8 @@ public class SubmitSolutionRequestValidator : AbstractValidator<SubmitSolutionRe
         RuleFor(x => x.MissionId)
             .PositiveId("Mission ID");
 
-        RuleFor(x => x.ContestId)
-            .OptionalPositiveId("Contest ID");
+        RuleFor(x => x.ContestAttemptId)
+            .OptionalPositiveId("Contest attempt ID");
 
         RuleFor(x => x.Language)
             .RequiredText("Programming language", ValidationLengths.Solution.Language);

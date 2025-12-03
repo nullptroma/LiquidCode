@@ -55,7 +55,7 @@ public class SubmitController(
             request.SourceCode,
             request.Language,
             request.LanguageVersion,
-            request.ContestId,
+            request.ContestAttemptId,
             cancellationToken);
 
         if (solution == null)

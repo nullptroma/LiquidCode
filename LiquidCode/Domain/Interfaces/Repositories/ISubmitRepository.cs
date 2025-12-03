@@ -34,6 +34,11 @@ public interface ISubmitRepository : IRepository<DbUserSubmission>
     Task<DbSolution?> GetSolutionAsync(int submissionId, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Получает отправку по идентификатору решения с загруженной попыткой контеста
+    /// </summary>
+    Task<DbUserSubmission?> GetSubmissionBySolutionIdAsync(int solutionId, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Добавляет решение
     /// </summary>
     Task AddSolutionAsync(DbSolution solution, CancellationToken cancellationToken = default);

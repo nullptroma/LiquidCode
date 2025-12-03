@@ -61,7 +61,7 @@ public class SubmitRepository : ISubmitRepository
             .Include(s => s.Solution)
                 .ThenInclude(sol => sol.Mission)
             .Include(s => s.Contest)
-            .Where(s => s.Solution!.Mission.Id == missionId)
+            .Where(s => s.Solution.Mission.Id == missionId)
             .OrderByDescending(s => s.Solution!.Time)
             .ToListAsync(cancellationToken);
 
@@ -87,6 +87,14 @@ public class SubmitRepository : ISubmitRepository
         await _dbContext.Solutions
             .Include(s => s.Mission)
             .FirstOrDefaultAsync(s => s.Id == solutionId, cancellationToken);
+
+    public async Task<DbUserSubmission?> GetSubmissionBySolutionIdAsync(int solutionId, CancellationToken cancellationToken = default) =>
+        await _dbContext.UserSubmits
+            .Include(s => s.Solution)
+                .ThenInclude(sol => sol.Mission)
+            .Include(s => s.ContestAttempt)
+                .ThenInclude(a => a!.MissionResults)
+            .FirstOrDefaultAsync(s => s.Solution.Id == solutionId, cancellationToken);
 
     public async Task AddSolutionAsync(DbSolution solution, CancellationToken cancellationToken = default) =>
         await _dbContext.Solutions.AddAsync(solution, cancellationToken);

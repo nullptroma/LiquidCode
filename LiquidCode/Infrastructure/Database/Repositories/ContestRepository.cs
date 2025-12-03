@@ -399,6 +399,31 @@ public class ContestRepository : IContestRepository
             .Include(a => a.MissionResults)
             .FirstOrDefaultAsync(a => a.ContestId == contestId && a.UserId == userId && a.Status == ContestAttemptStatus.Active, cancellationToken);
 
+    public async Task<DbContestAttempt?> FindAttemptWithDetailsAsync(int attemptId, CancellationToken cancellationToken = default) =>
+        await _dbContext.ContestAttempts
+            .Include(a => a.Contest)
+                .ThenInclude(c => c.Missions)
+                    .ThenInclude(cm => cm.Mission)
+            .Include(a => a.Membership)
+            .Include(a => a.MissionResults)
+                .ThenInclude(r => r.Mission)
+            .FirstOrDefaultAsync(a => a.Id == attemptId, cancellationToken);
+
+    public async Task AddAttemptMissionResultsAsync(IEnumerable<DbContestAttemptMissionResult> results, CancellationToken cancellationToken = default)
+    {
+        var list = results?.ToList() ?? new List<DbContestAttemptMissionResult>();
+        if (list.Count == 0)
+            return;
+
+        await _dbContext.ContestAttemptMissionResults.AddRangeAsync(list, cancellationToken);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+    }
+
+    public Task<DbContestAttemptMissionResult?> GetMissionResultAsync(int attemptId, int missionId, CancellationToken cancellationToken = default) =>
+        _dbContext.ContestAttemptMissionResults
+            .Include(r => r.Mission)
+            .FirstOrDefaultAsync(r => r.ContestAttemptId == attemptId && r.MissionId == missionId, cancellationToken);
+
     public async Task AddAttemptAsync(DbContestAttempt attempt, CancellationToken cancellationToken = default)
     {
         await _dbContext.ContestAttempts.AddAsync(attempt, cancellationToken);
@@ -415,6 +440,13 @@ public class ContestRepository : IContestRepository
         await _dbContext.ContestAttempts
             .Include(a => a.MissionResults)
                 .ThenInclude(r => r.Mission)
+            .Include(a => a.Submissions)
+                .ThenInclude(s => s.Solution)
+                    .ThenInclude(sol => sol.Mission)
+            .Include(a => a.Submissions)
+                .ThenInclude(s => s.User)
+            .Include(a => a.Submissions)
+                .ThenInclude(s => s.Contest)
             .Where(a => a.ContestId == contestId && a.UserId == userId)
             .OrderByDescending(a => a.StartedAt)
             .ToListAsync(cancellationToken);
@@ -465,6 +497,13 @@ public class ContestRepository : IContestRepository
                 .ThenInclude(c => c.Missions)
             .Include(a => a.MissionResults)
                 .ThenInclude(r => r.Mission)
+            .Include(a => a.Submissions)
+                .ThenInclude(s => s.Solution)
+                    .ThenInclude(sol => sol.Mission)
+            .Include(a => a.Submissions)
+                .ThenInclude(s => s.User)
+            .Include(a => a.Submissions)
+                .ThenInclude(s => s.Contest)
             .Where(a => a.UserId == userId)
             .OrderByDescending(a => a.StartedAt)
             .ToListAsync(cancellationToken);
