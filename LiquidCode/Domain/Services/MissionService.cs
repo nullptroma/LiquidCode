@@ -77,6 +77,26 @@ public class MissionService : IMissionService
                 await form.MissionFile.CopyToAsync(fileStream, cancellationToken);
             }
 
+            // Извлечь метаданные миссии из архива
+            var metadata = _archiveProcessor.ExtractMetadata(packageZipPath);
+            if (string.IsNullOrWhiteSpace(metadata.Name))
+            {
+                _logger.LogWarning("Mission name was not found in problem.xml");
+                return null;
+            }
+
+            IEnumerable<string> effectiveTags;
+            if (form.Tags == null)
+            {
+                // null => использовать теги из архива
+                effectiveTags = metadata.Tags;
+            }
+            else
+            {
+                // [] => не добавлять теги; [..] => использовать только переданные
+                effectiveTags = form.Tags;
+            }
+
             // Загрузить на S3
             _logger.LogInformation("Uploading mission files to S3");
             var privateKey = await _s3Client.UploadFileWithRandomKey(S3BucketKeys.PrivateProblems, packageZipPath);
@@ -87,7 +107,7 @@ public class MissionService : IMissionService
             var dbMission = new DbMission
             {
                 Author = existingUser,
-                Name = form.Name,
+                Name = metadata.Name,
                 S3Key = privateKey,
                 Difficulty = form.Difficulty,
                 TimeLimitMilliseconds = executionLimits.TimeLimitMilliseconds,
@@ -99,7 +119,7 @@ public class MissionService : IMissionService
             await _missionRepository.CreateAsync(dbMission, cancellationToken);
 
             // Обработать теги
-            await SyncMissionTagsAsync(dbMission, form.Tags, cancellationToken);
+            await SyncMissionTagsAsync(dbMission, effectiveTags, cancellationToken);
 
             // Обработать statements и медиа файлы
             await ProcessMissionStatementsAsync(dbMission, packageZipPath, cancellationToken);

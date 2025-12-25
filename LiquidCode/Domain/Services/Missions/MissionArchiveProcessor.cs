@@ -140,6 +140,84 @@ public class MissionArchiveProcessor
         }
     }
 
+    public MissionArchiveMetadata ExtractMetadata(string zipFilePath)
+    {
+        try
+        {
+            using var zipArchive = ZipFile.OpenRead(zipFilePath);
+
+            var missionName = ExtractNameFromProblemXml(zipArchive);
+            var tags = ExtractTags(zipArchive);
+
+            return new MissionArchiveMetadata(missionName, tags);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to extract mission metadata from archive");
+            return MissionArchiveMetadata.Empty;
+        }
+    }
+
+    private string? ExtractNameFromProblemXml(ZipArchive zipArchive)
+    {
+        var problemEntry = zipArchive.Entries
+            .FirstOrDefault(e => string.Equals(e.Name, "problem.xml", StringComparison.OrdinalIgnoreCase));
+
+        if (problemEntry == null)
+        {
+            return null;
+        }
+
+        try
+        {
+            using var stream = problemEntry.Open();
+            var document = XDocument.Load(stream);
+
+            var name = document
+                .Descendants("name")
+                .Select(x => x.Attribute("value")?.Value?.Trim())
+                .FirstOrDefault(v => !string.IsNullOrWhiteSpace(v));
+
+            return string.IsNullOrWhiteSpace(name) ? null : name;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to read mission name from problem.xml");
+            return null;
+        }
+    }
+
+    private IReadOnlyCollection<string> ExtractTags(ZipArchive zipArchive)
+    {
+        var tagsEntry = zipArchive.Entries
+            .FirstOrDefault(e => string.Equals(e.Name, "tags", StringComparison.OrdinalIgnoreCase));
+
+        if (tagsEntry == null)
+        {
+            return Array.Empty<string>();
+        }
+
+        try
+        {
+            using var reader = new StreamReader(tagsEntry.Open());
+            var content = reader.ReadToEnd();
+
+            var tags = content
+                .Split(new[] { '\r', '\n', ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(t => t.Trim())
+                .Where(t => !string.IsNullOrWhiteSpace(t))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            return tags;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to read tags file from archive");
+            return Array.Empty<string>();
+        }
+    }
+
     private static int? ParseToNullableInt(string? value)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -285,6 +363,11 @@ public class MissionArchiveProcessor
 public sealed record MissionExecutionLimits(int? TimeLimitMilliseconds, int? MemoryLimitBytes)
 {
     public static MissionExecutionLimits Empty { get; } = new(null, null);
+}
+
+public sealed record MissionArchiveMetadata(string? Name, IReadOnlyCollection<string> Tags)
+{
+    public static MissionArchiveMetadata Empty { get; } = new(null, Array.Empty<string>());
 }
 
 /// <summary>

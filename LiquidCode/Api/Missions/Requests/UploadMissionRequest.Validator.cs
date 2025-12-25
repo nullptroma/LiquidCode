@@ -1,7 +1,6 @@
 using FluentValidation;
 using LiquidCode.Api.Shared;
 using LiquidCode.Shared.Constants;
-using LiquidCode.Shared.Validation;
 
 namespace LiquidCode.Api.Missions.Requests;
 
@@ -60,11 +59,6 @@ public class UploadMissionRequestValidator : AbstractValidator<UploadMissionRequ
                         "File must have .zip extension");
                 }
             });
-
-        RuleFor(x => x.Name)
-            .RequiredText("Mission name", ValidationLengths.Mission.Name)
-            .Matches(@"^[a-zA-Z0-9\s\-_.()]+$")
-            .WithMessage("Mission name contains invalid characters");
 
         RuleFor(x => x.Difficulty)
             .GreaterThan(0)
